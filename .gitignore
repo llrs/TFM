@@ -7,3 +7,4 @@
 
 # ...even if they are in subdirectories
 !*/
+.Rproj.user
