@@ -1,4 +1,4 @@
-# Analyse data from article
+# Analyse data from article doi:10.1136/gutjnl-2011-301146
 
 # Load required libraries
 library("GEOquery", quietly = T)
