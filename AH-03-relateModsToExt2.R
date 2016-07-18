@@ -7,10 +7,10 @@
 
 # Display the current working directory
 getwd();
-# If necessary, change the path below to the directory where the data files are stored. 
+# If necessary, change the path below to the directory where the data files are stored.
 # "." means current directory. On Windows use a forward slash / instead of the usual \.
 workingDir = ".";
-setwd(workingDir); 
+setwd(workingDir);
 # Load the WGCNA package
 library(WGCNA)
 enableWGCNAThreads(6)
@@ -21,7 +21,7 @@ lnames = load(file = "Input.RData");
 #The variable lnames contains the names of loaded variables.
 lnames
 # Load network data saved in the second part.
-lnames = load(file = "TNF_AH-networkConstruction-auto.RData");
+lnames = load(file = "TNF_AH-network-auto.RData");
 lnames
 
 
@@ -143,7 +143,7 @@ names(data.wgcna)[moduleColors=="brown"]
 #
 #=====================================================================================
 
-# 
+#
 # annot = read.csv(file = "GeneAnnotation.csv");
 # dim(annot)
 # names(annot)
@@ -174,7 +174,7 @@ names(data.wgcna)[moduleColors=="brown"]
 # for (mod in 1:ncol(geneModuleMembership))
 # {
 #   oldNames = names(geneInfo0)
-#   geneInfo0 = data.frame(geneInfo0, geneModuleMembership[, modOrder[mod]], 
+#   geneInfo0 = data.frame(geneInfo0, geneModuleMembership[, modOrder[mod]],
 #                          MMPvalue[, modOrder[mod]]);
 #   names(geneInfo0) = c(oldNames, paste("MM.", modNames[modOrder[mod]], sep=""),
 #                        paste("p.MM.", modNames[modOrder[mod]], sep=""))
@@ -182,15 +182,15 @@ names(data.wgcna)[moduleColors=="brown"]
 # # Order the genes in the geneInfo variable first by module color, then by geneTraitSignificance
 # geneOrder = order(geneInfo0$moduleColor, -abs(geneInfo0$GS.weight));
 # geneInfo = geneInfo0[geneOrder, ]
-# 
-# 
+#
+#
 # #=====================================================================================
 # #
 # #  Code chunk 10
 # #
 # #=====================================================================================
-# 
-# 
+#
+#
 # write.csv(geneInfo, file = "geneInfo.csv")
 
 

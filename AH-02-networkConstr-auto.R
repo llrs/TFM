@@ -7,10 +7,10 @@
 
 # Display the current working directory
 getwd();
-# If necessary, change the path below to the directory where the data files are stored. 
+# If necessary, change the path below to the directory where the data files are stored.
 # "." means current directory. On Windows use a forward slash / instead of the usual \.
 workingDir = ".";
-setwd(workingDir); 
+setwd(workingDir);
 # Load the WGCNA package
 library(WGCNA)
 # The following setting is important, do not omit.
@@ -18,7 +18,7 @@ options(stringsAsFactors = FALSE);
 # Allow multi-threading within WGCNA. This helps speed up certain calculations.
 # At present this call is necessary for the code to work.
 # Any error here may be ignored but you may want to update WGCNA if you see one.
-# Caution: skip this line if you run RStudio or other third-party R environments. 
+# Caution: skip this line if you run RStudio or other third-party R environments.
 # See note above.
 enableWGCNAThreads(6)
 # Load the data saved in the first part
@@ -37,7 +37,8 @@ lnames
 # Choose a set of soft-thresholding powers
 powers = c(c(1:10), seq(from = 12, to=20, by=2))
 # Call the network topology analysis function
-sft = pickSoftThreshold(data.wgcna, powerVector = powers, verbose = 5)
+sft = pickSoftThreshold(data.wgcna, powerVector = powers, verbose = 5,
+                        networkType = "signed")
 # Plot the results:
 sizeGrWindow(9, 5)
 par(mfrow = c(1,2));
@@ -65,13 +66,14 @@ text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
 
 
 net = blockwiseModules(data.wgcna, power = sft$powerEstimate,
-                       TOMType = "unsigned", minModuleSize = 30,
-                       reassignThreshold = 0, mergeCutHeight = 0.25,
-                       numericLabels = TRUE, pamRespectsDendro = FALSE,
+                       TOMType = "signed", minModuleSize = 30,
+                       maxBlockSize = 8000, networkType = "signed",
+                       pamRespectsDendro = FALSE,
                        saveTOMs = TRUE,
-                       saveTOMFileBase = "AH_normal", 
+                       saveTOMFileBase = "AH_signed",
                        verbose = 3)
 
+save(net, file = "net.RData")
 
 #=====================================================================================
 #
@@ -83,7 +85,7 @@ net = blockwiseModules(data.wgcna, power = sft$powerEstimate,
 # open a graphics window
 sizeGrWindow(12, 9)
 # Convert labels to colors for plotting
-mergedColors = labels2colors(net$colors)
+mergedColors = net$colors
 # Plot the dendrogram and the module colors underneath
 plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
                     "Module colors of first dendrogram",
@@ -98,11 +100,8 @@ plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
 #=====================================================================================
 
 
-moduleLabels = net$colors
-moduleColors = labels2colors(net$colors)
+
+moduleColors = net$colors
 MEs = net$MEs;
 geneTree = net$dendrograms[[1]];
-save(MEs, moduleLabels, moduleColors, net$dendrograms, 
-     file = "TNF_AH-networkConstruction-auto.RData")
-
-
+save(MEs, moduleColors, net$dendrograms, file = "TNF_AH-network-auto.RData")
