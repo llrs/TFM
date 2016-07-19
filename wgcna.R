@@ -25,17 +25,16 @@ disease <- read.csv("clean_variables.csv")
 ids <- disease$id
 disease <- disease[, -c(1, 5, 6, 9, 42)]
 disease.r <- apply(disease, 2, as.numeric)
-disease.r[,"status_90"] <- as.factor(disease[,"status_90"])
-disease.r[,"gender"] <- as.factor(disease[,"gender"])
-disease.r[,"infection_hospitalization"] <- as.factor(disease[,"infection_hospitalization"])
-disease.r[,"aki"] <- as.factor(disease[,"aki"])
-disease.r[,"hvpg_corte20"] <- as.factor(disease[,"hvpg_corte20"])
-disease.r[,"lille_corte"] <- as.factor(disease[,"lille_corte"])
-disease.r[,"ch"] <- as.factor(disease[,"ch"])
+nam <- c("status_90", "gender", "infection_hospitalization", "aki", "hvpg_corte20",
+  "hvpg_corte20", "lille_corte", "ch")
+for (n in nam) {
+  disease.r[,n] <- as.factor(disease[,n])
+}
 disease <- disease.r
 disease <- disease[ids %in% samples, ]
 # data.wgcna <- t(exprs(info))
 
+pdf("dendro_traits.pdf")
 # Re-cluster samples
 sampleTree2 = hclust(dist(data.wgcna[samples %in% ids, ]), method = "average")
 # Convert traits to a color representation: white means low, red means high, grey means missing entry
@@ -44,9 +43,13 @@ traitColors = numbers2colors(disease, signed = FALSE);
 plotDendroAndColors(sampleTree2, traitColors,
                     groupLabels = colnames(disease),
                     main = "Sample dendrogram and trait heatmap")
+dev.off()
+pdf("dendro.pdf")
 
-
-
+ # Plot the sample dendrogram
+plotClusterTreeSamples(sampleTree2, 
+                    main = "Sample dendrogram and trait heatmap")
+dev,off()
 save(data.wgcna, disease, samples, ids, file = "Input.RData")
 
 

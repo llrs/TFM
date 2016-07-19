@@ -6,9 +6,12 @@
 
 pdfn <- function(...){
   # Close any device and open a pdfn with the same options
-  dev.off()
-  pdfnn(...)
+  if (length(dev.list()) > 1) {
+    dev.off()
+  }
+  pdf(...)
 }
+library("ggplot2")
 
 # Load the WGCNA package
 library(WGCNA)
@@ -35,38 +38,44 @@ lnames
 nGene <- ncol(data.wgcna) 
 nSamples <- length(ids) 
 # Recalculate MEs with color labels
-MEs0 <- moduleEigengenes(data.wgcna[samples %in% ids, ], moduleColors)
+# MEs0 <- moduleEigengenes(data.wgcna[samples %in% ids, ], moduleColors)
+# save(MEs0, file = "ME.RData")
+load("ME.RData")
 MEs <- orderMEs(MEs0$eigengenes)
 moduleTraitCor <- cor(MEs, disease, use = "p") 
 # Calculating the adjusted p-value
-moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
+# moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
 dim(moduleTraitPvalue) <- dim(moduleTraitCor)
 dimnames(moduleTraitPvalue) <- dimnames(moduleTraitCor)
-origPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
+moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
 # TODO: Correct the p-values for multiple testing using the cor.test
 # TODO: Calculate the statistical power
-
-result <- apply(MEs, 2, function(x){
-  apply(disease, 2, function(y){
-    cor.test(x, y, method = "pearson")
-  })
-})
-result3 <- sapply(result, function(x){
-  sapply(x, function(y){
-    y$p.value
-  })
-})
-result3 <- p.adjust(result3, "fdr")
-result3 <- t(result3)
-dim(result3) <- dim(moduleTraitCor)
-dimnames(result3) <- dimnames(moduleTraitCor)
-
-result4 <- sapply(result, function(x){
-  sapply(x, function(y){
-    y$estimate
-  })
-})
+# 
+# result <- apply(MEs, 2, function(x){
+#   apply(disease, 2, function(y){
+#     cor.test(x, y, method = "pearson")
+#   })
+# })
+# 
+# extract <- function(core, value = c("statistic", "parameter", "p.value", 
+#                                     "estimate", "null.value", 
+#                                      "alternative", "method", "data.name")) {
+#   # Extract the value of a correlation in a list of lists.
+#   a <- sapply(core, function(x){
+#     sapply(x, function(y){
+#       y$value
+#     })
+#   })
+#   t(a)
+# }
+# 
+# p.val.cor <- extract(result, "p.value")
+# adj.p.val.cor <- p.adjust(unlist(p.val.cor), "fdr")
+# dim(adj.p.val.cor) <- dim(moduleTraitCor)
+# dimnames(adj.p.val.cor) <- dimnames(moduleTraitCor)
+# 
+# result4 <- extract(result, "estimate")
 
 # ==============================================================================
 #
@@ -75,16 +84,19 @@ result4 <- sapply(result, function(x){
 # ==============================================================================
 
 
-pdfn(file = "variables_heatmap.pdfn", width = 10, height = 6, onefile = TRUE)
+pdfn(file = "variables_heatmap.pdf", width = 10, height = 6, onefile = TRUE)
 # Will display correlations and their p-values as text
 textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(", 
-                           signif(moduleTraitPvalue, 1), ")") 
+                           signif(moduleTraitPvalue, 2), ")") 
 dim(textMatrix) = dim(moduleTraitCor)
 par(mar = c(6, 8.5, 3, 3)) 
 
 # Coloring taking into account both the correlation value and the p-value
 coloring <- sapply(colnames(moduleTraitCor), function(x){
-  moduleTraitCor[, x]*max(moduleTraitPvalue[, x])})
+  moduleTraitCor[, x]/(1 + moduleTraitPvalue[, x])})
+# coloring <- apply(coloring, 2, function(x){
+  # 2*(x - min(x))/(max(x) - min(x)) - 1
+# })
 
 # Display the correlation values within a heatmap plot
 labeledHeatmap.multiPage(Matrix = coloring, 
@@ -93,12 +105,14 @@ labeledHeatmap.multiPage(Matrix = coloring,
                ySymbols = names(MEs), 
                colorLabels = FALSE, 
                colors = greenWhiteRed(50), 
-               # textMatrix = textMatrix, 
+               textMatrix = textMatrix,
                setStdMargins = FALSE, 
                cex.text = 0.5, 
-               zlim = c(-1, 1), 
-               main = paste("Module-trait relationships"))
+               addPageNumberToMain = FALSE, 
+               main = "Module-trait relationships")
 dev.off()
+
+save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
 # ==============================================================================
 #
@@ -126,8 +140,9 @@ names(MMPvalue) <- paste0("p.MM", modNames)
 
 geneTraitSignificance <- as.data.frame(
   cor(data.wgcna[samples %in% ids, ], 
-      disease[, "infection_hospitalization"], 
+      disease, 
       use = "p"))
+dim(geneTraitSignificance)
 GSPvalue <- as.data.frame(
   corPvalueStudent(as.matrix(geneTraitSignificance), nSamples)) 
 
@@ -146,15 +161,28 @@ module <- "blue"
 column <- match(module, modNames) 
 moduleGenes <- moduleColors == module 
 
-pdfn(file = "MM_GS_blue.pdfn", width = 7, height = 7) 
+pdfn(file = "MM_GS_blue.pdf", width = 7, height = 7) 
 par(mfrow = c(1, 1)) 
+
+data <- cbind("MM" = geneModuleMembership[moduleGenes, column],
+              "GS" = geneTraitSignificance[moduleGenes, column],
+              "GSP" = GSPvalue[moduleGenes, column],
+              "MMP" = MMPvalue[moduleGenes, column])
+head(data)
+
+g <- ggplot(as.data.frame(data), aes(MM, GS))
+g + geom_point(aes(colour = GSP, size = MMP)) + theme_bw()
+
+cor(data[,"MM"]/(data[,"MMP"]/sum(data[,"MMP"])), 
+    data[,"GS"]/(data[,"GSP"]/sum(data[,"GSP"])), 
+    use = 'pairwise.complete.obs')
+pdfn(file = "MM_GS_blue2.pdf", width = 7, height = 7) 
 verboseScatterplot(geneModuleMembership[moduleGenes, column], 
                    geneTraitSignificance[moduleGenes, 1], 
                    xlab = paste("Module Membership in", module, "module"), 
                    ylab = "Gene significance for infection_hospitalization", 
                    main = paste("Module membership vs. gene significance\n"), 
                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
-dev.off()
 
 # ==============================================================================
 #

@@ -5,9 +5,11 @@
 # ==============================================================================
 
 pdfn <- function(...){
-  # Close any device and open a pdf with the same options
-  dev.off()
-  pdfn(...)
+  # Close any device and open a pdfn with the same options
+  if (length(dev.list()) > 1) {
+    dev.off()
+  }
+  pdf(...)
 }
 
 library(WGCNA)
@@ -78,7 +80,7 @@ save(net, file = "net.RData")
 
 
 # open a graphics window
-pdfn(file = "dendro.pdfn", width = 12, height = 9)
+pdfn(file = "dendro.pdf", width = 12, height = 9)
 # Convert labels to colors for plotting
 mergedColors <- net$colors
 # Plot the dendrogram and the module colors underneath
