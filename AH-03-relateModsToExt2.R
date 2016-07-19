@@ -84,35 +84,35 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 # ==============================================================================
 
 
-pdfn(file = "variables_heatmap.pdf", width = 10, height = 6, onefile = TRUE)
+# pdfn(file = "variables_heatmap.pdf", width = 10, height = 6, onefile = TRUE)
 # Will display correlations and their p-values as text
-textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(", 
-                           signif(moduleTraitPvalue, 2), ")") 
-dim(textMatrix) = dim(moduleTraitCor)
-par(mar = c(6, 8.5, 3, 3)) 
+# textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(", 
+                           # signif(moduleTraitPvalue, 2), ")") 
+# dim(textMatrix) = dim(moduleTraitCor)
+# par(mar = c(6, 8.5, 3, 3)) 
 
 # Coloring taking into account both the correlation value and the p-value
-coloring <- sapply(colnames(moduleTraitCor), function(x){
-  moduleTraitCor[, x]/(1 + moduleTraitPvalue[, x])})
+# coloring <- sapply(colnames(moduleTraitCor), function(x){
+#   moduleTraitCor[, x]/(1 + moduleTraitPvalue[, x])})
 # coloring <- apply(coloring, 2, function(x){
   # 2*(x - min(x))/(max(x) - min(x)) - 1
 # })
 
 # Display the correlation values within a heatmap plot
-labeledHeatmap.multiPage(Matrix = coloring, 
-               xLabels = colnames(disease), 
-               yLabels = names(MEs), 
-               ySymbols = names(MEs), 
-               colorLabels = FALSE, 
-               colors = greenWhiteRed(50), 
-               textMatrix = textMatrix,
-               setStdMargins = FALSE, 
-               cex.text = 0.5, 
-               addPageNumberToMain = FALSE, 
-               main = "Module-trait relationships")
-dev.off()
+# labeledHeatmap.multiPage(Matrix = coloring, 
+#                xLabels = colnames(disease), 
+#                yLabels = names(MEs), 
+#                ySymbols = names(MEs), 
+#                colorLabels = FALSE, 
+#                colors = greenWhiteRed(50), 
+#                textMatrix = textMatrix,
+#                setStdMargins = FALSE, 
+#                cex.text = 0.5, 
+#                addPageNumberToMain = FALSE, 
+#                main = "Module-trait relationships")
+# dev.off()
 
-save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
+# save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
 # ==============================================================================
 #
@@ -142,12 +142,11 @@ geneTraitSignificance <- as.data.frame(
   cor(data.wgcna[samples %in% ids, ], 
       disease, 
       use = "p"))
-dim(geneTraitSignificance)
 GSPvalue <- as.data.frame(
   corPvalueStudent(as.matrix(geneTraitSignificance), nSamples)) 
 
-names(geneTraitSignificance) <- paste("GS.", names(disease)) 
-names(GSPvalue) <- paste("p.GS.", names(disease)) 
+names(geneTraitSignificance) <- paste("GS.", colnames(disease)) 
+names(GSPvalue) <- paste("p.GS.", colnames(disease)) 
 
 
 # ==============================================================================
@@ -157,30 +156,35 @@ names(GSPvalue) <- paste("p.GS.", names(disease))
 # ==============================================================================
 
 
-module <- "blue"
+module <- "plum"
 column <- match(module, modNames) 
 moduleGenes <- moduleColors == module 
+var <- "hvpg"
+varc <- match(var, colnames(disease))
+# pdfn(file = "MM_GS_blue.pdf", width = 7, height = 7) 
+# par(mfrow = c(1, 1)) 
+# 
+# data <- cbind("MM" = geneModuleMembership[moduleGenes, column],
+#               "GS" = geneTraitSignificance[moduleGenes, column],
+#               "GSP" = GSPvalue[moduleGenes, column],
+#               "MMP" = MMPvalue[moduleGenes, column])
+# head(data)
 
-pdfn(file = "MM_GS_blue.pdf", width = 7, height = 7) 
-par(mfrow = c(1, 1)) 
+# TODO: Plot the values taking into account the p-value
+# TODO: Make a correlation of those values taking into account their p-values
+# g <- ggplot(as.data.frame(data), aes(MM, GS))
+# g + geom_point(aes(colour = GSP, size = MMP)) + theme_bw()
+# 
+# cor(data[,"MM"]/(data[,"MMP"]/sum(data[,"MMP"])), 
+#     data[,"GS"]/(data[,"GSP"]/sum(data[,"GSP"])), 
+#     use = 'pairwise.complete.obs')
 
-data <- cbind("MM" = geneModuleMembership[moduleGenes, column],
-              "GS" = geneTraitSignificance[moduleGenes, column],
-              "GSP" = GSPvalue[moduleGenes, column],
-              "MMP" = MMPvalue[moduleGenes, column])
-head(data)
-
-g <- ggplot(as.data.frame(data), aes(MM, GS))
-g + geom_point(aes(colour = GSP, size = MMP)) + theme_bw()
-
-cor(data[,"MM"]/(data[,"MMP"]/sum(data[,"MMP"])), 
-    data[,"GS"]/(data[,"GSP"]/sum(data[,"GSP"])), 
-    use = 'pairwise.complete.obs')
-pdfn(file = "MM_GS_blue2.pdf", width = 7, height = 7) 
+pdfn(file = paste("MM_GS", module, var, ".pdf", sep = "_"), 
+     width = 7, height = 7)
 verboseScatterplot(geneModuleMembership[moduleGenes, column], 
-                   geneTraitSignificance[moduleGenes, 1], 
+                   geneTraitSignificance[moduleGenes, varc], 
                    xlab = paste("Module Membership in", module, "module"), 
-                   ylab = "Gene significance for infection_hospitalization", 
+                   ylab = paste("Gene significance for", var), 
                    main = paste("Module membership vs. gene significance\n"), 
                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
 
