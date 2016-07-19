@@ -34,13 +34,16 @@ lnames
 
 # Define numbers of genes and samples
 nGenes = ncol(data.wgcna);
-nSamples = nrow(data.wgcna);
+nSamples = length(ids);
 # Recalculate MEs with color labels
-MEs0 = moduleEigengenes(data.wgcna, moduleColors)$eigengenes
+MEs0 = moduleEigengenes(data.wgcna[samples %in% ids, ], moduleColors)$eigengenes
 MEs = orderMEs(MEs0)
 moduleTraitCor = cor(MEs, disease, use = "p");
-moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
-
+# Calculating the adjusted p-value
+moduleTraitPvalue = p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr", )
+dim(moduleTraitPvalue) <- dim(moduleTraitCor)
+dimnames(moduleTraitPvalue) <- dimnames(moduleTraitCor)
+origPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
 #=====================================================================================
 #
@@ -51,23 +54,34 @@ moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
 
 sizeGrWindow(10,6)
 # Will display correlations and their p-values
-textMatrix =  paste(signif(moduleTraitCor, 2), "(",
-                           signif(moduleTraitPvalue, 1), ")", sep = "");
+textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(",
+                           signif(moduleTraitPvalue, 1), ")");
 dim(textMatrix) = dim(moduleTraitCor)
+# pdf("Testing_size.pdf", height = 1600, width = 900)
 par(mar = c(6, 8.5, 3, 3));
+
+# coloring <- moduleTraitCor/apply(moduleTraitPvalue, 2, function(x){max(x)})
+# coloring <- moduleTraitCor/apply(moduleTraitPvalue, 2, function(x){min(x)})
+# Coloring taking into account both the correlation value and the p-value
+# coloring <- sapply(colnames(moduleTraitCor), function(x){
+#   moduleTraitCor[, x]*max(moduleTraitPvalue[, x])})
+# normalize <- function(value, maxi, mini, nmax=1, nmin=-1){
+#   (nmax - nmin)/(maxi - mini)*(value - mini) + nmin
+# }
+#
+# coloring <- apply(coloring, 2, function(x){normalize(x, maxi = max(x), mini = min(x))})
 # Display the correlation values within a heatmap plot
-labeledHeatmap(Matrix = moduleTraitCor,
-               xLabels = names(disease),
+labeledHeatmap(Matrix = coloring,
+               xLabels = colnames(disease),
                yLabels = names(MEs),
                ySymbols = names(MEs),
                colorLabels = FALSE,
                colors = greenWhiteRed(50),
-               textMatrix = textMatrix,
+               # textMatrix = textMatrix,
                setStdMargins = FALSE,
                cex.text = 0.5,
                zlim = c(-1,1),
                main = paste("Module-trait relationships"))
-
 
 #=====================================================================================
 #
@@ -82,14 +96,15 @@ labeledHeatmap(Matrix = moduleTraitCor,
 # names (colors) of the modules
 modNames = substring(names(MEs), 3)
 
-geneModuleMembership = as.data.frame(cor(data.wgcna, MEs, use = "p"));
+geneModuleMembership = as.data.frame(cor(data.wgcna[samples %in% ids, ], MEs, use = "p"));
 
 MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples));
 
-names(geneModuleMembership) = paste("MM", modNames, sep="");
+names(geneModuleMembership) = paste0("MM", modNames);
 names(MMPvalue) = paste("p.MM", modNames, sep="");
 
-geneTraitSignificance = as.data.frame(cor(data.wgcna, disease, use = "p"));
+geneTraitSignificance = as.data.frame(cor(data.wgcna[samples %in% ids, ],
+                                          disease[, "infection_hospitalization"], use = "p"));
 GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples));
 
 names(geneTraitSignificance) = paste("GS.", names(disease), sep="");
@@ -112,7 +127,7 @@ par(mfrow = c(1,1));
 verboseScatterplot(geneModuleMembership[moduleGenes, column],
                    geneTraitSignificance[moduleGenes, 1],
                    xlab = paste("Module Membership in", module, "module"),
-                   ylab = "Gene significance for body weight",
+                   ylab = "Gene significance for infection_hospitalization",
                    main = paste("Module membership vs. gene significance\n"),
                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
 

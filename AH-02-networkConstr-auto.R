@@ -64,7 +64,7 @@ text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
 #
 #=====================================================================================
 
-
+print(paste("Recomended power", sft$powerEstimate))
 net = blockwiseModules(data.wgcna, power = sft$powerEstimate,
                        TOMType = "signed", minModuleSize = 30,
                        maxBlockSize = 8000, networkType = "signed",
@@ -74,7 +74,7 @@ net = blockwiseModules(data.wgcna, power = sft$powerEstimate,
                        verbose = 3)
 
 save(net, file = "net.RData")
-
+# load("net.RData")
 #=====================================================================================
 #
 #  Code chunk 4
@@ -104,4 +104,5 @@ plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
 moduleColors = net$colors
 MEs = net$MEs;
 geneTree = net$dendrograms[[1]];
-save(MEs, moduleColors, net$dendrograms, file = "TNF_AH-network-auto.RData")
+dendro <-  net$dendrograms
+save(MEs, moduleColors, file = "TNF_AH-network-auto.RData")
