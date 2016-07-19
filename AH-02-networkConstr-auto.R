@@ -4,6 +4,11 @@
 #
 # ==============================================================================
 
+pdfn <- function(...){
+  # Close any device and open a pdf with the same options
+  dev.off()
+  pdfn(...)
+}
 
 library(WGCNA)
 options(stringsAsFactors = FALSE) 
@@ -28,7 +33,7 @@ powers = c(c(1:10), seq(from = 12, to = 20, by = 2))
 sft <- pickSoftThreshold(data.wgcna, powerVector = powers, verbose = 5, 
                         networkType = "signed")
 # Plot the results:
-pdf(file = "Power_calculations", width = 9, height = 5)
+pdfn(file = "Power_calculations", width = 9, height = 5)
 par(mfrow = c(1, 2)) 
 cex1 <- 0.9 
 
@@ -47,7 +52,6 @@ plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
      main = paste("Mean connectivity"))
 text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1, 
      col = "red")
-dev.off()
 
 # ==============================================================================
 #
@@ -74,15 +78,14 @@ save(net, file = "net.RData")
 
 
 # open a graphics window
-sizeGrWindow(12, 9)
+pdfn(file = "dendro.pdfn", width = 12, height = 9)
 # Convert labels to colors for plotting
-mergedColors = net$colors
+mergedColors <- net$colors
 # Plot the dendrogram and the module colors underneath
 plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]], 
                     "Module colors of first dendrogram", 
                     dendroLabels = FALSE, hang = 0.03, 
                     addGuide = TRUE, guideHang = 0.05)
-
 
 # ==============================================================================
 #
@@ -91,7 +94,7 @@ plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
 # ==============================================================================
 
 
-
+dev.off()
 moduleColors = net$colors
 MEs = net$MEs 
 geneTree = net$dendrograms[[1]] 
