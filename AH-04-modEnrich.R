@@ -12,44 +12,54 @@ lnames
 
 library("globaltest")
 library("limma")
-library("SPIA")
-library("GOstats")
-library("topGO")
-library("ggbio")
-library("affy")
-library("RColorBrewer")
-library("gcrma")
+# library("SPIA")
+# library("GOstats")
+# library("topGO")
+# library("ggbio")
+# library("affy")
+# library("RColorBrewer")
+# library("gcrma")
 library("sva")
 library("svd")
+library("hgu133plus2.db")
 
 moduleName <- "lightcoral"
-exprs <- t(data.wgcna[, net$colors  ==  moduleName])
+exprs <- t(data.wgcna)
 colnames(exprs) <- samples
 
-# Models of the disease
-mod <- model.matrix(~., data = disease)
-mod0 <- model.matrix(~type, data = celfiles)
+# annots <- select(hgu133plus2.db, keys = rownames(exprs),
+#                  columns = c("GO", "SYMBOL", "GENENAME"), keytype = "PROBEID")
+# save(annots, file = "annots_study.RData")
+load(filee = "annots_study.RData")
+myGenes <- rownames(exprs)[net$colors  ==  moduleName]
+myGenes2GO <- sapply(myGenes, function(x){
+  annots[annots$PROBEID == x & annots$ONTOLOGY == "MF", "GO"]
+})
 
-pValues <- f.pvalue(exprs(celfiles), mod, mod0)
-sum(p.adjust(pValues, method = "BH") < 0.05)
-dim(celfiles)
+genes <- ifelse(rownames(exprs) %in% myGenes, 1, 0)
+names(genes) <- rownames(exprs)
 
-# Using combat
-combatexp <- ComBat(exprs(celfiles), batch, mod)
-d <- as.dist(1 - cor(combatexp, method = "spearman"))
-sampleClustering <- hclust(d)
-sampleDendrogram <- as.dendrogram(sampleClustering, hang = 0.1)
-names(batch) <- sampleNames(celfiles)
-outcome <- as.character(celfiles$Target)
-names(outcome) <- sampleNames(celfiles)
-sampleDendrogram <- dendrapply(sampleDendrogram, function(x, batch, labels) {
-  ## for every node in the dendrogram if it is a leaf node
-  if (is.leaf(x)) {
-    attr(x, "nodePar") <- list(lab.col = as.vector(batch[attr(x, "label")])) ## color by batch
-    attr(x, "label") <- as.vector(labels[attr(x, "label")]) ## label by outcome
+selFun <- function(x){
+  if (x == 0) {
+    return(TRUE)
+  } else {
+    return(FALSE)
   }
-  x
-}, batch, outcome) ## these are the second and third arguments in the function
+}
 
-plot(sampleDendrogram, main = "Hierarchical clustering of samples with ComBat")
-legend("topright", paste("Batch", sort(unique(batch))), fill = sort(unique(batch)))
+GOdata <- new("topGOdata",
+              ontology = "MF",
+              description = paste("Molecular function of the", 
+                                  moduleName, "module."),
+              allGenes = genes,
+              annot = annFUN.gene2GO, ## the new annotation function 
+              gene2GO = myGenes2GO,
+              geneSelectionFun = selFun) 
+
+resultFisher <- runTest(GOdata, 
+                        algorithm = "classic", statistic = "fisher")
+resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+
+showSigOfNodes(GOdata, 
+               score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')
