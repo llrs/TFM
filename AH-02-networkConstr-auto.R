@@ -74,7 +74,7 @@ save(net, file = "net.RData")
 # load("net.RData")
 # ==============================================================================
 #
-#  Code chunk 4: Plot How the modules correlate in a dendrogram
+#  Code chunk 4: Plot how the modules correlate in a dendrogram
 #
 # ==============================================================================
 
@@ -94,6 +94,20 @@ plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
 #  Code chunk 5: Save data for the next step
 #
 # ==============================================================================
+
+gm <- table(net$colors)
+hist(gm)
+count.p <- function(data, per){
+  # Calculate the percentatge above per of data
+  sum(data >= per)/length(data)
+}
+perc <- unlist(lapply(gm, count.p, data = gm))
+pdfn(file = "modules_distr.pdf")
+plot(cbind(gm[order(perc)],perc[order(perc)]), type = "o",  
+     xlab = "Size of the modules", 
+     ylab = "Proportion of modules above the size",
+     main = "Distribution of the size of the modules",
+     col = names(gm[order(perc)]))
 
 
 dev.off()
