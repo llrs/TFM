@@ -155,19 +155,18 @@ names(GSPvalue) <- paste("p.GS.", colnames(disease))
 #
 # ==============================================================================
 
-
-module <- "plum"
+module <- "lightcoral"
 column <- match(module, modNames) 
 moduleGenes <- moduleColors == module 
-var <- "hvpg"
+var <- "leucos"
 varc <- match(var, colnames(disease))
 # pdfn(file = "MM_GS_blue.pdf", width = 7, height = 7) 
 # par(mfrow = c(1, 1)) 
 # 
-# data <- cbind("MM" = geneModuleMembership[moduleGenes, column],
-#               "GS" = geneTraitSignificance[moduleGenes, column],
-#               "GSP" = GSPvalue[moduleGenes, column],
-#               "MMP" = MMPvalue[moduleGenes, column])
+data <- cbind("MM" = geneModuleMembership[moduleGenes, column],
+              "GS" = geneTraitSignificance[moduleGenes, varc],
+              "GSP" = GSPvalue[moduleGenes, varc],
+              "MMP" = MMPvalue[moduleGenes, column])
 # head(data)
 
 # TODO: Plot the values taking into account the p-value
@@ -179,14 +178,24 @@ varc <- match(var, colnames(disease))
 #     data[,"GS"]/(data[,"GSP"]/sum(data[,"GSP"])), 
 #     use = 'pairwise.complete.obs')
 
+# Weighted correlation
+library("boot")
+
+w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
+# Taking into account if there are empty values
+svar <- apply(data[,c("MM", "GS")], 1, function(x){sum(is.na(x))})
+w.cor <- corr(data[!as.logical(svar), c("MM", "GS")], w[!as.logical(svar)])
 pdfn(file = paste("MM_GS", module, var, ".pdf", sep = "_"), 
      width = 7, height = 7)
 verboseScatterplot(geneModuleMembership[moduleGenes, column], 
-                   geneTraitSignificance[moduleGenes, varc], 
-                   xlab = paste("Module Membership in", module, "module"), 
-                   ylab = paste("Gene significance for", var), 
-                   main = paste("Module membership vs. gene significance\n"), 
-                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+ geneTraitSignificance[moduleGenes, varc], 
+ xlab = paste("Module Membership in", module, "module"), 
+ ylab = paste("Gene significance for", var), 
+ main = paste0("Module membership vs. gene significance\nWeighted cor=", 
+              signif(w.cor, digits = 2), ", unweighted"),
+ abline = 1, 
+ cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+
 
 # ==============================================================================
 #
