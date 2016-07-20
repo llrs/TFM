@@ -36,17 +36,24 @@ lnames
 
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna) 
-nSamples <- length(ids) 
 # Recalculate MEs with color labels
-# MEs0 <- moduleEigengenes(data.wgcna[samples %in% ids, ], moduleColors)
-# save(MEs0, file = "ME.RData")
-load("ME.RData")
+MEs0 <- moduleEigengenes(data.wgcna[samples %in% ids, ], moduleColors)
+save(MEs0, file = "ME.RData")
+# load("ME.RData")
 MEs <- orderMEs(MEs0$eigengenes)
+disease <- disease[disease$samples %in% ids, -1]
+disease[, "type"] <- as.numeric(disease[, "type"]) - 1
+# disease <- disease[, 2]
+# disease <- as.matrix(as.numeric(disease) - 1)
+
+nSamples <- ncol(disease)
 moduleTraitCor <- cor(MEs, disease, use = "p") 
+
 # Calculating the adjusted p-value
 # moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
-dim(moduleTraitPvalue) <- dim(moduleTraitCor)
-dimnames(moduleTraitPvalue) <- dimnames(moduleTraitCor)
+# dim(moduleTraitPvalue) <- dim(moduleTraitCor)
+# dimnames(moduleTraitPvalue) <- dimnames(moduleTraitCor)
+
 moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
 # TODO: Correct the p-values for multiple testing using the cor.test
@@ -84,35 +91,35 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 # ==============================================================================
 
 
-# pdfn(file = "variables_heatmap.pdf", width = 10, height = 6, onefile = TRUE)
+pdfn(file = "variables_heatmap.pdf", width = 10, height = 6, onefile = TRUE)
 # Will display correlations and their p-values as text
-# textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(", 
-                           # signif(moduleTraitPvalue, 2), ")") 
-# dim(textMatrix) = dim(moduleTraitCor)
-# par(mar = c(6, 8.5, 3, 3)) 
+textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(",
+signif(moduleTraitPvalue, 2), ")")
+dim(textMatrix) = dim(moduleTraitCor)
+par(mar = c(6, 8.5, 3, 3))
 
 # Coloring taking into account both the correlation value and the p-value
-# coloring <- sapply(colnames(moduleTraitCor), function(x){
-#   moduleTraitCor[, x]/(1 + moduleTraitPvalue[, x])})
-# coloring <- apply(coloring, 2, function(x){
-  # 2*(x - min(x))/(max(x) - min(x)) - 1
-# })
+coloring <- sapply(colnames(moduleTraitCor), function(x){
+  moduleTraitCor[, x]/(1 + moduleTraitPvalue[, x])})
+coloring <- sapply(colnames(coloring), function(x){
+  y <- coloring[,x]
+2*(y - min(y))/(max(y) - min(y)) - 1
+})
 
 # Display the correlation values within a heatmap plot
-# labeledHeatmap.multiPage(Matrix = coloring, 
-#                xLabels = colnames(disease), 
-#                yLabels = names(MEs), 
-#                ySymbols = names(MEs), 
-#                colorLabels = FALSE, 
-#                colors = greenWhiteRed(50), 
-#                textMatrix = textMatrix,
-#                setStdMargins = FALSE, 
-#                cex.text = 0.5, 
-#                addPageNumberToMain = FALSE, 
-#                main = "Module-trait relationships")
-# dev.off()
+labeledHeatmap.multiPage(Matrix = coloring,
+               xLabels = colnames(disease),
+               yLabels = names(MEs),
+               ySymbols = names(MEs),
+               colorLabels = FALSE,
+               colors = greenWhiteRed(50),
+               textMatrix = textMatrix,
+               setStdMargins = FALSE,
+               cex.text = 0.5,
+               addPageNumberToMain = FALSE,
+               main = "Module-trait relationships")
 
-# save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
+save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
 # ==============================================================================
 #

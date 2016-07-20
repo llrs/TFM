@@ -16,6 +16,7 @@ gse_number <- "GSE28619"
 # dim(phenoData(info))
 load("Input.RData")
 
+# Prepare the clinical variables associated
 samples <- c("N57", "C9", "C7", "C12", "N54", "N17", "N53", "CA64", "CA45",
              "CA62", "CA51", "CA79", "CA92", "CA47", "CA20", "CA22", "CA82",
              "CA39", "CA80", "CA28", "CA77", "CA5")
@@ -31,25 +32,31 @@ for (n in nam) {
   disease.r[,n] <- as.factor(disease[,n])
 }
 disease <- disease.r
-disease <- disease[ids %in% samples, ]
+type <- samples
+type[grep("^CA", samples)] <- "AH"
+type[grep("^CA", samples, invert = TRUE)] <- "N"
+names(type) <- samples
+v_clin <- as.data.frame(samples)
+type <- as.data.frame(type)
+ids0 <- merge(v_clin, type, by.x = "samples", by.y = 0)
+rownames(ids0) <- names(samples)
+rownames(disease) <- ids
+disease <- merge(ids0, disease, by.x = "samples", by.y = 0, all.x = TRUE)
+disease.t <- disease[, -1]
+disease.t$type <- as.numeric(disease.t$type) - 1
 # data.wgcna <- t(exprs(info))
 
 pdf("dendro_traits.pdf")
 # Re-cluster samples
-sampleTree2 = hclust(dist(data.wgcna[samples %in% ids, ]), method = "average")
+sampleTree2 = hclust(dist(data.wgcna), method = "average")
 # Convert traits to a color representation: white means low, red means high, grey means missing entry
-traitColors = numbers2colors(disease, signed = FALSE);
+traitColors = numbers2colors(disease.t, signed = FALSE)
 # Plot the sample dendrogram and the colors underneath.
 plotDendroAndColors(sampleTree2, traitColors,
                     groupLabels = colnames(disease),
                     main = "Sample dendrogram and trait heatmap")
 dev.off()
-pdf("dendro.pdf")
 
- # Plot the sample dendrogram
-plotClusterTreeSamples(sampleTree2, 
-                    main = "Sample dendrogram and trait heatmap")
-dev,off()
 save(data.wgcna, disease, samples, ids, file = "Input.RData")
 
 
