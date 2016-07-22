@@ -19,17 +19,18 @@ library("WGCNA")
 enableWGCNAThreads(6)
 library("ReactomePA")
 library("clusterProfiler")
+library("igraph")
 
 
 # Load previously work done
-lnames <- load(file = "TNF_AH-network-auto.RData")
-lnames ## MEs moduleColors
-lnames <- load(file = "Input.RData") 
-lnames ## data.wgcna disease samples ids
-lnames <- load(file = "ME.RData")
-lnames ## MEs0
-lnames <- load(file = "Module_info.RData")
-lnames ## moduleTraitCor moduleTraitPvalue
+load(file = "TNF_AH-network-auto.RData", verbose = TRUE)
+ ## MEs moduleColors
+load(file = "Input.RData", verbose = TRUE) 
+ ## data.wgcna disease samples ids
+load(file = "ME.RData", verbose = TRUE)
+## MEs0
+load(file = "Module_info.RData", verbose = TRUE)
+ ## moduleTraitCor moduleTraitPvalue
 
 pdfn <- function(...){
   # Close any device and open a pdfn with the same options
@@ -52,9 +53,24 @@ load(file = "annots_study.RData")
 
 
 # I assume I keep the same order of genes (Which I do)
-genes <- as.numeric(as.factor(moduleColors))
+genes <- as.factor(moduleColors)
+n <- length(unique(moduleColors)) - 1
+
+numb.col <- 0:n
+names(numb.col) <- labels2colors(numb.col)
+
+# converts the name to the right number
+lg <- levels(genes)
+for (x in names(numb.col)) {
+  levels(genes)[lg == x] <- numb.col[x]
+}
+genes <- as.numeric(levels(genes))[genes]
 names(genes) <- rownames(exprs)
-n <- length(unique(moduleColors))
+
+# Grup al genes of the same group 
+clusters <- sapply(unique(moduleColors), function(x, genes, nc){
+  names(genes[genes == nc[x]])
+}, genes = genes, nc = numb.col)
 
 moduleSel <- function(modul, n){
   # Function to generate function to select the module
@@ -68,15 +84,42 @@ moduleSel <- function(modul, n){
   return(selFun)
 }
 
-# Clusters of genes for further use
-# clusters <- lapply(unique(moduleColors),
-#                    function(x){
-#                      selFun <- moduleSel(x, n)
-#                      names(genes[selFun(genes)])},
-#                    n = (length(unique(moduleColors)) - 1)
-# )
+moduleName <- "midnightblue"
 
-moduleName <- "turquoise"
+selFun <- moduleSel(moduleName, n)
+
+# Preparing the objects with Entrezid for the reactome and kegg analysis
+moduleGenes <- clusters[moduleName][[1]]
+moduleGenesEntrez <- unique(annots[annots$PROBEID %in% moduleGenes, 
+                                   "ENTREZID"])
+moduleGenesEntrez <- moduleGenesEntrez[!is.na(moduleGenesEntrez)]
+universeGenesEntrez <- unique(annots[, "ENTREZID"])
+universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
+
+#Function to translate from probeid to entrezid
+clustersEntrez <- sapply(clusters, function(x){
+  a <- unique(annots[annots$PROBEID %in% x, 
+                "ENTREZID"])
+  a[!is.na(a)]
+})
+
+
+# ==============================================================================
+#
+#  Code chunk 0: Compare modules, general overview of the functions 
+#
+# ==============================================================================
+
+pdfn(paste0("pathways_cluster_", moduleName, ".pdf"), onefile = TRUE, 
+     width = 20, height = 20)
+eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
+plot(eGO)
+gGO <- compareCluster(clustersEntrez, fun = "groupGO")
+plot(gGO)
+eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
+plot(eP)
+eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
+plot(eK)
 
 # ==============================================================================
 #
@@ -85,40 +128,39 @@ moduleName <- "turquoise"
 # ==============================================================================
 
 # Prepare the topGOdata object
-# GOdata <- new("topGOdata",
-#               ontology = "BP",
-#               description = paste("Molecular function of the",
-#                                   moduleName, "module."),
-#               allGenes = genes,
-#               annot = annFUN.db , ## the new annotation function
-#               affyLib = "hgu133plus2.db",
-#               geneSelectionFun = selFun)
+GOdata <- new("topGOdata",
+              ontology = "BP",
+              description = paste("Molecular function of the",
+                                  moduleName, "module."),
+              allGenes = genes,
+              annot = annFUN.db , ## the new annotation function
+              affyLib = "hgu133plus2.db",
+              geneSelectionFun = selFun)
 
-# save(GOdata, file = "array_BP.RData")
-load(file = "array_BP.RData")
-selFun <- moduleSel(moduleName, n)
+save(GOdata, file = "array_BP.RData")
+# load(file = "array_BP.RData")
 geneSelectionFun(GOdata) <- selFun
 description(GOdata) <- paste("Molecular function of the", moduleName, "module.")
-# 
-# resultFisher <- runTest(GOdata,
-#                         algorithm = "classic", statistic = "fisher")
-# resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
-# resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
-# 
-# allRes <- GenTable(GOdata, classic = resultFisher, Ks = resultKS,
-#                    elim = resultKS.elim, orderBy = "classic",
-#                    ranksOf = "classic", topNodes = 30)
-# 
-# write.csv(allRes, file = paste0("table_GO_", moduleName, ".csv"),
-#           row.names = FALSE)
-# 
-# pdfn(paste0("BP_GO_fisher_", moduleName, ".pdf"), onefile = TRUE)
-# showSigOfNodes(GOdata,
-#                score(resultFisher), firstSigNodes = 2, useInfo = 'all')
-# showSigOfNodes(GOdata,
-#                score(resultKS), firstSigNodes = 2, useInfo = 'all')
-# showSigOfNodes(GOdata,
-#                score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')
+
+resultFisher <- runTest(GOdata,
+                        algorithm = "classic", statistic = "fisher")
+resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+
+allRes <- GenTable(GOdata, classic = resultFisher, Ks = resultKS,
+                   elim = resultKS.elim, orderBy = "classic",
+                   ranksOf = "classic", topNodes = 50, numChar = 100)
+
+write.csv(allRes, file = paste0("table_GO_", moduleName, ".csv"),
+          row.names = FALSE)
+
+pdfn(paste0("BP_GO_fisher_", moduleName, ".pdf"), onefile = TRUE)
+showSigOfNodes(GOdata,
+               score(resultFisher), firstSigNodes = 2, useInfo = 'all')
+showSigOfNodes(GOdata,
+               score(resultKS), firstSigNodes = 2, useInfo = 'all')
+showSigOfNodes(GOdata,
+               score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')
 
 # ==============================================================================
 #
@@ -126,27 +168,23 @@ description(GOdata) <- paste("Molecular function of the", moduleName, "module.")
 #
 # ==============================================================================
 
-moduleGenes <- genes[selFun(genes)]
-moduleGenesEntrez <- unique(annots[annots$PROBEID %in% names(moduleGenes), 
-                                   "ENTREZID"])
-moduleGenesEntrez <- moduleGenesEntrez[!is.na(moduleGenesEntrez)]
-universeGenesEntrez <- unique(annots[, "ENTREZID"])
-universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
-reactome_enrich <- enrichPathway(gene = moduleGenesEntrez, 
+reactome_enrich <- enrichPathway(gene = moduleGenesEntrez,
                                  universe = universeGenesEntrez,
-                                 pvalueCutoff = 0.05, readable = TRUE, 
+                                 pvalueCutoff = 0.05, readable = TRUE,
                                  minGSSize = 2)
-write.csv(summary(reactome_enrich), 
+write.csv(summary(reactome_enrich),
           file = paste0("reactome_", moduleName, ".csv"))
 pdfn(paste0("reactome_", moduleName, ".pdf"), onefile = TRUE)
 dotplot(reactome_enrich)
 
 # One can use the fold change to visualize how are the genes expressed
 # with a foldChange = vector
-cnetplot(reactome_enrich, showCategory = 15, categorySize = "geneNum")
-
+cnetplot(reactome_enrich, showCategory = 15, categorySize = "geneNum",
+         layout = layout_nicely)
+# summary(reactome_enrich)
+# dput(summary(reactome_enrich))
 # Can't have titles
-enrichMap(reactome_enrich, layout = igraph::layout_nicely,
+enrichMap(reactome_enrich, layout = layout_nicely,
           vertex.label.cex = 1, n = 15)
 
 
@@ -161,26 +199,14 @@ kegg_enrich <- enrichKEGG(moduleGenesEntrez,
                           minGSSize = 2)
 pdfn(paste0("kegg_", moduleName, ".pdf"), onefile = TRUE)
 dotplot(kegg_enrich)
-cnetplot(kegg_enrich, showCategory = 15, categorySize = "geneNum")
-enrichMap(kegg_enrich, layout = igraph::layout.kamada.kawai,
+cnetplot(kegg_enrich, showCategory = 15, categorySize = "geneNum",
+         layout = igraph::layout_nicely)
+enrichMap(kegg_enrich, layout = igraph::layout_nicely,
           vertex.label.cex = 1, n = 15)
 
 # ==============================================================================
 #
-#  Code chunk 4: Compare modules
-#
-# ==============================================================================
-
-# if gcSample is a list of characters of genes we can compare between them with
-# The function can change to whatever we want "groupGO", "enrichGO", "enrichKEGG", 
-# "enrichDO" or "enrichPathway"
-# pdfn(paste0("pathways_cluster.pdf"), onefile = TRUE)
-# res <- compareCluster(clusters, fun = "enrichPathway")
-# plot(res)
-
-# ==============================================================================
-#
-#  Code chunk 5: GSEA
+#  Code chunk 4: GSEA
 #
 # ==============================================================================
 

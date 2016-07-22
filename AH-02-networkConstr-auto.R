@@ -17,9 +17,8 @@ options(stringsAsFactors = FALSE)
 # Allow multi-threading within WGCNA. This helps speed up certain calculations.
 enableWGCNAThreads(6)
 # Load the data saved in the first part
-lnames <- load(file = "Input.RData") 
+load(file = "InputWGCNA.RData", verbose = TRUE) 
 #The variable lnames contains the names of loaded variables.
-lnames
 
 
 # ==============================================================================
