@@ -19,12 +19,10 @@ enableWGCNAThreads(6)
 # The following setting is important, do not omit.
 options(stringsAsFactors = FALSE) 
 # Load the expression and trait data saved in the first part
-lnames = load(file = "Input.RData") 
+load(file = "InputWGCNA.RData", verbose = TRUE) 
 #The variable lnames contains the names of loaded variables.
-lnames
 # Load network data saved in the second part.
-lnames = load(file = "TNF_AH-network-auto.RData") 
-lnames
+load(file = "TNF_AH-network-auto.RData", verbose = TRUE) 
 
 
 # ==============================================================================
@@ -35,19 +33,26 @@ lnames
 
 
 # Define numbers of genes and samples
-nGene <- ncol(data.wgcna) 
-# Recalculate MEs with color labels
-MEs0 <- moduleEigengenes(data.wgcna[samples %in% ids, ], moduleColors)
-save(MEs0, file = "ME.RData")
-# load("ME.RData")
-MEs <- orderMEs(MEs0$eigengenes)
-disease <- disease[disease$samples %in% ids, -1]
-disease[, "type"] <- as.numeric(disease[, "type"]) - 1
-# disease <- disease[, 2]
-# disease <- as.matrix(as.numeric(disease) - 1)
+nGene <- ncol(data.wgcna)
+# We don't need to recalculate as we store it previously
+# # Recalculate MEs with color labels
+# MEs0 <- moduleEigengenes(data.wgcna, moduleColors)
+# save(MEs0, file = "ME.RData")
+# # load("ME.RData")
+# MEs <- orderMEs(MEs0$eigengenes)
+
+disease.r <- apply(vclin, 2, as.numeric)
+nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
+         "hvpg_corte20", "lille_corte")
+for (n in nam) {
+  disease.r[,n] <- as.factor(vclin[,n])
+}
+disease <- disease.r[, -c(1, 2)]
 
 nSamples <- ncol(disease)
-moduleTraitCor <- cor(MEs, disease, use = "p") 
+keepSamples <- rownames(data.wgcna) %in% vclin$files
+moduleTraitCor <- cor(MEs[keepSamples, ], disease, 
+                      use = "p") 
 
 # Calculating the adjusted p-value
 # moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
@@ -105,10 +110,12 @@ coloring <- sapply(colnames(coloring), function(x){
   y <- coloring[,x]
 2*(y - min(y))/(max(y) - min(y)) - 1
 })
+# Calculate the number of samples used for the correlation
+n <- apply(disease, 2, function(x){sum(!is.na(x))})
 
 # Display the correlation values within a heatmap plot
 labeledHeatmap.multiPage(Matrix = coloring,
-               xLabels = colnames(disease),
+               xLabels = paste0(colnames(disease), " (", n, ")"),
                yLabels = names(MEs),
                ySymbols = names(MEs),
                colorLabels = FALSE,
@@ -136,8 +143,8 @@ save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
 modNames <- substring(names(MEs), 3)
 
-geneModuleMembership <- as.data.frame(cor(data.wgcna[samples %in% ids, ], 
-                                         MEs, use = "p")) 
+geneModuleMembership <- as.data.frame(cor(data.wgcna[keepSamples, ], 
+                                         MEs[keepSamples, ], use = "p")) 
 
 MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), 
                                           nSamples)) 
@@ -146,7 +153,7 @@ names(geneModuleMembership) <- paste0("MM", modNames)
 names(MMPvalue) <- paste0("p.MM", modNames) 
 
 geneTraitSignificance <- as.data.frame(
-  cor(data.wgcna[samples %in% ids, ], 
+  cor(data.wgcna[keepSamples, ], 
       disease, 
       use = "p"))
 GSPvalue <- as.data.frame(
@@ -167,23 +174,11 @@ column <- match(module, modNames)
 moduleGenes <- moduleColors == module 
 var <- "leucos"
 varc <- match(var, colnames(disease))
-# pdfn(file = "MM_GS_blue.pdf", width = 7, height = 7) 
-# par(mfrow = c(1, 1)) 
-# 
+
 data <- cbind("MM" = geneModuleMembership[moduleGenes, column],
               "GS" = geneTraitSignificance[moduleGenes, varc],
               "GSP" = GSPvalue[moduleGenes, varc],
               "MMP" = MMPvalue[moduleGenes, column])
-# head(data)
-
-# TODO: Plot the values taking into account the p-value
-# TODO: Make a correlation of those values taking into account their p-values
-# g <- ggplot(as.data.frame(data), aes(MM, GS))
-# g + geom_point(aes(colour = GSP, size = MMP)) + theme_bw()
-# 
-# cor(data[,"MM"]/(data[,"MMP"]/sum(data[,"MMP"])), 
-#     data[,"GS"]/(data[,"GSP"]/sum(data[,"GSP"])), 
-#     use = 'pairwise.complete.obs')
 
 # Weighted correlation
 library("boot")
