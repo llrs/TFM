@@ -29,12 +29,12 @@ load(file = "InputWGCNA.RData", verbose = TRUE)
 
 
 # Choose a set of soft-thresholding powers
-powers = c(c(1:10), seq(from = 12, to = 20, by = 2))
+powers = c(1:30)
 # Call the network topology analysis function
 sft <- pickSoftThreshold(data.wgcna, powerVector = powers, verbose = 5, 
                         networkType = "signed")
 # Plot the results:
-pdfn(file = "Power_calculations", width = 9, height = 5)
+pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
 par(mfrow = c(1, 2)) 
 cex1 <- 0.9 
 
