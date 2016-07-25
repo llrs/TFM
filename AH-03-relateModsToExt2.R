@@ -11,6 +11,13 @@ pdfn <- function(...){
   }
   pdf(...)
 }
+pngn <- function(...){
+  # Close any device and open a pdfn with the same options
+  if (length(dev.list()) > 1) {
+    dev.off()
+  }
+  png(...)
+}
 library("ggplot2")
 
 # Load the WGCNA package
@@ -23,7 +30,7 @@ load(file = "InputWGCNA.RData", verbose = TRUE)
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
 load(file = "TNF_AH-network-auto.RData", verbose = TRUE) 
-
+library("boot")
 
 # ==============================================================================
 #
@@ -45,7 +52,9 @@ disease.r <- apply(vclin, 2, as.numeric)
 nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
          "hvpg_corte20", "lille_corte")
 for (n in nam) {
-  disease.r[,n] <- as.factor(vclin[,n])
+  a <- as.factor(vclin[,n])
+  levels(a)[levels(a) == ""] <- NA
+  disease.r[, n] <- a
 }
 disease <- disease.r[, -c(1, 2)]
 
@@ -123,6 +132,7 @@ labeledHeatmap.multiPage(Matrix = coloring,
                textMatrix = textMatrix,
                setStdMargins = FALSE,
                cex.text = 0.5,
+               12,
                addPageNumberToMain = FALSE,
                main = "Module-trait relationships")
 
@@ -168,36 +178,76 @@ names(GSPvalue) <- paste("p.GS.", colnames(disease))
 #  Code chunk 5: Plots the relationship between GS and MM of a module
 #
 # ==============================================================================
+warning("Manually made!")
+IM <- list( meld = c("skyblue", "darkolivegreen", "midnightblue"),
+            maddrey = c("skyblue", "darkolivegreen", "steelblue"),
+            # lille_corte = c("darkturquoise", "royalblue", 
+            #                 "darkgreen", "darkgrey"),
+            lille = c("midnightblue", "salmon", "bisque4", "darkmagenta", 
+                      "darkgreen", "lightcyan"),
+            status_90 = c("salmon", "darkgreen"),
+            glucose = c("brown", "lightsteelblue1"),
+            ast = c("green", "white"),
+            alt = c("green", "white", "floralwhite"),
+            bili_total = c("magenta", "paleturquoise"),
+            creatinine = c("plum1", "darkorange"),
+            albumin = c("darkgreen", "steelblue"),
+            inr = c("darkolivegreen", "plum1", "skyblue"),
+            ggt = c("greenyellow", "skyblue3"),
+            ap = c("bisque4", "skyblue3", "black"),
+            leucos = c("darkmagenta", "red"),
+            hb_g.dl = c("darkolivegreen", "darkorange"),
+            hematocrit = c("darkorange", "steelblue", "darkolivegreen"),
+            platelets = c("green", "white"),
+            tp_seg = c("darkolivegreen", "grey"),
+            hvpg_corte20 = c("orangered4", "skyblue3", "bisque4"),
+            hvpg = c("sienna3", "orange"),
+            aki = c("magenta", "paleturquoise"),
+            infection_hospitalization = c("navajowhite2", "bisque4"))
 
-module <- "lightcoral"
-column <- match(module, modNames) 
-moduleGenes <- moduleColors == module 
-var <- "leucos"
-varc <- match(var, colnames(disease))
+GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames, 
+                    disease){
+  module <- x
+  column <- match(module, modNames) 
+  moduleGenes <- moduleColors == module 
+  varc <- match(var, colnames(disease))
+  
+  data <- cbind("MM" = MM[moduleGenes, column],
+                "GS" = GS[moduleGenes, varc],
+                "GSP" = GSP[moduleGenes, varc],
+                "MMP" = MMP[moduleGenes, column])
+  
+  # Weights of the correlation
+  w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
+  # Taking into account if there are empty values
+  svar <- apply(data[,c("MM", "GS")], 1, function(x){sum(is.na(x))})
+  w.cor <- corr(data[!as.logical(svar), c("MM", "GS")], w[!as.logical(svar)])
+  pngn(file = paste("MM_GS", var, module, ".png", sep = "_"), 
+       width = 700, height = 700)
+  verboseScatterplot(data[!as.logical(svar), "MM"], 
+                     data[!as.logical(svar), "GS"], 
+                     xlab = paste("Module Membership in", module, "module"), 
+                     ylab = paste("Gene significance for", var), 
+       main = paste0("Module membership vs. gene significance\nWeighted cor=", 
+                                   signif(w.cor, digits = 2), ", unweighted"),
+                     abline = 1, 
+                     cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, 
+                     col = ifelse(module %in% c("white", "floralwhite"),
+                                  "black", module))
+}
 
-data <- cbind("MM" = geneModuleMembership[moduleGenes, column],
-              "GS" = geneTraitSignificance[moduleGenes, varc],
-              "GSP" = GSPvalue[moduleGenes, varc],
-              "MMP" = MMPvalue[moduleGenes, column])
+# GGMMfun("salmon", "status_90", geneModuleMembership, geneTraitSignificance,
+#         GSPvalue, MMPvalue, moduleColors, modNames, disease)
 
-# Weighted correlation
-library("boot")
-
-w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
-# Taking into account if there are empty values
-svar <- apply(data[,c("MM", "GS")], 1, function(x){sum(is.na(x))})
-w.cor <- corr(data[!as.logical(svar), c("MM", "GS")], w[!as.logical(svar)])
-pdfn(file = paste("MM_GS", module, var, ".pdf", sep = "_"), 
-     width = 7, height = 7)
-verboseScatterplot(geneModuleMembership[moduleGenes, column], 
- geneTraitSignificance[moduleGenes, varc], 
- xlab = paste("Module Membership in", module, "module"), 
- ylab = paste("Gene significance for", var), 
- main = paste0("Module membership vs. gene significance\nWeighted cor=", 
-              signif(w.cor, digits = 2), ", unweighted"),
- abline = 1, 
- cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
-
+a <- sapply(names(IM), function(y, d){
+  sapply(d[[y]], 
+         # function(x, var){print(paste("module", x, "var", var))},
+         # var = y)
+         GGMMfun, var = y, MM = geneModuleMembership,
+         GS = geneTraitSignificance,
+         GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+         modNames = modNames, disease = disease)
+}, d = IM)
 
 # ==============================================================================
 #
