@@ -53,10 +53,12 @@ load(file = "annots_study.RData")
 
 
 # I assume I keep the same order of genes (Which I do)
+warning("m is Manually selected")
+m <- 54
+c("grey",standardColors(m))
 genes <- as.factor(moduleColors)
-n <- length(unique(moduleColors)) - 1
 
-numb.col <- 0:n
+numb.col <- 0:m
 names(numb.col) <- labels2colors(numb.col)
 
 # converts the name to the right number
@@ -72,10 +74,8 @@ clusters <- sapply(unique(moduleColors), function(x, genes, nc){
   names(genes[genes == nc[x]])
 }, genes = genes, nc = numb.col)
 
-moduleSel <- function(modul, n){
+moduleSel <- function(modul, a){
   # Function to generate function to select the module
-  a <- 0:n
-  names(a) <- labels2colors(0:n)
   selFun <- function(genes){
     # Function to select those genees of the same group
     # return(a[x])
@@ -84,9 +84,16 @@ moduleSel <- function(modul, n){
   return(selFun)
 }
 
+imodules <- c("skyblue", "darkolivegreen", "midnightblue", "steelblue", 
+              "salmon", "bisque4", "darkmagenta", "darkgreen", "lightcyan", 
+              "brown", "lightsteelblue1", "green", "white", "floralwhite", 
+              "magenta", "paleturquoise", "plum1", "darkorange", "greenyellow", 
+              "skyblue3", "black", "red", "grey", "orangered4", "sienna3", 
+              "orange", "navajowhite2")
+
 moduleName <- "midnightblue"
 
-selFun <- moduleSel(moduleName, n)
+selFun <- moduleSel(moduleName, numb.col)
 
 # Preparing the objects with Entrezid for the reactome and kegg analysis
 moduleGenes <- clusters[moduleName][[1]]
