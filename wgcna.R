@@ -185,7 +185,7 @@ int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille", "stat
              "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
              "platelets", "tp_seg", "hvpg_corte20", "hvpg", "aki",
              "infection_hospitalization")
-vclin <- vclin[,colnames(vclin) %in% int.Var]
+vclin <- vclin[, colnames(vclin) %in% int.Var]
 disease.r <- apply(vclin, 2, as.numeric)
 nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
          "hvpg_corte20", "lille_corte")
@@ -210,6 +210,14 @@ if (!gsg$allOK)
   # Remove the offending genes and samples from the data:
   data.wgcna <- data.wgcna[gsg$goodSamples, gsg$goodGenes]
 }
+
+pdf("samples.pdf")
+sampleTree <- hclust(dist(data.wgcna), method = "average")
+pars <- par(mar = c(0, 4, 2, 0), cex = 0.6)
+plot(sampleTree, main = "Sample clustering to detect outliers", 
+     sub = "", xlab = "", cex.lab = 1.5,
+     cex.axis = 1.5, cex.main = 2)
+dev.off()
 
 pdf("dendro_traits.pdf")
 # Re-cluster samples
