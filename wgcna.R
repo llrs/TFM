@@ -196,7 +196,20 @@ disease <- disease.r[, -c(1, 2)]
 
 exp <- exprs(c.gcrma)
 # Subset just the AH samples
-data.wgcna <- t(exp[, pData(c.gcrma)$Type == "AH"]) # Just
+data.wgcna <- t(exp[, pData(c.gcrma)$Type == "AH"])
+gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
+
+if (!gsg$allOK)
+{
+  # Optionally, print the gene and sample names that were removed:
+  if (sum(!gsg$goodGenes) > 0)
+    printFlush(paste("Removing genes:", 
+                     paste(names(data.wgcna)[!gsg$goodGenes], collapse = ", ")));
+  if (sum(!gsg$goodSamples) > 0)
+    printFlush(paste("Removing samples:", paste(rownames(data.wgcna)[!gsg$goodSamples], collapse = ", ")));
+  # Remove the offending genes and samples from the data:
+  data.wgcna <- data.wgcna[gsg$goodSamples, gsg$goodGenes]
+}
 
 pdf("dendro_traits.pdf")
 # Re-cluster samples
