@@ -194,7 +194,11 @@ sapply(imodules, function(x) {
     write.csv(summary(reactome_enrich),
               file = paste0("reactome_", moduleName, ".csv"))
     pdf(paste0("reactome_", moduleName, ".pdf"), onefile = TRUE)
-    dotplot(reactome_enrich)
+    tryCatch({dotplot(reactome_enrich)}, 
+             error = function(e) {
+               message("Couldn't plot the dotplot for reactome")
+               message(e)
+             })
     
     # One can use the fold change to visualize how are the genes expressed
     # with a foldChange = vector
@@ -202,7 +206,7 @@ sapply(imodules, function(x) {
                        categorySize = "geneRatio",
              layout = layout_nicely)}, 
       error = function(e) {
-        message("Couldn't plot the cnetplot")
+        message("Couldn't plot the cnetplot for reactome")
         message(e)
       })
     # summary(reactome_enrich)
@@ -211,7 +215,7 @@ sapply(imodules, function(x) {
    tryCatch({enrichMap(reactome_enrich, layout = layout_nicely,
               vertex.label.cex = 1, n = 15)}, 
     error = function(e) {
-      message("Couldn't map the enrichMap")
+      message("Couldn't map the enrichMap for reactome")
       message(e)
     })
     dev.off()
@@ -232,19 +236,19 @@ sapply(imodules, function(x) {
     pdf(paste0("kegg_", moduleName, ".pdf"), onefile = TRUE)
     tryCatch({dotplot(kegg_enrich)}, 
     error = function(e) {
-      message("Couldn't map the dotplot")
+      message("Couldn't map the dotplot for KEGG")
       message(e)
     })
     tryCatch({cnetplot(kegg_enrich, showCategory = 15, categorySize = "geneNum",
              layout = igraph::layout_nicely)}, 
     error = function(e) {
-      message("Couldn't map the cnetplot")
+      message("Couldn't map the cnetplot for KEGG")
       message(e)
     })
     tryCatch({enrichMap(kegg_enrich, layout = igraph::layout_nicely,
               vertex.label.cex = 1, n = 15)}, 
     error = function(e) {
-      message("Couldn't map the enrichMap")
+      message("Couldn't map the enrichMap for KEGG")
       message(e)
     })
     dev.off()
