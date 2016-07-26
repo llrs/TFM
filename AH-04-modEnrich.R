@@ -137,8 +137,10 @@ sapply(imodules, function(x) {
   #               geneSelectionFun = selFun)
   # 
   # save(GOdata, file = "array_BP.RData")
-  load(file = "array_BP.RData")
+  load(file = "array_BP.RData", verbose = TRUE)
+  GOdata
   geneSelectionFun(GOdata) <- selFun
+  GOdata
   description(GOdata) <- paste("Molecular function of the", 
                                moduleName, "module.")
   
@@ -158,18 +160,20 @@ sapply(imodules, function(x) {
                score(resultFisher), firstSigNodes = 2, useInfo = 'all')}, 
            error = function(e) {
              message("Couldn't calculate the Fisher")
+             message(e)
            })
   tryCatch({showSigOfNodes(GOdata,
                  score(resultKS), firstSigNodes = 2, useInfo = 'all')}, 
     error = function(e) {
       message("Couldn't calculate the KS")
+      message(e)
     })
-    tryCatch({showSigOfNodes(GOdata,
-                 score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')}, 
-      error = function(e) {
-        message("Couldn't calculate the KSelim")
-        message(e)
-      })
+  tryCatch({showSigOfNodes(GOdata,
+               score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')}, 
+    error = function(e) {
+      message("Couldn't calculate the KSelim")
+      message(e)
+    })
   dev.off()
   # ============================================================================
   #
@@ -220,7 +224,7 @@ sapply(imodules, function(x) {
   
   kegg_enrich <- enrichKEGG(moduleGenesEntrez,
                             universe = universeGenesEntrez,
-                            minGSSize = 2, keyType = "uniprot")
+                            minGSSize = 2)
   if (nrow(summary(kegg_enrich)) != 0) {
     write.csv(summary(kegg_enrich),
               file = paste0("kegg_", moduleName, ".csv"))
