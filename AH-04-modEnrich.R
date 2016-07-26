@@ -2,18 +2,9 @@
 # First steps similar to the DE analysis
 
 
-# library("globaltest")
-# library("limma")
-# library("SPIA")
-# library("GOstats")
+
 library("topGO")
 library("Rgraphviz")
-# library("ggbio")
-# library("affy")
-# library("RColorBrewer")
-# library("gcrma")
-# library("sva")
-# library("svd")
 library("hgu133plus2.db")
 library("WGCNA")
 enableWGCNAThreads(6)
@@ -229,7 +220,7 @@ sapply(imodules, function(x) {
   
   kegg_enrich <- enrichKEGG(moduleGenesEntrez,
                             universe = universeGenesEntrez,
-                            minGSSize = 2)
+                            minGSSize = 2, keyType = "uniprot")
   if (nrow(summary(kegg_enrich)) != 0) {
     write.csv(summary(kegg_enrich),
               file = paste0("kegg_", moduleName, ".csv"))
