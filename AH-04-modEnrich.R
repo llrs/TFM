@@ -1,6 +1,4 @@
 #  Analyse the modules with globaltest o GOstats, SPIA, hopach
-# First steps similar to the DE analysis
-
 
 
 library("topGO")
@@ -86,17 +84,17 @@ clustersEntrez <- sapply(clusters, function(x){
   a[!is.na(a)]
 })
 
-# pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
-# eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
-# plot(eGO) + ggtitle("Enrich GO")
-# gGO <- compareCluster(clustersEntrez, fun = "groupGO")
-# plot(gGO) + ggtitle("Group GO")
-# eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
-# plot(eP) + ggtitle("Enrich Pathways")
-# eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
-# plot(eK) + ggtitle("Enrich KEGG")
-# dev.off()
-# 
+pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
+eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
+plot(eGO) + ggtitle("Enrich GO")
+gGO <- compareCluster(clustersEntrez, fun = "groupGO")
+plot(gGO) + ggtitle("Group GO")
+eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
+plot(eP) + ggtitle("Enrich Pathways")
+eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
+plot(eK) + ggtitle("Enrich KEGG")
+dev.off()
+ 
 
 imodules <- c("skyblue", "darkolivegreen", "midnightblue", "steelblue", 
               "salmon", "bisque4", "darkmagenta", "darkgreen", "lightcyan", 
@@ -155,7 +153,7 @@ sapply(imodules, function(x) {
   write.csv(allRes, file = paste0("table_GO_", moduleName, ".csv"),
             row.names = FALSE)
   
-  pdf(paste0("BP_GO_fisher_", moduleName, ".pdf"), onefile = TRUE)
+  pdf(paste0("BP_GO_", moduleName, ".pdf"), onefile = TRUE)
   tryCatch({showSigOfNodes(GOdata,
                score(resultFisher), firstSigNodes = 2, useInfo = 'all')}, 
            error = function(e) {
