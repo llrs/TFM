@@ -20,12 +20,12 @@ enableWGCNAThreads(6)
 library("ReactomePA")
 library("clusterProfiler")
 library("igraph")
-
+library("ggplot2")
 
 # Load previously work done
 load(file = "TNF_AH-network-auto.RData", verbose = TRUE)
  ## MEs moduleColors
-load(file = "Input.RData", verbose = TRUE) 
+load(file = "InputWGCNA.RData", verbose = TRUE) 
  ## data.wgcna disease samples ids
 load(file = "ME.RData", verbose = TRUE)
 ## MEs0
@@ -42,24 +42,21 @@ pdfn <- function(...){
 
 # Reconvert the data to the "normal" format, of each column a sample.
 exprs <- t(data.wgcna)
-colnames(exprs) <- samples
 
 # # Obtain the annotation of the data 
 # annots <- select(hgu133plus2.db, keys = rownames(exprs),
 #                  columns = c("GO", "SYMBOL", "GENENAME", "ENTREZID"),
 #                  keytype = "PROBEID")
 # save(annots, file = "annots_study.RData")
-load(file = "annots_study.RData")
+load(file = "annots_study.RData", verbose = TRUE)
 
 
 # I assume I keep the same order of genes (Which I do)
 warning("m is Manually selected")
 m <- 54
-c("grey",standardColors(m))
 genes <- as.factor(moduleColors)
-
 numb.col <- 0:m
-names(numb.col) <- labels2colors(numb.col)
+names(numb.col) <- c("grey",standardColors(m))
 
 # converts the name to the right number
 lg <- levels(genes)
@@ -84,32 +81,6 @@ moduleSel <- function(modul, a){
   return(selFun)
 }
 
-imodules <- c("skyblue", "darkolivegreen", "midnightblue", "steelblue", 
-              "salmon", "bisque4", "darkmagenta", "darkgreen", "lightcyan", 
-              "brown", "lightsteelblue1", "green", "white", "floralwhite", 
-              "magenta", "paleturquoise", "plum1", "darkorange", "greenyellow", 
-              "skyblue3", "black", "red", "grey", "orangered4", "sienna3", 
-              "orange", "navajowhite2")
-
-moduleName <- "midnightblue"
-
-selFun <- moduleSel(moduleName, numb.col)
-
-# Preparing the objects with Entrezid for the reactome and kegg analysis
-moduleGenes <- clusters[moduleName][[1]]
-moduleGenesEntrez <- unique(annots[annots$PROBEID %in% moduleGenes, 
-                                   "ENTREZID"])
-moduleGenesEntrez <- moduleGenesEntrez[!is.na(moduleGenesEntrez)]
-universeGenesEntrez <- unique(annots[, "ENTREZID"])
-universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
-
-#Function to translate from probeid to entrezid
-clustersEntrez <- sapply(clusters, function(x){
-  a <- unique(annots[annots$PROBEID %in% x, 
-                "ENTREZID"])
-  a[!is.na(a)]
-})
-
 
 # ==============================================================================
 #
@@ -117,99 +88,170 @@ clustersEntrez <- sapply(clusters, function(x){
 #
 # ==============================================================================
 
-pdfn(paste0("pathways_cluster_", moduleName, ".pdf"), onefile = TRUE, 
-     width = 20, height = 20)
-eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
-plot(eGO)
-gGO <- compareCluster(clustersEntrez, fun = "groupGO")
-plot(gGO)
-eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
-plot(eP)
-eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
-plot(eK)
+#Function to translate from probeid to entrezid
+clustersEntrez <- sapply(clusters, function(x){
+  a <- unique(annots[annots$PROBEID %in% x, 
+                     "ENTREZID"])
+  a[!is.na(a)]
+})
 
-# ==============================================================================
-#
-#  Code chunk 1: topGO analysis of each module
-#
-# ==============================================================================
+# pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
+# eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
+# plot(eGO) + ggtitle("Enrich GO")
+# gGO <- compareCluster(clustersEntrez, fun = "groupGO")
+# plot(gGO) + ggtitle("Group GO")
+# eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
+# plot(eP) + ggtitle("Enrich Pathways")
+# eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
+# plot(eK) + ggtitle("Enrich KEGG")
+# dev.off()
+# 
 
-# Prepare the topGOdata object
-GOdata <- new("topGOdata",
-              ontology = "BP",
-              description = paste("Molecular function of the",
-                                  moduleName, "module."),
-              allGenes = genes,
-              annot = annFUN.db , ## the new annotation function
-              affyLib = "hgu133plus2.db",
-              geneSelectionFun = selFun)
+imodules <- c("skyblue", "darkolivegreen", "midnightblue", "steelblue", 
+              "salmon", "bisque4", "darkmagenta", "darkgreen", "lightcyan", 
+              "brown", "lightsteelblue1", "green", "white", "floralwhite", 
+              "magenta", "paleturquoise", "plum1", "darkorange", "greenyellow", 
+              "skyblue3", "black", "red", "grey", "orangered4", "sienna3", 
+              "orange", "navajowhite2")
 
-save(GOdata, file = "array_BP.RData")
-# load(file = "array_BP.RData")
-geneSelectionFun(GOdata) <- selFun
-description(GOdata) <- paste("Molecular function of the", moduleName, "module.")
+universeGenesEntrez <- unique(annots[, "ENTREZID"])
+universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
 
-resultFisher <- runTest(GOdata,
-                        algorithm = "classic", statistic = "fisher")
-resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
-resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+sapply(imodules, function(x) {
+  
+  moduleName <- x
+  selFun <- moduleSel(moduleName, numb.col)
+  
+  # Preparing the objects with Entrezid for the reactome and kegg analysis
+  moduleGenes <- clusters[moduleName][[1]]
+  moduleGenesEntrez <- unique(annots[annots$PROBEID %in% moduleGenes, 
+                                     "ENTREZID"])
+  moduleGenesEntrez <- moduleGenesEntrez[!is.na(moduleGenesEntrez)]
+  
+  
+  # ============================================================================
+  #
+  #  Code chunk 1: topGO analysis of each module
+  #
+  # ============================================================================
+  
+  # Prepare the topGOdata object
+  # GOdata <- new("topGOdata",
+  #               ontology = "BP",
+  #               description = paste("Molecular function of the",
+  #                                   moduleName, "module."),
+  #               allGenes = genes,
+  #               annot = annFUN.db , ## the new annotation function
+  #               affyLib = "hgu133plus2.db",
+  #               geneSelectionFun = selFun)
+  # 
+  # save(GOdata, file = "array_BP.RData")
+  load(file = "array_BP.RData")
+  geneSelectionFun(GOdata) <- selFun
+  description(GOdata) <- paste("Molecular function of the", 
+                               moduleName, "module.")
+  
+  resultFisher <- runTest(GOdata,
+                          algorithm = "classic", statistic = "fisher")
+  resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+  resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+  
+  allRes <- GenTable(GOdata, classic = resultFisher, Ks = resultKS,
+                     elim = resultKS.elim, orderBy = "classic",
+                     ranksOf = "classic", topNodes = 50, numChar = 100)
+  write.csv(allRes, file = paste0("table_GO_", moduleName, ".csv"),
+            row.names = FALSE)
+  
+  pdf(paste0("BP_GO_fisher_", moduleName, ".pdf"), onefile = TRUE)
+  tryCatch({showSigOfNodes(GOdata,
+               score(resultFisher), firstSigNodes = 2, useInfo = 'all')}, 
+           error = function(e) {
+             message("Couldn't calculate the Fisher")
+           })
+  tryCatch({showSigOfNodes(GOdata,
+                 score(resultKS), firstSigNodes = 2, useInfo = 'all')}, 
+    error = function(e) {
+      message("Couldn't calculate the KS")
+    })
+    tryCatch({showSigOfNodes(GOdata,
+                 score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')}, 
+      error = function(e) {
+        message("Couldn't calculate the KSelim")
+        message(e)
+      })
+  dev.off()
+  # ============================================================================
+  #
+  #  Code chunk 2: Reactome analysis of the module
+  #
+  # ============================================================================
+  
+  reactome_enrich <- enrichPathway(gene = moduleGenesEntrez,
+                                   universe = universeGenesEntrez,
+                                   pvalueCutoff = 0.05, readable = TRUE,
+                                   minGSSize = 2)
+  if (nrow(summary(reactome_enrich)) != 0) {
+    write.csv(summary(reactome_enrich),
+              file = paste0("reactome_", moduleName, ".csv"))
+    pdf(paste0("reactome_", moduleName, ".pdf"), onefile = TRUE)
+    dotplot(reactome_enrich)
+    
+    # One can use the fold change to visualize how are the genes expressed
+    # with a foldChange = vector
+    tryCatch({cnetplot(reactome_enrich, showCategory = 15, 
+                       categorySize = "geneRatio",
+             layout = layout_nicely)}, 
+      error = function(e) {
+        message("Couldn't plot the cnetplot")
+        message(e)
+      })
+    # summary(reactome_enrich)
+    # dput(summary(reactome_enrich))
+    # Can't have titles
+   tryCatch({enrichMap(reactome_enrich, layout = layout_nicely,
+              vertex.label.cex = 1, n = 15)}, 
+    error = function(e) {
+      message("Couldn't map the enrichMap")
+      message(e)
+    })
+    dev.off()
+  }
+  
+  # ============================================================================
+  #
+  #  Code chunk 3: Kegg analysis of each module
+  #
+  # ============================================================================
+  
+  kegg_enrich <- enrichKEGG(moduleGenesEntrez,
+                            universe = universeGenesEntrez,
+                            minGSSize = 2)
+  if (nrow(summary(kegg_enrich)) != 0) {
+    write.csv(summary(kegg_enrich),
+              file = paste0("kegg_", moduleName, ".csv"))
+    pdf(paste0("kegg_", moduleName, ".pdf"), onefile = TRUE)
+    tryCatch({dotplot(kegg_enrich)}, 
+    error = function(e) {
+      message("Couldn't map the dotplot")
+      message(e)
+    })
+    tryCatch({cnetplot(kegg_enrich, showCategory = 15, categorySize = "geneNum",
+             layout = igraph::layout_nicely)}, 
+    error = function(e) {
+      message("Couldn't map the cnetplot")
+      message(e)
+    })
+    tryCatch({enrichMap(kegg_enrich, layout = igraph::layout_nicely,
+              vertex.label.cex = 1, n = 15)}, 
+    error = function(e) {
+      message("Couldn't map the enrichMap")
+      message(e)
+    })
+    dev.off()
+  }
+  
+})
 
-allRes <- GenTable(GOdata, classic = resultFisher, Ks = resultKS,
-                   elim = resultKS.elim, orderBy = "classic",
-                   ranksOf = "classic", topNodes = 50, numChar = 100)
-
-write.csv(allRes, file = paste0("table_GO_", moduleName, ".csv"),
-          row.names = FALSE)
-
-pdfn(paste0("BP_GO_fisher_", moduleName, ".pdf"), onefile = TRUE)
-showSigOfNodes(GOdata,
-               score(resultFisher), firstSigNodes = 2, useInfo = 'all')
-showSigOfNodes(GOdata,
-               score(resultKS), firstSigNodes = 2, useInfo = 'all')
-showSigOfNodes(GOdata,
-               score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')
-
-# ==============================================================================
-#
-#  Code chunk 2: Reactome analysis of the module
-#
-# ==============================================================================
-
-reactome_enrich <- enrichPathway(gene = moduleGenesEntrez,
-                                 universe = universeGenesEntrez,
-                                 pvalueCutoff = 0.05, readable = TRUE,
-                                 minGSSize = 2)
-write.csv(summary(reactome_enrich),
-          file = paste0("reactome_", moduleName, ".csv"))
-pdfn(paste0("reactome_", moduleName, ".pdf"), onefile = TRUE)
-dotplot(reactome_enrich)
-
-# One can use the fold change to visualize how are the genes expressed
-# with a foldChange = vector
-cnetplot(reactome_enrich, showCategory = 15, categorySize = "geneNum",
-         layout = layout_nicely)
-# summary(reactome_enrich)
-# dput(summary(reactome_enrich))
-# Can't have titles
-enrichMap(reactome_enrich, layout = layout_nicely,
-          vertex.label.cex = 1, n = 15)
-
-
-# ==============================================================================
-#
-#  Code chunk 3: Kegg analysis of each module
-#
-# ==============================================================================
-
-kegg_enrich <- enrichKEGG(moduleGenesEntrez,
-                          universe = universeGenesEntrez,
-                          minGSSize = 2)
-pdfn(paste0("kegg_", moduleName, ".pdf"), onefile = TRUE)
-dotplot(kegg_enrich)
-cnetplot(kegg_enrich, showCategory = 15, categorySize = "geneNum",
-         layout = igraph::layout_nicely)
-enrichMap(kegg_enrich, layout = igraph::layout_nicely,
-          vertex.label.cex = 1, n = 15)
 
 # ==============================================================================
 #
@@ -226,4 +268,4 @@ enrichMap(kegg_enrich, layout = igraph::layout_nicely,
 # enrichMap(gse)
 # # Individual gene plot
 # gseaplot(gse, geneSetID = moduleGenesEntrez[1])
-dev.off()
+
