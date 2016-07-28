@@ -32,13 +32,8 @@ pdfn <- function(...){
 # Reconvert the data to the "normal" format, of each column a sample.
 exprs <- t(data.wgcna)
 
-# # Obtain the annotation of the data 
-# annots <- select(hgu133plus2.db, keys = rownames(exprs),
-#                  columns = c("GO", "SYMBOL", "GENENAME", "ENTREZID"),
-#                  keytype = "PROBEID")
-# save(annots, file = "annots_study.RData")
+# Obtain the annotation of the data 
 load(file = "annots_study.RData", verbose = TRUE)
-
 
 # I assume I keep the same order of genes (Which I do)
 warning("m is Manually selected")
