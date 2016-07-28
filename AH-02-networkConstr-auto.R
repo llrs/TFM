@@ -130,7 +130,7 @@ plot(cbind(gm[order(perc)],perc[order(perc)]), type = "o",
      col = names(gm[order(perc)]))
 
 
-dev.off()
+
 
 
 # Call an automatic merging function
@@ -142,6 +142,9 @@ mergedColors <- merge$colors;
 # Eigengenes of the new merged modules:
 mergedMEs <- merge$newME
 
+plot(merge$dendro, main = "After merging the modules")
+
+dev.off()
 # ==============================================================================
 #
 #  Code chunk 6: Save the data 
