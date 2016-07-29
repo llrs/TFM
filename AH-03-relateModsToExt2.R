@@ -15,7 +15,7 @@ options(stringsAsFactors = FALSE)
 load(file = "InputWGCNA.RData", verbose = TRUE) 
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
-load(file = "TNF_AH-network-auto.RData", verbose = TRUE) 
+load(file = "TNF_AH-network-auto.RData", verbose = TRUE)
 library("boot")
 library("hgu133plus2.db")
 
@@ -29,6 +29,7 @@ library("hgu133plus2.db")
 
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
+nSamples <- nrow(disease)
 # We don't need to recalculate as we store it previously
 # # Recalculate MEs with color labels
 # MEs0 <- moduleEigengenes(data.wgcna, moduleColors)
@@ -46,7 +47,6 @@ for (n in nam) {
 }
 disease <- disease.r[, -c(1, 2)]
 
-nSamples <- nrow(disease)
 keepSamples <- rownames(data.wgcna) %in% vclin$files
 moduleTraitCor <- cor(MEs[keepSamples, ], disease, 
                       use = "p") 
@@ -297,7 +297,7 @@ sum(is.na(probes2annot))
 
 # ==============================================================================
 #
-#  Code chunk 9: Add the data of the WGCNA
+#  Code chunk 9: Store the results of the WGCNA
 #
 # ==============================================================================
 
@@ -334,10 +334,20 @@ for (i in 1:length(geneInfo1)) {
 # Add them to the original information
 geneInfo2 <- merge(geneInfo, MM, by = "probes", all.x = TRUE)
 geneInfo2 <- merge(geneInfo2, MMP, by = "probes", all.x = TRUE)
-
 write.csv(geneInfo2, "genes_modules.csv", row.names = FALSE, na = "")
 
-# TODO: Foreach module create a table with genes, GS GS-P.values
+# Reading genes currently looked up in the laboratory with other experiments
+int.genes <- read.csv("genes_int.csv")
+int.genes.modules <- geneInfo2[geneInfo2$SYMBOL %in% int.genes$Genes_human, ]
+matrx <- table(int.genes.modules$moduleColor, int.genes.modules$SYMBOL)
+matrx <- matrx[order(table(int.genes.modules$moduleColor), decreasing = TRUE), ]
+
+genes <- sapply(rownames(matrx), function(x, a){
+  paste(colnames(a)[a[x, ] != 0], collapse = ", ")
+}, a = matrx)
+write.csv(as.data.frame(genes), file = "int_genes_module.csv")
+
+# Foreach module create a table in a file with genes, GS GS-P.values
 geneInfo1 <- lapply(unique(geneInfo$moduleColor), 
                     function(x, gI, GS, GSP, d, ...){
   gT <- gI[gI$moduleColor == x, ]
