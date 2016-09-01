@@ -12,7 +12,7 @@ pdfn <- function(...){
   pdf(...)
 }
 
-library(WGCNA)
+library("WGCNA")
 options(stringsAsFactors = FALSE)
 # Allow multi-threading within WGCNA. This helps speed up certain calculations.
 enableWGCNAThreads(6)
