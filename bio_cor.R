@@ -174,9 +174,10 @@ comb2mat <- function(cobs, func, ...){
   # Funcion to perform efficiently the conversion from combinations
   #  to symmetric matrix
   # Perform all the combinations of 2 from the input
-  N <- apply(cobs, 2, FUN = function(x, ...){func(x[1], x[2], ...)})
+  N <- lapply(cobs, FUN = function(x, ...){func(x[1], x[2], ...)})
   # Function that performs the calculus
   # N <- seq_len(ncol(combs))
+  input <- unique(unlist(cobs))
   out <- matrix(ncol = length(input), nrow = length(input))
   out[lower.tri(out)] <- N
   out <- t(out)
