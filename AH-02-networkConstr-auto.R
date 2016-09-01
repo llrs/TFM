@@ -35,6 +35,7 @@ source("bio_cor.R")
 # ==============================================================================
 
 ncol(data.wgcna)
+head(colnames(data.wgcna))
 bio_mat <- bio.cor(colnames(data.wgcna))
 save(bio_mat, file = "bio_correlation.RData")
 # Choose a set of soft-thresholding powers
