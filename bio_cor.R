@@ -8,31 +8,8 @@ library("KEGGgraph")
 library("KEGG.db")
 library("RBGL")
 
-".combinadic" <- function(n, r, i) {
-  
-  # http://msdn.microsoft.com/en-us/library/aa289166(VS.71).aspx
-  # http://en.wikipedia.org/wiki/Combinadic
-  n0 <- length(n)
-  if (i < 1 | i > choose(n0,r)) stop("'i' must be 0 < i <= n!/(n-r)!")
-  largestV <- function(n, r, i) {
-    #v <- n-1
-    v <- n                                  # Adjusted for one-based indexing
-    #while(choose(v,r) > i) v <- v-1
-    while (choose(v,r) >= i) v <- v - 1        # Adjusted for one-based indexing
-    return(v)
-  }
-  
-  res <- rep(NA,r)
-  for (j in 1:r) {
-    res[j] <- largestV(n0,r,i)
-    i <- i - choose(res[j],r)
-    n0 <- res[j]
-    r <- r - 1
-  }
-  res <- res + 1
-  res <- n[res]
-  return(res)
-}
+x <- head(keys(hgu133plus2.db))
+names(x) <- x
 
 compare_graphs <- function(g1, g2){
   # Function to estimate how much two graphs overlap by looking if the nodes
@@ -63,7 +40,7 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", ...){
    plens <- subListExtract(paths, "length", simplify = TRUE)
    max(plens)
  }
- # Calculates the score taking into account the size and the middest path
+ # Calculates the score taking into account the size and the middnest path
  # Taking advantage of the fact that in GO there is a root and leaves
  (UI$sim/LP$sim)*max(s.path(LP$g1), s.path(LP$g2))
 }
@@ -168,13 +145,8 @@ comb2mat <- function(input, func, ...){
   # Funcion to perform efficiently the conversion from combinations
   #  to symmetric matrix
   # Perform all the combinations of 2 from the input
-  cobs <- list()
-  for (i in 1:length(input)) {
-    cobs[[i]] <- .combinadic(input, 2, i)
-  }
-  # cobs <- combn(input, 2)
-  
-  N <- sapply(cobs, function(x, ...){func(x[1], x[2], ...)})
+  cobs <- combn(input, 2)
+  N <- apply(cobs, 2, FUN = function(x, ...){func(x[1], x[2], ...)})
   # Function that performs the calculus
   # N <- seq_len(ncol(combs))
   out <- matrix(ncol = length(input), nrow = length(input))
@@ -200,17 +172,17 @@ seq2mat <- function(x, dat) {
 
 # Extract all the id of reactome for each combination and compare them all
 comb_biopath <- function(comb, info, by, biopath){
-  # react_path <- apply(comb, 2, function(y){
-    a <- unique(info[info[by] == comb[1], biopath])
+  react_path <- apply(comb, 2, function(y){
+    a <- unique(info[info[by] == y[1], biopath])
     a <- a[a != ""]
 
-    b <- unique(info[info[by] == comb[2], biopath])
+    b <- unique(info[info[by] == y[2], biopath])
     b <- b[b != ""]
     if (all(sapply(a, is.na)) | all(sapply(b, is.na))) {
         return(NA)
     }
     expand.grid(a, b)
-  # })
+  })
 }
 
 # Check if something is a matrix (internal use only)
@@ -230,7 +202,7 @@ check_na <- function(x){
 bio.cor <- function(x, ... ){
   # Using data correlates biologically two genes or probes
   # From the graphite package
-  names_probes <- x
+  names_probes <- names(x)
   humanReactome <- pathways("hsapiens", "reactome")
   # humanKegg <- pathways("hsapiens", "kegg")
 
@@ -250,49 +222,47 @@ bio.cor <- function(x, ... ){
   # dist_mat <- comb2mat(x, dist_cor, info) # Not useful
 
   # TODO: extract a lab notebook
-  # comb <- combn(names_probes, 2)
-  react.bio <- rep(NA, choose(length(names_probes), 2))
-  kegg.bio <- react.bio
-  for (i in 1:choose(length(names_probes), 2)) {
-    comb <- .combinadic(names_probes, 2, i)
-    react_path <- comb_biopath(comb, info, "affy_hg_u133_plus_2","reactome")
-    # Calculate the max of the correlation of both ids
-    # N <- lapply(react_path, function(x){
-    #   if (check_na(x)) {
-    #     return(NA)
-    #   }
-      a <- apply(react_path, 1, function(y){react_cor(y[1], y[2], hR = humanReactome)}
-      )
-      if (length(a) != 0) {
-        react.bio[i] <- max(a)
-      } else {
-        react.bio[i] <- NA
-      }
-      # })
-    
-    kegg_path <- comb_biopath(comb, affy.id, "PROBEID","PATH")
-    # Calculate the max of the correlation of both ids
-    # N <- lapply(kegg_path, function(x){
-    #   if (check_na(x)) {
-    #     return(NA)
-    #   }
-      a <- apply(x, 1, function(y){kegg_cor(y[1], y[2])}
-      )
-      if (length(a) != 0) {
-        kegg.bio[i] <- max(a)
-      } else {
-        kegg.bio[i] <- NA
-      }
-      # }})
-    
-  }
-  react_mat <- seq2mat(names_probes, react.bio)
-  kegg_mat <- seq2mat(names_probes, kegg.bio)
+  comb <- combn(names_probes, 2)
+  react_path <- comb_biopath(comb, info, "affy_hg_u133_plus_2","reactome")
+  # Calculate the max of the correlation of both ids
+  N <- lapply(react_path, function(x){
+    if (check_na(x)) {
+      return(NA)
+    }
+    print(dim(x))
+    expect_equal(dim(x), 2)
+    a <- apply(x, 1, function(y){react_cor(y[1], y[2], hR = humanReactome)}
+              )
+    if (length(a) != 0) {
+      max(a)
+    } else {
+      return(NA)
+    }})
+
+  react_mat <- seq2mat(names_probes, N)
+
+  kegg_path <- comb_biopath(comb, affy.id, "PROBEID","PATH")
+  # Calculate the max of the correlation of both ids
+  N <- lapply(kegg_path, function(x){
+    if (check_na(x)) {
+      return(NA)
+    }
+    expect_equal(dim(x), 2)
+    a <- apply(x, 1, function(y){kegg_cor(y[1], y[2])}
+    )
+    if (length(a) != 0) {
+      return(max(a))
+    } else {
+      return(NA)
+    }})
+
+  kegg_mat <- seq2mat(names_probes, N)
   cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
 
 }
 
 weighted <- function(x, w){
+  expect_equal(length(x), length(w))
   if (length(x) != length(w)) {
     stop(paste("Weights and data don't match the length.\n",
                length(x), length(w)))
@@ -308,5 +278,3 @@ cor.all <- function(datExpr, bio_mat, ...){
   apply(simplify2array(cors), c(1,2), weighted, w = c(0.5, 0.18, 0.10, 0.22))
 }
 
-
-combn

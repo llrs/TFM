@@ -13,11 +13,11 @@ pdfn <- function(...){
 }
 
 library(WGCNA)
-options(stringsAsFactors = FALSE) 
+options(stringsAsFactors = FALSE)
 # Allow multi-threading within WGCNA. This helps speed up certain calculations.
 enableWGCNAThreads(6)
 # Load the data saved in the first part
-load(file = "InputWGCNA.RData", verbose = TRUE) 
+load(file = "InputWGCNA.RData", verbose = TRUE)
 #The variable lnames contains the names of loaded variables.
 library("biomaRt")
 library("hgu133plus2.db")
@@ -26,7 +26,7 @@ library("graphite")
 library("KEGGgraph")
 library("KEGG.db")
 library("RBGL")
-source("../bio_cor.R")
+source("bio_cor.R")
 
 # ==============================================================================
 #
@@ -35,14 +35,13 @@ source("../bio_cor.R")
 # ==============================================================================
 
 ncol(data.wgcna)
-# stop("What?")
 bio_mat <- bio.cor(colnames(data.wgcna))
 save(bio_mat, file = "bio_correlation.RData")
 # Choose a set of soft-thresholding powers
 powers = c(1:30)
 # Call the network topology analysis function
 sft <- pickSoftThreshold(data.wgcna, powerVector = powers, verbose = 5,
-                        networkType = "signed", corFnc = cor.all, 
+                        networkType = "signed", corFnc = cor.all,
                         corOptions = list(use = "p", bio_mat = bio_mat))
 # Plot the results:
 pdfn(file = "Power_calculations_bio.cor.pdf", width = 9, height = 5)
@@ -76,11 +75,11 @@ stop("Testing bio.all function")
 # net <- blockwiseModules(data.wgcna, power = 12, # the max connectivity of 0.77
 #                 # Power SFT.R.sq   slope truncated.R.sq mean.k. median.k. max.k.
 #                 # 12     0.7730  -1.490          0.738     602     400.0   2220
-#                        TOMType = "signed", minModuleSize = 30, 
-#                        maxBlockSize = 8000, networkType = "signed", 
-#                        pamRespectsDendro = FALSE, 
-#                        saveTOMs = TRUE, 
-#                        saveTOMFileBase = "AH_signed", 
+#                        TOMType = "signed", minModuleSize = 30,
+#                        maxBlockSize = 8000, networkType = "signed",
+#                        pamRespectsDendro = FALSE,
+#                        saveTOMs = TRUE,
+#                        saveTOMFileBase = "AH_signed",
 #                        verbose = 3)
 
 # save(net, file = "net.RData")
@@ -97,9 +96,9 @@ pdfn(file = "dendro.pdf", width = 12, height = 9)
 # Convert labels to colors for plotting
 mergedColors <- net$colors
 # Plot the dendrogram and the module colors underneath
-plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]], 
-                    "Module colors of first dendrogram", 
-                    dendroLabels = FALSE, hang = 0.03, 
+plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
+                    "Module colors of first dendrogram",
+                    dendroLabels = FALSE, hang = 0.03,
                     addGuide = TRUE, guideHang = 0.05)
 
 # ==============================================================================
@@ -135,8 +134,8 @@ count.p <- function(data, per){
   sum(data >= per)/length(data)
 }
 perc <- unlist(lapply(gm, count.p, data = gm))
-plot(cbind(gm[order(perc)],perc[order(perc)]), type = "o",  
-     xlab = "Size of the modules", 
+plot(cbind(gm[order(perc)],perc[order(perc)]), type = "o",
+     xlab = "Size of the modules",
      ylab = "Proportion of modules above the size",
      main = "Distribution of the size of the modules",
      col = names(gm[order(perc)]))
@@ -146,7 +145,7 @@ plot(cbind(gm[order(perc)],perc[order(perc)]), type = "o",
 
 
 # Call an automatic merging function
-merge <- mergeCloseModules(data.wgcna, 
+merge <- mergeCloseModules(data.wgcna,
                           net$colors, cutHeight = MEDissThres, MEs = MEs,
                           verbose = 3)
 # The merged module colors
@@ -159,7 +158,7 @@ plot(merge$dendro, main = "After merging the modules")
 dev.off()
 # ==============================================================================
 #
-#  Code chunk 6: Save the data 
+#  Code chunk 6: Save the data
 #
 # ==============================================================================
 
