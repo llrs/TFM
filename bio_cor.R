@@ -11,6 +11,35 @@ library("RBGL")
 x <- head(keys(hgu133plus2.db))
 names(x) <- x
 
+
+".combinadic" <- function(n, r, i) {
+
+  # http://msdn.microsoft.com/en-us/library/aa289166(VS.71).aspx
+  # http://en.wikipedia.org/wiki/Combinadic
+  n0 <- length(n)
+  if(i < 1 | i > choose(n0,r)) stop("'i' must be 0 < i <= n!/(n-r)!")
+
+
+
+  largestV <- function(n, r, i) {
+    v <- n                                  # Adjusted for one-based indexing
+    while(choose(v,r) >= i) v <- v-1        # Adjusted for one-based indexing
+    return(v)
+  }
+
+
+  res <- rep(NA,r)
+  for(j in 1:r) {
+    res[j] <- largestV(n0,r,i)
+    i <- i-choose(res[j],r)
+    n0 <- res[j]
+    r <- r-1
+  }
+  res <- res + 1
+  return(n[res])
+}
+
+
 compare_graphs <- function(g1, g2){
   # Function to estimate how much two graphs overlap by looking if the nodes
   # are the same
@@ -141,11 +170,10 @@ react_cor <- function(react_a, react_b, hR){
   score
 }
 
-comb2mat <- function(input, func, ...){
+comb2mat <- function(cobs, func, ...){
   # Funcion to perform efficiently the conversion from combinations
   #  to symmetric matrix
   # Perform all the combinations of 2 from the input
-  cobs <- combn(input, 2)
   N <- apply(cobs, 2, FUN = function(x, ...){func(x[1], x[2], ...)})
   # Function that performs the calculus
   # N <- seq_len(ncol(combs))
@@ -202,15 +230,12 @@ check_na <- function(x){
 bio.cor <- function(x, ... ){
   # Using data correlates biologically two genes or probes
   # From the graphite package
-  names_probes <- names(x)
+  names_probes <- x
   humanReactome <- pathways("hsapiens", "reactome")
   # humanKegg <- pathways("hsapiens", "kegg")
 
   mart <- useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
-  attri <- c("affy_hg_u133_plus_2","entrezgene",
-             "gene_biotype", "start_position", "end_position", "chromosome_name",
-             "strand", "reactome",
-             "hgnc_symbol")
+  attri <- c("affy_hg_u133_plus_2","entrezgene", "reactome", "hgnc_symbol")
   info <- getBM(attributes = attri,
                 filters = "affy_hg_u133_plus_2", values = names_probes,
                 mart = mart)
@@ -218,11 +243,12 @@ bio.cor <- function(x, ... ){
   affy.id <- select(hgu133plus2.db, keys = names_probes,
                     columns = c("PROBEID", "ENTREZID", "SYMBOL", "PATH"))
 
-  go_mat <- comb2mat(names_probes, go_cor)
+
   # dist_mat <- comb2mat(x, dist_cor, info) # Not useful
 
   # TODO: extract a lab notebook
-  comb <- combn(names_probes, 2)
+  comb <- .combinadic(names_probes, 2, 2)
+  go_mat <- comb2mat(comb, go_cor)
   react_path <- comb_biopath(comb, info, "affy_hg_u133_plus_2","reactome")
   # Calculate the max of the correlation of both ids
   N <- lapply(react_path, function(x){
@@ -258,7 +284,6 @@ bio.cor <- function(x, ... ){
 
   kegg_mat <- seq2mat(names_probes, N)
   cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
-
 }
 
 weighted <- function(x, w){
