@@ -54,6 +54,7 @@ compare_graphs <- function(g1, g2){
 
 go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", ...){
   # Calculates the degree of overlap of the GO BP ontologies of entrez ids.
+  # https://support.bioconductor.org/p/85702/#85732
  LP <- simLL(e_a, e_b, "BP", measure = "LP", chip = chip, ...)
  UI <- simLL(e_a, e_b, "BP", measure = "UI", chip = chip, ...)
 
