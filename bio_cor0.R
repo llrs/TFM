@@ -81,11 +81,13 @@ kegg_cor <- function(react_a, react_b){
   
   # Retrieve the results from internet https site
   tmp <- tempfile("hsa")
-  retrieveKGML(paste0("path:", react_a), "hsa", tmp, method = "wget")
+  retrieveKGML(paste0("path:", react_a), "hsa", tmp, method = "wget", 
+               quiet = TRUE)
   g1 <- parseKGML2Graph(tmp, expandGenes = TRUE)
   
   tmp2 <- tempfile("hsa")
-  retrieveKGML(paste0("path:", react_b), "hsa", tmp2, method = "wget")
+  retrieveKGML(paste0("path:", react_b), "hsa", tmp2, method = "wget", 
+               quiet = TRUE)
   g2 <- parseKGML2Graph(tmp2, expandGenes = TRUE)
   
   score <- compare_graphs(g1, g2)
@@ -247,7 +249,7 @@ bio.cor <- function(x, ... ){
   affy.id <- select(hgu133plus2.db, keys = names_probes,
                     columns = c("PROBEID", "ENTREZID", "SYMBOL", "PATH"))
   
-  go_mat <- comb2mat(names_probes, go_cor)
+  # go_mat <- comb2mat(names_probes, go_cor)
   # dist_mat <- comb2mat(x, dist_cor, info) # Not useful
   
   # TODO: extract a lab notebook
@@ -258,29 +260,50 @@ bio.cor <- function(x, ... ){
     comb <- .combinadic(names_probes, 2, i)
     react_path <- comb_biopath(comb, info, "affy_hg_u133_plus_2","reactome")
     # Calculate the max of the correlation of both ids
-    # N <- lapply(react_path, function(x){
-    #   if (check_na(x)) {
-    #     return(NA)
-    #   }
-    a <- apply(react_path, 1, function(y){react_cor(y[1], y[2], hR = humanReactome)}
-    )
+    if (check_na(react_path)){
+      a <- NA
+    } else {
+      a <- apply(react_path, 1, function(y){
+        react_cor(y[1], y[2], hR = humanReactome)
+        }
+      )
+    }
     if (length(a) != 0) {
-      react.bio[i] <- max(a)
+      react.bio[i] <- max(a, na.rm = TRUE)
     } else {
       react.bio[i] <- NA
     }
-    # })
-    
+    # # })
+    # print(head(comb))
+    # print(head(affy.id))
     kegg_path <- comb_biopath(comb, affy.id, "PROBEID","PATH")
     # Calculate the max of the correlation of both ids
     # N <- lapply(kegg_path, function(x){
     #   if (check_na(x)) {
     #     return(NA)
     #   }
-    a <- apply(x, 1, function(y){kegg_cor(y[1], y[2])}
-    )
+    if (check_na(kegg_path)) {
+      a <- NA
+    } else {
+      # print(head(kegg_path))
+      a <- apply(kegg_path, 1, function(y) {
+        result <- tryCatch({
+          kegg_cor(y[1], y[2])
+          }, warning = function(w) {
+            message(paste("Warning downloading the data for ", 
+                          y[1], "or", y[2]))
+            message(w)
+          }, error = function(e) {
+            message(paste("Couldn't download the data for ", y[1], "or", y[2]))
+            # Choose a return value in case of error
+            return(NA)
+          })
+        }
+      )
+    }
+    
     if (length(a) != 0) {
-      kegg.bio[i] <- max(a)
+      kegg.bio[i] <- max(a, na.rm = TRUE)
     } else {
       kegg.bio[i] <- NA
     }
