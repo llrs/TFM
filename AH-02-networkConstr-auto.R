@@ -26,7 +26,7 @@ library("graphite")
 library("KEGGgraph")
 library("KEGG.db")
 library("RBGL")
-source("bio_cor.R")
+source("bio_cor0.R")
 
 # ==============================================================================
 #
