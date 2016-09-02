@@ -49,7 +49,7 @@ setwd("~/Documents/data/")
 
 # Phenodata contains the information of the experiment space separated! 
 # not tab separated
-# warning("phenodata is manually created!\n")
+# warning("phenodata is manually created! And not under git!\n")
 # celfiles <- read.affy("phenodata.txt")
 # celfiles
 # 
