@@ -11,7 +11,7 @@ library("sva")
 library("annotate")
 library("hgu133plus2.db")
 library("data.table")
-# library("ggbiplot")
+library("ggbiplot")
 library("corpcor")
 library("WGCNA")
 enableWGCNAThreads(6)
@@ -33,6 +33,7 @@ path_raw <- paste(gse_number, raw.tar, sep = "/")
 # So we need to load the bioconductor library with the information about it
 library("Affyhgu133Plus2Expr")
 library("hgu133plus2probe")
+library("hgu133plus2cdf")
 
 # Tutorial on https://www.biostars.org/p/53870/
 # Based on this tutorial:
@@ -45,27 +46,72 @@ library("hgu133plus2probe")
 # cels <- list.files("data/", pattern = "[gz]")
 # sapply(paste("data", cels, sep = "/"), gunzip)
 # cels  <-  list.files("data/", pattern = "CEL")
-setwd("~/Documents/data/")
+setwd("../data/")
 
 # Phenodata contains the information of the experiment space separated! 
 # not tab separated
-# warning("phenodata is manually created! And not under git!\n")
-# celfiles <- read.affy("phenodata.txt")
-# celfiles
-# 
-# setwd(origDir)
-# # Normalize data
-# c.gcrma <- gcrma(celfiles)
-# pca.c.gcrma <- prcomp(c.gcrma, scale. = TRUE)
-# png("Normalization.png")
-# plot(pca.c.gcrma, main = "PCA gcrma")
-# # g <- ggbiplot(pca.c.gcrma, obs.scale = 1, var.scale = 1, ellipse = TRUE,
-# #               circle = TRUE)
-# c.rma <- rma(celfiles)
-# plot(prcomp(c.rma, scale. = TRUE), main = "PCA rma")
-# dev.off()
-# 
-# # set colour palette
+warning("phenodata is manually created! And not under git!")
+pheno.isa <- read.affy("pheno.isa.txt")
+pheno.silvia <- read.affy("pheno.silvia.txt")
+# stop("readfiles!")
+setwd(origDir)
+
+pca.graph <- function(celfiles=NULL, data=NULL, file, col = NULL){
+  # Normalize data and plots PCA of samples
+  # Data is the normalized, celfiles are the raw files
+  if (is.null(data)) {
+    if (!is.null(celfiles)) {
+      data <- rma(celfiles)
+    } else {
+      stop("celfiles or data must be provided")
+    }
+  }
+
+  outcome <- as.character(phenoData(data)$Type)
+  dists <- as.dist(1 - cor(exprs(data), method = "spearman"))
+  cmd <- cmdscale(dists)
+  # pca.plo <- ggbiplot(cmd, obs.scale = 1, var.scale = 1, ellipse = TRUE,
+  #                     circle = TRUE)
+  pdf(file)
+  # plot(pca.plo)
+  plot(cmd, type = "n", main = "PCA samples")
+  text(cmd, outcome, col = NULL, cex = 0.9)
+  dev.off()
+  return(data)
+}
+
+sum.e <- function(eset){
+  # Given a expression set transforms it to the gene symbols
+  ann <- annotation(eset)
+  pkg.ann <- eval(paste0(ann, ".db"))
+  symbols <- select(pkg.ann, keys(pkg.ann), "SYMBOL")
+  expr <- exprs(eset)
+  probes <- rownames(expr)
+  rowGroup <- symbols[match(probes, symbols$PROBE),"SYMBOL"]
+  # the length of rowGroup and probes should be the same
+  # even if there is a warning we cannot omit it 
+  # length(unique(rowGroup)) == length(probes.isa)
+  corr.e <- collapseRows(expr, rowGroup = rowGroup, rowID = probes)
+  corr.sy <- corr.e$datETcollapsed
+  return(corr.sy)
+}
+c.isa <- rma(pheno.isa)
+co.isa <- sum.e(c.isa)
+c.silvia <- rma(pheno.silvia)
+co.silvia <- sum.e(c.silvia)
+
+merged <- rbind(co.isa, co.silvia)
+stop("hi")
+
+
+pca.graph(data = c.isa, file = "isa.pca.png")
+class(exprs(c.isa))
+c.silvia <- rma(pheno.silvia)
+pca.graph(data = c.silvia, file = "silvia.pca.png")
+
+stop("end interesting part")
+
+# set colour palette
 # cols <- brewer.pal(8, "Set1")
 # 
 # # plot a boxplot of unnormalised and normalized intensity values
@@ -163,6 +209,9 @@ setwd("~/Documents/data/")
 # text(cmd, outcome, col = batch, cex = 0.9)
 # legend("top", paste("Batch", unique(batch)), fill = unique(batch), inset = 0.01)
 # 
+# 
+
+
 # # Quantifying the counfounding factor
 # s <- fast.svd(t(scale(t(exprs(celfiles)), center = TRUE, scale = TRUE)))
 # PCA <- s$d ^ 2/sum(s$d ^ 2)
