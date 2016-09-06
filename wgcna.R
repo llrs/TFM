@@ -19,7 +19,8 @@ library("edgeR")
 library("limma")
 library("gcrma")
 library("RColorBrewer")
-
+library("hgu219.db")
+library("plyr")
 # Prepare some variables
 gse_number <- "GSE28619"
 path_files <- "../Documents/data/GSE28619_RAW/"
@@ -56,7 +57,8 @@ pheno.silvia <- read.affy("pheno.silvia.txt")
 # stop("readfiles!")
 setwd(origDir)
 
-pca.graph <- function(celfiles=NULL, data=NULL, file, col = NULL){
+pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL, 
+                      col = NULL, ...){
   # Normalize data and plots PCA of samples
   # Data is the normalized, celfiles are the raw files
   if (is.null(data)) {
@@ -66,24 +68,39 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, col = NULL){
       stop("celfiles or data must be provided")
     }
   }
-
-  outcome <- as.character(phenoData(data)$Type)
-  dists <- as.dist(1 - cor(exprs(data), method = "spearman"))
+  
+  if ("ExpressionSet" %in% is(data)) {
+    if (is.null(outcome)) {
+      outcome <- as.character(phenoData(data)$Type)
+    }
+    dists <- as.dist(1 - cor(exprs(data), method = "spearman"))
+  } else {
+    if (is.null(outcome)) {
+      outcome <- rep("AH", ncol(data))
+    }
+    dists <- as.dist(1 - WGCNA::cor(data, method = "spearman", 
+                                    use = "pairwise.complete.obs"))
+  }
+  
   cmd <- cmdscale(dists)
-  # pca.plo <- ggbiplot(cmd, obs.scale = 1, var.scale = 1, ellipse = TRUE,
-  #                     circle = TRUE)
   pdf(file)
-  # plot(pca.plo)
-  plot(cmd, type = "n", main = "PCA samples")
-  text(cmd, outcome, col = NULL, cex = 0.9)
+  pca.plo <- ggbiplot(prcomp(dists, scale. = TRUE), 
+                      obs.scale = 1, var.scale = 1, ellipse = TRUE,
+                      group = outcome, var.axes = FALSE,
+                      # circle = TRUE
+                      )
+  plot(pca.plo)
+  plot(cmd, type = "n", main = "PCA samples", ...)
+  text(cmd, outcome, col = col, cex = 0.9)
   dev.off()
-  return(data)
+  invisible(data)
 }
 
 sum.e <- function(eset){
   # Given a expression set transforms it to the gene symbols
   ann <- annotation(eset)
-  pkg.ann <- eval(paste0(ann, ".db"))
+  pkg <- paste0(ann, ".db")
+  pkg.ann <- eval(parse(text = pkg))
   symbols <- select(pkg.ann, keys(pkg.ann), "SYMBOL")
   expr <- exprs(eset)
   probes <- rownames(expr)
@@ -95,20 +112,26 @@ sum.e <- function(eset){
   corr.sy <- corr.e$datETcollapsed
   return(corr.sy)
 }
+
 c.isa <- rma(pheno.isa)
-co.isa <- sum.e(c.isa)
+# co.isa <- sum.e(c.isa)
 c.silvia <- rma(pheno.silvia)
-co.silvia <- sum.e(c.silvia)
+# co.silvia <- sum.e(c.silvia)
+# save(co.silvia, co.isa, file = "collapsed.micro.RData")
+load("collapsed.micro.RData", verbose = TRUE)
 
-merged <- rbind(co.isa, co.silvia)
-stop("hi")
+# Merge the data of each batch into a single matrix
+co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
+co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
+merged <- rbind.fill(co.silvia.df, co.isa.df)
+rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+merged.pca <- t(merged)
 
-
-pca.graph(data = c.isa, file = "isa.pca.png")
-class(exprs(c.isa))
-c.silvia <- rma(pheno.silvia)
-pca.graph(data = c.silvia, file = "silvia.pca.png")
-
+orig.data <- as.factor(c(rep(1, ncol(co.silvia)), 
+                         rep(2, ncol(co.isa))))
+pca.graph(data = merged.pca, file = "merged.pca.pdf", 
+          col = as.numeric(orig.data),
+          outcome = orig.data)
 stop("end interesting part")
 
 # set colour palette
@@ -131,7 +154,7 @@ stop("end interesting part")
 # hist(c.rma, col = cols, main = "rma")
 # dev.off()
 # 
-# # MA plots to see how weel they are
+# # MA plots to see how well they are
 # # add option plot.method = "smoothScatter" to get a fancier plot
 # png("normalization_maplot.png", width = 1500, height = 750)
 # par(mfrow = c(1,3), mar = c(4, 5, 2, 2))
