@@ -49,7 +49,7 @@ library("hgu133plus2cdf")
 # cels  <-  list.files("data/", pattern = "CEL")
 setwd("../data/")
 
-# Phenodata contains the information of the experiment space separated! 
+# Phenodata contains the information of the experiment space separated!
 # not tab separated
 warning("phenodata is manually created! And not under git!")
 pheno.isa <- read.affy("pheno.isa.txt")
@@ -57,7 +57,7 @@ pheno.silvia <- read.affy("pheno.silvia.txt")
 # stop("readfiles!")
 setwd(origDir)
 
-pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL, 
+pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
                       col = NULL, ...){
   # Normalize data and plots PCA of samples
   # Data is the normalized, celfiles are the raw files
@@ -68,7 +68,7 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
       stop("celfiles or data must be provided")
     }
   }
-  
+
   if ("ExpressionSet" %in% is(data)) {
     if (is.null(outcome)) {
       outcome <- as.character(phenoData(data)$Type)
@@ -78,20 +78,25 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
     if (is.null(outcome)) {
       outcome <- rep("AH", ncol(data))
     }
-    dists <- as.dist(1 - WGCNA::cor(data, method = "spearman", 
+    dists <- as.dist(1 - WGCNA::cor(data, method = "spearman",
                                     use = "pairwise.complete.obs"))
   }
-  
-  cmd <- cmdscale(dists)
+
+  cmd <- cmdscale(dists, eig = TRUE, add = TRUE)
+  perc.v <- round(cmd$eig/sum(cmd$eig)*100, 1)
   pdf(file)
-  pca.plo <- ggbiplot(prcomp(dists, scale. = TRUE), 
+  pca.plo <- ggbiplot(prcomp(dists, scale. = TRUE),
                       obs.scale = 1, var.scale = 1, ellipse = TRUE,
                       group = outcome, var.axes = FALSE,
                       # circle = TRUE
                       )
   plot(pca.plo)
-  plot(cmd, type = "n", main = "PCA samples", ...)
-  text(cmd, outcome, col = col, cex = 0.9)
+  plot(cmd$points[, 1], cmd$points[, 2], type = "n", main = "MDS samples",
+       xlab = paste0("PC1 (", perc.v[1], "% of explained var.)"),
+       ylab = paste0("PC2 (", perc.v[2], "% of explained var.)"),
+       ...)
+  text(cmd$points[,1 ], cmd$points[, 2], col = col, cex = 0.9,
+       labels = outcome)
   dev.off()
   invisible(data)
 }
@@ -106,7 +111,7 @@ sum.e <- function(eset){
   probes <- rownames(expr)
   rowGroup <- symbols[match(probes, symbols$PROBE),"SYMBOL"]
   # the length of rowGroup and probes should be the same
-  # even if there is a warning we cannot omit it 
+  # even if there is a warning we cannot omit it
   # length(unique(rowGroup)) == length(probes.isa)
   corr.e <- collapseRows(expr, rowGroup = rowGroup, rowID = probes)
   corr.sy <- corr.e$datETcollapsed
@@ -127,25 +132,25 @@ merged <- rbind.fill(co.silvia.df, co.isa.df)
 rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
 merged.pca <- t(merged)
 
-orig.data <- as.factor(c(rep(1, ncol(co.silvia)), 
-                         rep(2, ncol(co.isa))))
-pca.graph(data = merged.pca, file = "merged.pca.pdf", 
+# Store the procedence of the data
+orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
+                         rep("Isa", ncol(co.isa))))
+pca.graph(data = merged.pca, file = "merged.pca.pdf",
           col = as.numeric(orig.data),
           outcome = orig.data)
-stop("end interesting part")
 
 # set colour palette
 # cols <- brewer.pal(8, "Set1")
-# 
+#
 # # plot a boxplot of unnormalised and normalized intensity values
-# 
+#
 # png("normalization_boxplot.png", width = 1000, height = 750)
 # pars <- par(mfrow = c(1,3), mar = c(4, 5, 3, 2))
 # boxplot(celfiles, col = cols, title = "Unnormalised")
 # boxplot(c.gcrma, col = cols, title = "Gcrma normalization")
 # boxplot(c.rma, col = cols, titlw = "RMA normalization")
 # dev.off()
-# 
+#
 # # Plot a density vs log intensity histogram for the unnormalised and normalised data
 # png("normalization_histogram.png", width = 1500, height = 750)
 # par(mfrow = c(1,3), mar = c(4, 5, 2, 2))
@@ -153,7 +158,7 @@ stop("end interesting part")
 # hist(c.gcrma, col = cols, main = "gcrma") # This seem to be the best normalization algorithm
 # hist(c.rma, col = cols, main = "rma")
 # dev.off()
-# 
+#
 # # MA plots to see how well they are
 # # add option plot.method = "smoothScatter" to get a fancier plot
 # png("normalization_maplot.png", width = 1500, height = 750)
@@ -163,7 +168,7 @@ stop("end interesting part")
 # MAplot(c.rma, cex = 0.75, ref.title = "rma")
 # dev.off()
 # par(pars)
-# 
+#
 # # look at the relationships between the samples using heirarchical clustering
 # eset <- exprs(c.gcrma)
 # methods <- c("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")
@@ -175,26 +180,26 @@ stop("end interesting part")
 #   plot(cluster, labels = phenoData(celfiles)$Target, main = paste(meth, "distance"))
 # }
 # par(pars)
-# 
+#
 # # Depending on the type of distance the clustering goes different
-# 
+#
 # # Check for batch effect (based on day performed)
 # scanDate <- protocolData(c.gcrma)$ScanDate
 # scanDate <- gsub(" .*", "", scanDate)
 # scanDate <- as.Date(scanDate, "%m/%d/%Y")
 # minscan <- min(scanDate)
 # days <- scanDate - minscan
-# 
+#
 # days[days == 0] <- 1
 # days[days == 2] <- 2
 # days[days == 8] <- 3
 # days[days == 13] <- 4
 # batch <- as.numeric(days)
-# 
+#
 # # Most of the AH mirocarrays where done on 2 batches,
 # # one of them without control, bias?
 # table(data.frame(Outcome = c.gcrma$Type, Batch = batch))
-# 
+#
 # # Performs the clustering taking into account the date it was performed.
 # d.celfiles <- as.dist(1 - cor(exprs(celfiles), method = "spearman"))
 # d.gcrma <- as.dist(1 - cor(exprs(c.gcrma), method = "spearman"))
@@ -212,14 +217,14 @@ stop("end interesting part")
 #   }
 #   x
 # }, batch, outcome) ## these are the second and third arguments in the function
-# 
+#
 # png("hierarchical.png")
 # # Plot dendogram with the information of the dates.
 # plot(sampleDendrogram_c, main = "Hierarchical clustering of samples")
 # legend("bottom", cex = 0.75,
 #        paste("Batch", sort(unique(batch))), fill = sort(unique(batch)))
 # dev.off()
-# 
+#
 # # Multidimension scaling (PCA)
 # pdf("new_PCA.pdf", onefile = TRUE)
 # cmd <- cmdscale(d.celfiles)
@@ -231,13 +236,15 @@ stop("end interesting part")
 # plot(cmd, type = "n", main = "PCA with gcrma normalization")
 # text(cmd, outcome, col = batch, cex = 0.9)
 # legend("top", paste("Batch", unique(batch)), fill = unique(batch), inset = 0.01)
-# 
-# 
+#
+#
 
-
-# # Quantifying the counfounding factor
-# s <- fast.svd(t(scale(t(exprs(celfiles)), center = TRUE, scale = TRUE)))
+# Batch effect correction
+# Quantifying the counfounding factor
+# pdf("PCA.counfounding.merged.pdf")
+# s <- fast.svd(t(scale(merged.pca, center = TRUE, scale = TRUE)))
 # PCA <- s$d ^ 2/sum(s$d ^ 2)
+#
 # plot(PCA, type = "b", lwd = 2, las = 1,
 #      xlab = "Principal Component", ylab = "Proportion of variance",
 #      main = "Principal components contributions")
@@ -245,40 +252,60 @@ stop("end interesting part")
 # save(c.gcrma, file = "corrected_exprs.RData")
 # dev.off()
 setwd(origDir)
-load("corrected_exprs.RData", verbose = TRUE)
 
 
-# Prepare the variables to the right format
-disease <- read.csv("clean_variables.csv")
-data.complete <- cbind("files" = rownames(pData(c.gcrma)), pData(c.gcrma))
-vclin <- merge(data.complete, disease, by.x = "Sample", by.y = "id")
-int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille", "status_90", "glucose",
-             "trigycierides", "ast", "alt", "bili_total", "creatinine", 
-             "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
-             "platelets", "tp_seg", "hvpg_corte20", "hvpg", "aki",
-             "infection_hospitalization")
-vclin <- vclin[, colnames(vclin) %in% int.Var]
-disease.r <- apply(vclin, 2, as.numeric)
-nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
-         "hvpg_corte20", "lille_corte")
-for (n in nam) {
-  disease.r[,n] <- as.factor(vclin[,n])
-}
-disease <- disease.r[, -c(1, 2)]
+## ComBat
+# library("sva")
+# combat.exp <- ComBat(merged.pca, orig.data,
+#                      mod = matrix(1, nrow = ncol(merged.pca)),
+#                      prior.plots = T)
+# It don't work because: system is exactly singular: U[1,1] = 0
+# QR decomposition
+library("limma")
+qrexp <- removeBatchEffect(merged.pca, orig.data)
 
-exp <- exprs(c.gcrma)
+pca.graph(data = qrexp, file = "merged.pca.cor.pdf",
+          col = as.numeric(orig.data),
+          outcome = as.character(orig.data))
+# load("corrected_exprs.RData", verbose = TRUE)
+#
+#
+# # Prepare the variables to the right format
+# disease <- read.csv("clean_variables.csv")
+# data.complete <- cbind("files" = rownames(pData(c.gcrma)), pData(c.gcrma))
+# vclin <- merge(data.complete, disease, by.x = "Sample", by.y = "id")
+# int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
+#             "status_90", "glucose",
+#              "trigycierides", "ast", "alt", "bili_total", "creatinine",
+#              "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
+#              "platelets", "tp_seg", "hvpg_corte20", "hvpg", "aki",
+#              "infection_hospitalization")
+# vclin <- vclin[, colnames(vclin) %in% int.Var]
+# disease.r <- apply(vclin, 2, as.numeric)
+# nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
+#          "hvpg_corte20", "lille_corte")
+# for (n in nam) {
+#   disease.r[,n] <- as.factor(vclin[,n])
+# }
+# disease <- disease.r[, -c(1, 2)]
+#
+# exp <- exprs(c.gcrma)
+
 # Subset just the AH samples
-data.wgcna <- t(exp[, pData(c.gcrma)$Type == "AH"])
+# data.wgcna <- t(exp[, pData(c.gcrma)$Type == "AH"])
+data.wgcna <- merged
 gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
 
-if (!gsg$allOK)
-{
+if (!gsg$allOK) {
   # Optionally, print the gene and sample names that were removed:
   if (sum(!gsg$goodGenes) > 0)
-    printFlush(paste("Removing genes:", 
-                     paste(names(data.wgcna)[!gsg$goodGenes], collapse = ", ")));
+    printFlush(paste("Removing genes:",
+                     paste(names(data.wgcna)[!gsg$goodGenes],
+                           collapse = ", ")));
   if (sum(!gsg$goodSamples) > 0)
-    printFlush(paste("Removing samples:", paste(rownames(data.wgcna)[!gsg$goodSamples], collapse = ", ")));
+    printFlush(paste("Removing samples:",
+                     paste(rownames(data.wgcna)[!gsg$goodSamples],
+                           collapse = ", ")));
   # Remove the offending genes and samples from the data:
   data.wgcna <- data.wgcna[gsg$goodSamples, gsg$goodGenes]
 }
@@ -286,10 +313,11 @@ if (!gsg$allOK)
 pdf("samples.pdf")
 sampleTree <- hclust(dist(data.wgcna), method = "average")
 pars <- par(mar = c(0, 4, 2, 0), cex = 0.6)
-plot(sampleTree, main = "Sample clustering to detect outliers", 
+plot(sampleTree, main = "Sample clustering to detect outliers",
      sub = "", xlab = "", cex.lab = 1.5,
      cex.axis = 1.5, cex.main = 2)
 dev.off()
+stop("Prepared")
 
 pdf("dendro_traits.pdf")
 # Re-cluster samples
@@ -303,6 +331,6 @@ plotDendroAndColors(sampleTree2, traitColors,
                     main = "Sample dendrogram and trait heatmap")
 dev.off()
 
-save(data.wgcna, vclin, file = "InputWGCNA.RData")
+save(data.wgcna, vclin, file = "InputWGCNA.merged.RData")
 
 
