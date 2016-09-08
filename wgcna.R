@@ -21,12 +21,14 @@ library("gcrma")
 library("RColorBrewer")
 library("hgu219.db")
 library("plyr")
+library("MergeMaid")
 # Prepare some variables
 gse_number <- "GSE28619"
 path_files <- "../Documents/data/GSE28619_RAW/"
 test_file <- "GSM709348.CEL.gz"
 path_file <- paste0(path_files, test_file)
-origDir <- setwd("~/Documents/data")
+data.dir <- "../data"
+origDir <- setwd(data.dir)
 raw.tar <- paste0(gse_number, "_RAW.tar")
 path_raw <- paste(gse_number, raw.tar, sep = "/")
 #By exploring the data on GEO I found that the platform is :
@@ -92,8 +94,8 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
                       )
   plot(pca.plo)
   plot(cmd$points[, 1], cmd$points[, 2], type = "n", main = "MDS samples",
-       xlab = paste0("PC1 (", perc.v[1], "% of explained var.)"),
-       ylab = paste0("PC2 (", perc.v[2], "% of explained var.)"),
+       xlab = paste0("PC1 (", perc.v[1], "% explained var.)"),
+       ylab = paste0("PC2 (", perc.v[2], "% explained var.)"),
        ...)
   text(cmd$points[,1 ], cmd$points[, 2], col = col, cex = 0.9,
        labels = outcome)
@@ -106,14 +108,16 @@ sum.e <- function(eset){
   ann <- annotation(eset)
   pkg <- paste0(ann, ".db")
   pkg.ann <- eval(parse(text = pkg))
-  symbols <- select(pkg.ann, keys(pkg.ann), "SYMBOL")
+  # print(class(pkg.ann))
+  symbols <- AnnotationDbi::select(pkg.ann, keys(pkg.ann), "SYMBOL")
   expr <- exprs(eset)
   probes <- rownames(expr)
   rowGroup <- symbols[match(probes, symbols$PROBE),"SYMBOL"]
   # the length of rowGroup and probes should be the same
   # even if there is a warning we cannot omit it
   # length(unique(rowGroup)) == length(probes.isa)
-  corr.e <- collapseRows(expr, rowGroup = rowGroup, rowID = probes)
+  corr.e <- collapseRows(expr, rowGroup = rowGroup, rowID = probes,
+                         method = "Average")
   corr.sy <- corr.e$datETcollapsed
   return(corr.sy)
 }
@@ -122,20 +126,39 @@ c.isa <- rma(pheno.isa)
 # co.isa <- sum.e(c.isa)
 c.silvia <- rma(pheno.silvia)
 # co.silvia <- sum.e(c.silvia)
-# save(co.silvia, co.isa, file = "collapsed.micro.RData")
-load("collapsed.micro.RData", verbose = TRUE)
+
 
 # Merge the data of each batch into a single matrix
-co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
-co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
-merged <- rbind.fill(co.silvia.df, co.isa.df)
-rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+# co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
+# co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
+# merged <- rbind.fill(co.silvia.df, co.isa.df)
+# rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+# save(co.silvia, co.isa, merged, file = "collapsed.micro.RData")
+load("collapsed.micro.RData", verbose = TRUE)
+with.na <- apply(merged, 2, function(x){any(is.na(x))})
+merged.shared <- merged[, !with.na] # Keep the shared genes
 merged.pca <- t(merged)
+merged.shared.pca <- t(merged.shared)
+
+# Merging with MergeMaid
+mergm <- mergeExprs(co.silvia, co.isa)
+corcor <- intCor(mergm)
+pdf("mergmaid.pdf")
+plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+     main = "Integrative correlation",
+     col = 3, pch = 4)
+hist(corcor, main = "Integrative correlation coeficient")
+intcor <- intcorDens(mergm)
+cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
+                          method = "linear")
+plot(coeff(cox.coeff), main = "Coeficients")
+save(intcor, cox.coeff, corcor, "mergemaid.RData")
+dev.off()
 
 # Store the procedence of the data
 orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
                          rep("Isa", ncol(co.isa))))
-pca.graph(data = merged.pca, file = "merged.pca.pdf",
+pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
           col = as.numeric(orig.data),
           outcome = orig.data)
 
@@ -242,38 +265,75 @@ pca.graph(data = merged.pca, file = "merged.pca.pdf",
 # Batch effect correction
 # Quantifying the counfounding factor
 # pdf("PCA.counfounding.merged.pdf")
-# s <- fast.svd(t(scale(merged.pca, center = TRUE, scale = TRUE)))
+# s <- fast.svd(t(scale(merged.shared.pca, center = TRUE, scale = TRUE)))
 # PCA <- s$d ^ 2/sum(s$d ^ 2)
 #
 # plot(PCA, type = "b", lwd = 2, las = 1,
-#      xlab = "Principal Component", ylab = "Proportion of variance",
-#      main = "Principal components contributions")
+     # xlab = "Principal Component", ylab = "Proportion of variance",
+     # main = "Principal components contributions")
 # dev.off()
 # save(c.gcrma, file = "corrected_exprs.RData")
 # dev.off()
 setwd(origDir)
 
-
 ## ComBat
-# library("sva")
-# combat.exp <- ComBat(merged.pca, orig.data,
-#                      mod = matrix(1, nrow = ncol(merged.pca)),
-#                      prior.plots = T)
+library("sva")
+combat.exp <- ComBat(merged.shared.pca, orig.data,
+                     # mod = matrix(1, nrow = ncol(merged.shared.pca)),
+                     prior.plots = T)
 # It don't work because: system is exactly singular: U[1,1] = 0
+
+pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
+          col = as.numeric(orig.data),
+          outcome = as.character(orig.data))
 # QR decomposition
 library("limma")
-qrexp <- removeBatchEffect(merged.pca, orig.data)
+qrexp <- removeBatchEffect(merged.shared.pca, orig.data)
 
-pca.graph(data = qrexp, file = "merged.pca.cor.pdf",
+pdf("mergmaid_cor2.pdf")
+mergm <- mergeExprs(co.silvia, co.isa)
+corcor <- intCor(mergm)
+plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+     main = "Integrative correlation",
+     col = 3, pch = 4)
+hist(corcor, main = "Integrative correlation coeficient")
+intcor <- intcorDens(mergm)
+cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
+                          method = "linear")
+plot(coeff(cox.coeff), main = "Coeficients")
+dev.off()
+stop("Evaluate mergmaid")
+
+
+pca.graph(data = qrexp, file = "merged.shared.pca.cor.pdf",
           col = as.numeric(orig.data),
           outcome = as.character(orig.data))
 # load("corrected_exprs.RData", verbose = TRUE)
 #
 #
 # # Prepare the variables to the right format
-# disease <- read.csv("clean_variables.csv")
-# data.complete <- cbind("files" = rownames(pData(c.gcrma)), pData(c.gcrma))
-# vclin <- merge(data.complete, disease, by.x = "Sample", by.y = "id")
+disease.silvia <- read.csv("clean_variables.csv")
+disease.isa <- read.csv("samples_AH.csv")
+colnames(disease.isa) <- tolower(colnames(disease.isa))
+clin.isa <- cbind("files" = rownames(pData(pheno.isa)),
+                  pData(pheno.isa))
+clin.silvia <- cbind("files" = rownames(pData(pheno.silvia)),
+                     pData(pheno.silvia))
+
+colnames(clin.silvia)[colnames(clin.silvia) == 'codi_pacient'] <- 'id'
+colnames(clin.silvia)[colnames(clin.silvia) == 'creat'] <- 'creatinine'
+colnames(clin.silvia)[colnames(clin.silvia) == 'leuc'] <- 'leucos'
+colnames(clin.silvia)[colnames(clin.silvia) == 'alb'] <- 'albumin' #
+colnames(clin.silvia)[colnames(clin.silvia) == 'triglicerids'] <- 'trigycierides'
+colnames(clin.silvia)[colnames(clin.silvia) == 'glucosa'] <- 'glucose'
+# ! Units: colnames(clin.silvia)[colnames(clin.silvia) == 'hb'] <- 'hb_g.dl'
+# ! Units?: colnames(clin.silvia)[colnames(clin.silvia) == 'tp'] <- 'tp_seq'
+
+
+clin <- rbind.fill(clin.isa, clin.silvia)
+disease <- rbind.fill(disease.silvia, disease.isa)
+
+vclin <- merge(clin, disease, by.y = "Sample", by.x = "id")
 # int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
 #             "status_90", "glucose",
 #              "trigycierides", "ast", "alt", "bili_total", "creatinine",
@@ -319,18 +379,19 @@ plot(sampleTree, main = "Sample clustering to detect outliers",
 dev.off()
 stop("Prepared")
 
-pdf("dendro_traits.pdf")
-# Re-cluster samples
-sampleTree2 <- hclust(dist(data.wgcna[rownames(data.wgcna) %in% vclin$files, ]),
-                      method = "average")
-# Convert traits to a color representation: white means low, red means high, grey means missing entry
-traitColors <- numbers2colors(disease, signed = FALSE)
-# Plot the sample dendrogram and the colors underneath.
-plotDendroAndColors(sampleTree2, traitColors,
-                    groupLabels = colnames(disease),
-                    main = "Sample dendrogram and trait heatmap")
-dev.off()
+# pdf("dendro_traits.pdf")
+# # Re-cluster samples
+# sampleTree2 <- hclust(dist(data.wgcna[rownames(data.wgcna) %in% vclin$files, ]),
+#                       method = "average")
+# # Convert traits to a color representation: white means low, red means high, grey means missing entry
+# traitColors <- numbers2colors(disease, signed = FALSE)
+# # Plot the sample dendrogram and the colors underneath.
+# plotDendroAndColors(sampleTree2, traitColors,
+#                     groupLabels = colnames(disease),
+#                     main = "Sample dendrogram and trait heatmap")
+# dev.off()
 
 save(data.wgcna, vclin, file = "InputWGCNA.merged.RData")
+
 
 
