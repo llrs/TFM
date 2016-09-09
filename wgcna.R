@@ -123,17 +123,17 @@ sum.e <- function(eset){
 }
 
 c.isa <- rma(pheno.isa)
-# co.isa <- sum.e(c.isa)
+co.isa <- sum.e(c.isa)
 c.silvia <- rma(pheno.silvia)
-# co.silvia <- sum.e(c.silvia)
+co.silvia <- sum.e(c.silvia)
 
 
 # Merge the data of each batch into a single matrix
-# co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
-# co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
-# merged <- rbind.fill(co.silvia.df, co.isa.df)
-# rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
-# save(co.silvia, co.isa, merged, file = "collapsed.micro.RData")
+co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
+co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
+merged <- rbind.fill(co.silvia.df, co.isa.df)
+rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+save(co.silvia, co.isa, merged, file = "collapsed.micro.RData")
 load("collapsed.micro.RData", verbose = TRUE)
 with.na <- apply(merged, 2, function(x){any(is.na(x))})
 merged.shared <- merged[, !with.na] # Keep the shared genes
@@ -149,19 +149,21 @@ plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
      col = 3, pch = 4)
 hist(corcor, main = "Integrative correlation coeficient")
 intcor <- intcorDens(mergm)
-cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
-                          method = "linear")
-plot(coeff(cox.coeff), main = "Coeficients")
-save(intcor, cox.coeff, corcor, "mergemaid.RData")
+# cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
+#                           method = "linear")
+# plot(coeff(cox.coeff), main = "Coeficients")
+save(intcor, corcor, file = "mergemaid.RData")
 dev.off()
 
 # Store the procedence of the data
 orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
                          rep("Isa", ncol(co.isa))))
+
 pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
           col = as.numeric(orig.data),
           outcome = orig.data)
 
+# #########
 # set colour palette
 # cols <- brewer.pal(8, "Set1")
 #
@@ -274,6 +276,8 @@ pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
 # dev.off()
 # save(c.gcrma, file = "corrected_exprs.RData")
 # dev.off()
+# ####
+
 setwd(origDir)
 
 ## ComBat
@@ -289,25 +293,11 @@ pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
 # QR decomposition
 library("limma")
 qrexp <- removeBatchEffect(merged.shared.pca, orig.data)
-
-pdf("mergmaid_cor2.pdf")
-mergm <- mergeExprs(co.silvia, co.isa)
-corcor <- intCor(mergm)
-plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
-     main = "Integrative correlation",
-     col = 3, pch = 4)
-hist(corcor, main = "Integrative correlation coeficient")
-intcor <- intcorDens(mergm)
-cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
-                          method = "linear")
-plot(coeff(cox.coeff), main = "Coeficients")
-dev.off()
-stop("Evaluate mergmaid")
-
-
-pca.graph(data = qrexp, file = "merged.shared.pca.cor.pdf",
+pca.graph(data = qrexp, file = "merged.shared.pca.rBE.pdf",
           col = as.numeric(orig.data),
           outcome = as.character(orig.data))
+stop("Evaluate mergmaid")
+
 # load("corrected_exprs.RData", verbose = TRUE)
 #
 #
@@ -334,13 +324,13 @@ clin <- rbind.fill(clin.isa, clin.silvia)
 disease <- rbind.fill(disease.silvia, disease.isa)
 
 vclin <- merge(clin, disease, by.y = "Sample", by.x = "id")
-# int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
-#             "status_90", "glucose",
-#              "trigycierides", "ast", "alt", "bili_total", "creatinine",
-#              "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
-#              "platelets", "tp_seg", "hvpg_corte20", "hvpg", "aki",
-#              "infection_hospitalization")
-# vclin <- vclin[, colnames(vclin) %in% int.Var]
+int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
+            "status_90", "glucose",
+             "trigycierides", "ast", "alt", "bili_total", "creatinine",
+             "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
+             "platelets", "tp_seg", "hvpg_corte20", "hvpg", "aki",
+             "infection_hospitalization")
+vclin <- vclin[, colnames(vclin) %in% int.Var]
 # disease.r <- apply(vclin, 2, as.numeric)
 # nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
 #          "hvpg_corte20", "lille_corte")
