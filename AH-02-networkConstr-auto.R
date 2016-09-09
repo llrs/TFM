@@ -1,6 +1,6 @@
 # ==============================================================================
 #
-#  Code chunk 1: Starting from the preiously saved data
+#  Code chunk 1: Starting from the previously saved data
 #
 # ==============================================================================
 
@@ -19,14 +19,23 @@ enableWGCNAThreads(6)
 # Load the data saved in the first part
 load(file = "InputWGCNA.RData", verbose = TRUE)
 #The variable lnames contains the names of loaded variables.
-library("biomaRt")
-library("hgu133plus2.db")
-library("GOstats")
-library("graphite")
-library("KEGGgraph")
-library("KEGG.db")
-library("RBGL")
-source("bio_cor0.R")
+# library("biomaRt")
+# library("hgu133plus2.db")
+# library("GOstats")
+# library("graphite")
+# library("KEGGgraph")
+# library("KEGG.db")
+# library("RBGL")
+# source("bio_cor0.R")
+# ==============================================================================
+#
+#  Code chunk 1b: Calculate the biological information of the genes
+#
+# ==============================================================================
+
+
+# bio_mat <- bio.cor(colnames(data.wgcna))
+# save(bio_mat, file = "bio_correlation.RData")
 
 # ==============================================================================
 #
@@ -34,16 +43,14 @@ source("bio_cor0.R")
 #
 # ==============================================================================
 
-ncol(data.wgcna)
-head(colnames(data.wgcna))
-bio_mat <- bio.cor(colnames(data.wgcna))
-save(bio_mat, file = "bio_correlation.RData")
 # Choose a set of soft-thresholding powers
 powers = c(1:30)
 # Call the network topology analysis function
 sft <- pickSoftThreshold(data.wgcna, powerVector = powers, verbose = 5,
-                        networkType = "signed", corFnc = cor.all,
-                        corOptions = list(use = "p", bio_mat = bio_mat))
+                        networkType = "unsigned",
+                        # corFnc = cor.all,
+                        # corOptions = list(use = "p", bio_mat = bio_mat)
+                        )
 # Plot the results:
 pdfn(file = "Power_calculations_bio.cor.pdf", width = 9, height = 5)
 par(mfrow = c(1, 2))
@@ -52,10 +59,10 @@ cex1 <- 0.9
 # Scale-free topology fit index as a function of the soft-thresholding power
 plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
      xlab = "Soft Threshold (power)",
-     ylab = "Scale Free Topology Model Fit, signed R^2", type = "n",
-     main = paste("Scale independence"))
+     ylab = "Scale Free Topology Model Fit, unsigned R^2", type = "n",
+     main = paste("Scale independence"), ylim = c(0, 1))
 text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
-     labels = powers, cex = cex1, col = "red")
+     labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
 # this line corresponds to using an R^2 cut-off of h
 abline(h = 0.90, col = "red")
 # Mean connectivity as a function of the soft-thresholding power
@@ -64,27 +71,27 @@ plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
      main = paste("Mean connectivity"))
 text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
      col = "red")
-
-stop("Testing bio.all function")
+dev.off()
+stop()
 # ==============================================================================
 #
 #  Code chunk 3: Automatic blocks creation using the power calculated
 #
 # ==============================================================================
 
-# print(paste("Recomended power", sft$powerEstimate))
-# net <- blockwiseModules(data.wgcna, power = 12, # the max connectivity of 0.77
-#                 # Power SFT.R.sq   slope truncated.R.sq mean.k. median.k. max.k.
-#                 # 12     0.7730  -1.490          0.738     602     400.0   2220
-#                        TOMType = "signed", minModuleSize = 30,
-#                        maxBlockSize = 8000, networkType = "signed",
-#                        pamRespectsDendro = FALSE,
-#                        saveTOMs = TRUE,
-#                        saveTOMFileBase = "AH_signed",
-#                        verbose = 3)
+print(paste("Recomended power", sft$powerEstimate))
+net <- blockwiseModules(data.wgcna, power = 9, # the max connectivity of 0.73
+                # Power SFT.R.sq   slope truncated.R.sq mean.k. median.k. max.k.
+                #    9   0.7250 -1.180          0.660     389    148.00   1970
+                       TOMType = "signed", minModuleSize = 30,
+                       maxBlockSize = 8000, networkType = "unsigned",
+                       pamRespectsDendro = FALSE,
+                       saveTOMs = TRUE,
+                       saveTOMFileBase = "AH_unsig.sig",
+                       verbose = 3)
 
-# save(net, file = "net.RData")
-load("net.RData")
+save(net, file = "net_unsigned.RData")
+load("net_unsigned.RData")
 # ==============================================================================
 #
 #  Code chunk 4: Plot how the modules correlate in a first dendrogram
@@ -141,20 +148,17 @@ plot(cbind(gm[order(perc)],perc[order(perc)]), type = "o",
      main = "Distribution of the size of the modules",
      col = names(gm[order(perc)]))
 
-
-
-
-
 # Call an automatic merging function
-merge <- mergeCloseModules(data.wgcna,
-                          net$colors, cutHeight = MEDissThres, MEs = MEs,
-                          verbose = 3)
-# The merged module colors
-mergedColors <- merge$colors;
-# Eigengenes of the new merged modules:
-mergedMEs <- merge$newME
-
-plot(merge$dendro, main = "After merging the modules")
+# Without merging from now on!!
+# merge <- mergeCloseModules(data.wgcna,
+#                           net$colors, cutHeight = MEDissThres, MEs = MEs,
+#                           verbose = 3)
+# # The merged module colors
+# mergedColors <- merge$colors;
+# # Eigengenes of the new merged modules:
+# MEs <- merge$newME
+#
+# plot(merge$dendro, main = "After merging the modules")
 
 dev.off()
 # ==============================================================================
@@ -164,5 +168,5 @@ dev.off()
 # ==============================================================================
 
 moduleColors <- mergedColors
-MEs <- mergedMEs
-save(MEs, moduleColors, file = "TNF_AH-network-auto.RData")
+
+save(MEs, moduleColors, file = "TNF_AH-network-unsig.RData")
