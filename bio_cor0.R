@@ -7,6 +7,7 @@ library("WGCNA")
 library("KEGGgraph")
 library("KEGG.db")
 library("RBGL")
+library("org.Hs.eg.db")
 
 ".combinadic" <- function(n, r, i) {
 
@@ -46,15 +47,23 @@ compare_graphs <- function(g1, g2){
     length(prot2) + length(prot1))
 }
 
+mapfun <- function(x) mget(x, revmap(org.Hs.egGO2EG), ifnotfound = NA)
+
 go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", ...){
   # Calculates the degree of overlap of the GO BP ontologies of entrez ids.
   # https://support.bioconductor.org/p/85702/#85732
-  LP <- simLL(e_a, e_b, "BP", measure = "LP", chip = chip, ...)
-  UI <- simLL(e_a, e_b, "BP", measure = "UI", chip = chip, ...)
+  if (!is.null(mapfun)) {
+    LP <- simLL(e_a, e_b, "BP", measure = "LP", mapfun = mapfun, ...)
+    UI <- simLL(e_a, e_b, "BP", measure = "UI", mapfun = mapfun, ...)
+  } else {
+    LP <- simLL(e_a, e_b, "BP", measure = "LP", chip = chip, ...)
+    UI <- simLL(e_a, e_b, "BP", measure = "UI", chip = chip, ...)
+  }
 
-  if (is.na(LP) | is.na(UI)) {
+  if (is.na(LP) | is.na(UI) | is.na(LP$sim) | is.na(UI$sim)) {
     return(NA)
   }
+
   s.path <- function(ig){
     # The longest of the shortest path of a graph
     lfi <- leaves(ig, "in")
@@ -253,7 +262,7 @@ bio.cor <- function(x, ... ){
   affy.id <- select(hgu133plus2.db, keys = names_probes,
                     columns = c("PROBEID", "ENTREZID", "SYMBOL", "PATH"))
 
-  # go_mat <- comb2mat(names_probes, go_cor)
+  go_mat <- comb2mat(names_probes, go_cor, mapfun = mapfun)
   # dist_mat <- comb2mat(x, dist_cor, info) # Not useful
 
   # TODO: extract a lab notebook
