@@ -7,17 +7,19 @@
 
 library("ggplot2")
 # Load the WGCNA package
-library(WGCNA)
+library("WGCNA")
+library("dplyr")
 enableWGCNAThreads(6)
 # The following setting is important, do not omit.
-options(stringsAsFactors = FALSE) 
+options(stringsAsFactors = FALSE)
 # Load the expression and trait data saved in the first part
-load(file = "InputWGCNA.RData", verbose = TRUE) 
+load(file = "InputWGCNA.RData", verbose = TRUE)
+load(file = "shared_genes.RData", verbose = TRUE)
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
-load(file = "TNF_AH-network-auto.RData", verbose = TRUE)
+load(file = "TNF_AH-network-unsig.RData", verbose = TRUE)
 library("boot")
-library("hgu133plus2.db")
+# library("hgu133plus2.db")
 
 
 # ==============================================================================
@@ -29,7 +31,7 @@ library("hgu133plus2.db")
 
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
-nSamples <- nrow(disease)
+nSamples <- nrow(vclin)
 # We don't need to recalculate as we store it previously
 # # Recalculate MEs with color labels
 # MEs0 <- moduleEigengenes(data.wgcna, moduleColors)
@@ -48,8 +50,8 @@ for (n in nam) {
 disease <- disease.r[, -c(1, 2)]
 
 keepSamples <- rownames(data.wgcna) %in% vclin$files
-moduleTraitCor <- cor(MEs[keepSamples, ], disease, 
-                      use = "p") 
+moduleTraitCor <- cor(MEs[keepSamples, ], disease,
+                      use = "p")
 
 # Calculating the adjusted p-value
 # moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
@@ -60,15 +62,15 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
 # TODO: Correct the p-values for multiple testing using the cor.test
 # TODO: Calculate the statistical power
-# 
+#
 # result <- apply(MEs, 2, function(x){
 #   apply(disease, 2, function(y){
 #     cor.test(x, y, method = "pearson")
 #   })
 # })
-# 
-# extract <- function(core, value = c("statistic", "parameter", "p.value", 
-#                                     "estimate", "null.value", 
+#
+# extract <- function(core, value = c("statistic", "parameter", "p.value",
+#                                     "estimate", "null.value",
 #                                      "alternative", "method", "data.name")) {
 #   # Extract the value of a correlation in a list of lists.
 #   a <- sapply(core, function(x){
@@ -78,12 +80,12 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 #   })
 #   t(a)
 # }
-# 
+#
 # p.val.cor <- extract(result, "p.value")
 # adj.p.val.cor <- p.adjust(unlist(p.val.cor), "fdr")
 # dim(adj.p.val.cor) <- dim(moduleTraitCor)
 # dimnames(adj.p.val.cor) <- dimnames(moduleTraitCor)
-# 
+#
 # result4 <- extract(result, "estimate")
 
 # ==============================================================================
@@ -93,7 +95,7 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 # ==============================================================================
 
 
-pdf(file = "variables_heatmap.pdf", width = 10, height = 6, onefile = TRUE)
+pdf(file = "variables_heatmap_sh.pdf", width = 10, height = 6, onefile = TRUE)
 # Will display correlations and their p-values as text
 textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(",
 signif(moduleTraitPvalue, 2), ")")
@@ -109,11 +111,15 @@ coloring <- sapply(colnames(coloring), function(x){
 })
 # Calculate the number of samples used for the correlation
 n <- apply(disease, 2, function(x){sum(!is.na(x))})
+y <- table(moduleColors)
+colors <- substring(names(MEs), 3)
+ylabels <- paste0("ME", names(y[match(names(y), colors)]),
+                  " (", y, ")")
 
 # Display the correlation values within a heatmap plot
 labeledHeatmap.multiPage(Matrix = coloring,
                xLabels = paste0(colnames(disease), " (", n, ")"),
-               yLabels = names(MEs),
+               yLabels = ylabels,
                ySymbols = names(MEs),
                colorLabels = FALSE,
                colors = greenWhiteRed(50),
@@ -124,41 +130,41 @@ labeledHeatmap.multiPage(Matrix = coloring,
                addPageNumberToMain = FALSE,
                main = "Module-trait relationships")
 dev.off()
-save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
+save(moduleTraitCor, moduleTraitPvalue, file = "Module_info_sh.RData")
 
 # ==============================================================================
 #
-#  Code chunk 4: Calculates the correlation between gene significance of a 
+#  Code chunk 4: Calculates the correlation between gene significance of a
 #                variable and the module membership
 #
 # ==============================================================================
 
 
 # Define variable weight containing the weight column of datTrait
-#weight = as.data.frame(datTraits$weight_g) 
+#weight = as.data.frame(datTraits$weight_g)
 #names(weight) = "weight"
 # names (colors) of the modules
 
 modNames <- substring(names(MEs), 3)
 
-geneModuleMembership <- as.data.frame(cor(data.wgcna[keepSamples, ], 
-                                         MEs[keepSamples, ], use = "p")) 
+geneModuleMembership <- as.data.frame(cor(data.wgcna[keepSamples, ],
+                                         MEs[keepSamples, ], use = "p"))
 
-MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), 
-                                          nSamples)) 
+MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership),
+                                          nSamples))
 
-names(geneModuleMembership) <- paste0("MM", modNames) 
-names(MMPvalue) <- paste0("p.MM", modNames) 
+names(geneModuleMembership) <- paste0("MM", modNames)
+names(MMPvalue) <- paste0("p.MM", modNames)
 
 geneTraitSignificance <- as.data.frame(
-  cor(data.wgcna[keepSamples, ], 
-      disease, 
+  cor(data.wgcna[keepSamples, ],
+      disease,
       use = "p"))
 GSPvalue <- as.data.frame(
-  corPvalueStudent(as.matrix(geneTraitSignificance), nSamples)) 
+  corPvalueStudent(as.matrix(geneTraitSignificance), nSamples))
 
-names(geneTraitSignificance) <- paste0("GS.", colnames(disease)) 
-names(GSPvalue) <- paste0("p.GS.", colnames(disease)) 
+names(geneTraitSignificance) <- paste0("GS.", colnames(disease))
+names(GSPvalue) <- paste0("p.GS.", colnames(disease))
 
 
 # ==============================================================================
@@ -166,90 +172,103 @@ names(GSPvalue) <- paste0("p.GS.", colnames(disease))
 #  Code chunk 5: Plots the relationship between GS and MM of a module
 #
 # ==============================================================================
-warning("Manually made!")
-IM <- list( meld = c("skyblue", "darkolivegreen", "midnightblue"),
-            maddrey = c("skyblue", "darkolivegreen", "steelblue"),
-            # lille_corte = c("darkturquoise", "royalblue", 
-            #                 "darkgreen", "darkgrey"),
-            lille = c("midnightblue", "salmon", "bisque4", "darkmagenta", 
-                      "darkgreen", "lightcyan"),
-            status_90 = c("salmon", "darkgreen"),
-            glucose = c("brown", "lightsteelblue1"),
-            ast = c("green", "white"),
-            alt = c("green", "white", "floralwhite"),
-            bili_total = c("magenta", "paleturquoise"),
-            creatinine = c("plum1", "darkorange"),
-            albumin = c("darkgreen", "steelblue"),
-            inr = c("darkolivegreen", "plum1", "skyblue"),
-            ggt = c("greenyellow", "skyblue3"),
-            ap = c("bisque4", "skyblue3", "black"),
-            leucos = c("darkmagenta", "red"),
-            hb_g.dl = c("darkolivegreen", "darkorange"),
-            hematocrit = c("darkorange", "steelblue", "darkolivegreen"),
-            platelets = c("green", "white"),
-            tp_seg = c("darkolivegreen", "grey"),
-            hvpg_corte20 = c("orangered4", "skyblue3", "bisque4"),
-            hvpg = c("sienna3", "orange"),
-            aki = c("magenta", "paleturquoise"),
-            infection_hospitalization = c("navajowhite2", "bisque4"))
+select.modules <- function(MTC, MTP, p.value = 0.07, threshold = 0.3, ntop = NULL) {
+  #MTC module trait correlation
+  #MTP module trait p.value
+  #threshold is the correlation threshold
+  # Check that the p.value is minor and that the absolute value of the
+  # correlation is >= threshold or that ntop modules are get.
+  significant <- MTP <= p.value
+  vclin.names <- colnames(MTC)
+  modules.names <- rownames(MTC)
+  if (is.null(ntop)) {
+     out <- significant & abs(MTC) >= threshold
+     sapply(vclin.names, function(x, y, z) {
+       a <- z[y[, x]]
+       a[!sapply(a, is.na)]
+     }, y = out, z = modules.names)
+  } else {
+    sapply(vclin.names, function(a, x, y, z, k) {
+      cor.r <- abs(x[y[, a], a])
+      a <- names(cor.r)[rank(cor.r) <= z]
+      a[!sapply(a, is.na)]
+    }, x = MTC, y = significant, z = ntop)
+  }
+}
 
-GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames, 
+IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
+                     p.value = 0.05, ntop = 3)
+
+GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                     disease){
   # Function to explore the module relationship with a trait
   module <- x
-  column <- match(module, modNames) 
-  moduleGenes <- moduleColors == module 
+  if (is.na(module)) {
+    return(NA)
+  } else if (substring(module, 1, nchar("ME")) == "ME") {
+    module <- substring(module, 3)
+  }
+  column <- match(module, modNames)
+
+  moduleGenes <- moduleColors == module
   varc <- match(var, colnames(disease))
-  
+
   data <- cbind("MM" = MM[moduleGenes, column],
                 "GS" = GS[moduleGenes, varc],
                 "GSP" = GSP[moduleGenes, varc],
                 "MMP" = MMP[moduleGenes, column])
+
+  if (ncol(data) == 2 | nrow(data) == 0) {
+    return(NA)
+  }
   # Calculates the weighted mean of genes correlation with the trait
   wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
   wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
-  
+
   # Weights of the correlation between genes-trait and module-membership
   w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
-  
+
   # Taking into account if there are empty values
-  gene <- !as.logical(apply(data[,c("MM", "GS")], 1, 
+  gene <- !as.logical(apply(data[,c("MM", "GS")], 1,
                             function(x){sum(is.na(x))}))
   w.cor <- corr(data[gene, c("MM", "GS")], w[gene])
+  if (length(data[gene, "MM"]) == 0) {
+    return(NA)
+  }
   u.cor <- cor(x = data[gene, "MM"], y = data[gene, "GS"])
-  png(file = paste("MM_GS", var, module, ".png", sep = "_"), 
+  png(file = paste("MM_GS", var, module, ".png", sep = "_"),
        width = 700, height = 700)
-  
-  verboseScatterplot(data[gene, "MM"], data[gene, "GS"], 
-                     xlab = paste("Module Membership in", module, "module"), 
-                     ylab = paste("Gene significance for", var), 
-       main = paste0("Module membership vs. gene significance\nWeighted cor=", 
+
+  verboseScatterplot(data[gene, "MM"], data[gene, "GS"],
+                     xlab = paste("Module Membership in", module, "module"),
+                     ylab = paste("Gene significance for", var),
+       main = paste0("Module membership vs. gene significance\nWeighted cor=",
                                    signif(w.cor, digits = 2), ", unweighted"),
-                     abline = 1, 
-                     cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, 
+                     abline = 1,
+                     cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
                      col = ifelse(module %in% c("white", "floralwhite"),
                                   "black", module),
-       sub = paste("Correlation of genes with trait: Weighted mean", 
-                   signif(wgenecor, 2), "normal", 
+       sub = paste("Correlation of genes with trait: Weighted mean",
+                   signif(wgenecor, 2), "normal",
                    signif(mean(data[, "GS"], na.rm = TRUE), 2)))
   dev.off()
-  
-  
-  png(file = paste("MM_GS_ggplot", var, module, ".png", sep = "_"), 
+
+
+  png(file = paste("MM_GS_ggplot", var, module, ".png", sep = "_"),
       width = 700, height = 700)
   # With ggplot with size for the weights
   ab <- lm(data[gene, "GS"] ~ data[gene, "MM"])
   plot.g <- ggplot() +
-    geom_point(aes(x = data[gene, "MM"], y = data[gene, "GS"], 
+    geom_point(aes(x = data[gene, "MM"], y = data[gene, "GS"],
                    size = w[gene]),
-               col = ifelse(module %in% c("white", "floralwhite"), 
-                            "black", module)) + theme_bw() + 
+               col = ifelse(module %in% c("white", "floralwhite"),
+                            "black", module)) + theme_bw() +
   geom_abline(slope = ab$coefficients[2], intercept = ab$coefficients[1]) +
     labs(title = paste0("Module membership vs. gene significance",
-                        "\nWeighted cor=", signif(w.cor, digits = 2), 
-                        ", unweighted cor=", signif(u.cor, digits = 2), 
-                        " p=", 
-                        signif(corPvalueStudent(u.cor, nrow(data[gene, ])), 
+                        "\nWeighted cor=", signif(w.cor, digits = 2),
+                        ", unweighted cor=", signif(u.cor, digits = 2),
+                        " p=",
+                        signif(corPvalueStudent(u.cor, nrow(data[gene, ])),
                         digits = 2))) +
          xlab(paste("Module Membership in", module, "module")) +
          ylab(paste("Gene significance for", var))
@@ -260,21 +279,25 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
     # geom_point(aes(mean(data[gene, "MM"], na.rm = TRUE),
     #                mean(data[gene, "GS"]), na.rm = TRUE),
     #            col = ifelse(module == "green", "orange", "green"))
-  
+
   ggsave(filename = paste("MM_GS", var, module, "ggplot.png", sep = "_"),
          plot = plot.g)
-  
+  dev.off()
   }
 
 # Explore for all the variables of trait the selected modules
-# a <- sapply(names(IM), function(y, d){
-#   sapply(d[[y]], 
-#          GGMMfun, var = y, MM = geneModuleMembership,
-#          GS = geneTraitSignificance,
-#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-#          modNames = modNames, disease = disease)
-# }, d = IM)
+f.results <- "shared_signed_unsigned"
+dir.create(file.path(f.results))
+orig <- setwd(file.path(f.results))
 
+a <- sapply(names(IM), function(y, d){
+  sapply(d[[y]],
+         GGMMfun, var = y, MM = geneModuleMembership,
+         GS = geneTraitSignificance,
+         GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+         modNames = modNames, disease = disease)
+}, d = IM)
+setwd(orig)
 # ==============================================================================
 #
 #  Code chunk 8: Annotate the probes with a gene name
@@ -285,13 +308,13 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
 #                  columns = c("GO", "SYMBOL", "GENENAME", "ENTREZID"),
 #                  keytype = "PROBEID")
 # save(annots, file = "annots_study.RData")
-load(file = "annots_study.RData", verbose = TRUE)
-dim(annots)
-names(annots)
-probes <- colnames(data.wgcna)
-probes2annot <- match(probes, annots$PROBEID)
-# The following is the number or probes without annotation:
-sum(is.na(probes2annot))
+# load(file = "annots_study.RData", verbose = TRUE)
+# dim(annots)
+# names(annots)
+# probes <- colnames(data.wgcna)
+# probes2annot <- match(probes, annots$PROBEID)
+# # The following is the number or probes without annotation:
+# sum(is.na(probes2annot))
 # Should return 0.
 
 
@@ -300,14 +323,14 @@ sum(is.na(probes2annot))
 #  Code chunk 9: Store the results of the WGCNA
 #
 # ==============================================================================
-
+stop("Done")
 
 # Create a dataframe with gene symbol, modul, MM and MMPvalue
 geneInfo <- data.frame(probes = probes,
                         moduleColor = moduleColors)
-geneInfo <- merge(geneInfo, 
-                   unique(annots[,c("PROBEID", "SYMBOL")]), 
-                   by.x = "probes", by.y = "PROBEID", 
+geneInfo <- merge(geneInfo,
+                   unique(annots[,c("PROBEID", "SYMBOL")]),
+                   by.x = "probes", by.y = "PROBEID",
                    all.x = TRUE, all.y = FALSE)
 # Append all the data of MM and MMP
 geneInfo0 <- merge(geneInfo, geneModuleMembership, by.x = "probes",
@@ -348,7 +371,7 @@ genes <- sapply(rownames(matrx), function(x, a){
 write.csv(as.data.frame(genes), file = "int_genes_module.csv")
 
 # Foreach module create a table in a file with genes, GS GS-P.values
-geneInfo1 <- lapply(unique(geneInfo$moduleColor), 
+geneInfo1 <- lapply(unique(geneInfo$moduleColor),
                     function(x, gI, GS, GSP, d, ...){
   gT <- gI[gI$moduleColor == x, ]
   gT <- merge(gT, GS, by.x = "probes", by.y = 0, all.x = TRUE, all.y = FALSE)
