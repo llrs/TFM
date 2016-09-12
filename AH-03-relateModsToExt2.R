@@ -297,7 +297,58 @@ a <- sapply(names(IM), function(y, d){
          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
          modNames = modNames, disease = disease)
 }, d = IM)
-setwd(orig)
+
+# ==============================================================================
+#
+#  Code chunk 6: Explore the genes top related to each clinical variable
+#
+# ==============================================================================
+select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3, ntop = NULL) {
+  vclin <- substring(colnames(GTS), 4)
+  colnames(GTS) <- vclin
+  colnames(GSP) <- vclin
+  genes <- rownames(GTS)
+
+  sign <- GSP <= p.value
+  if (is.null(ntop)) {
+    out <- sign & abs(GTS) >= threshold
+    sapply(colnames(GSP), function(x, y, z) {
+      a <- z[y[, x]]
+      a[!sapply(a, is.na)]
+    }, y = out, z = rownames(GTS))
+  } else {
+    sapply(vclin, function(a, x, y, z, k) {
+      cor.r <- abs(x[y[, a], a])
+      names(cor.r) <- k[y[, a]]
+      b <- names(cor.r)[rank(cor.r) <= z]
+      b[!sapply(b, is.na)]
+    }, x = GTS, y = sign, z = ntop, k = genes)
+  }
+}
+
+genes.interes <- select.genes(geneTraitSignificance, GSPvalue,
+                              p.value = 0.05, ntop = 100)
+fnlist <- function(x, fil) {
+  nams <- names(x)
+  for (i in seq_along(x)) {
+    cat(nams[i], "\t",  x[[i]], "\n",
+        file = fil, append = TRUE)
+  }
+}
+
+fnlist(genes.interes, "testingfile.csv")
+# ==============================================================================
+#
+#  Code chunk 7: Explore the top genes related to each module in a clinical var
+#
+# ==============================================================================
+# genes.modules <- function(vclin, GTS, modules, threshold = 0.3) {
+#   genes <- GTS[, match(vclin, colnames(GTS))]
+#   genes.i <- abs(genes) >= threshold
+#   colnames(genes)[genes.i]
+# }
+
+
 # ==============================================================================
 #
 #  Code chunk 8: Annotate the probes with a gene name
@@ -323,27 +374,26 @@ setwd(orig)
 #  Code chunk 9: Store the results of the WGCNA
 #
 # ==============================================================================
-stop("Done")
 
 # Create a dataframe with gene symbol, modul, MM and MMPvalue
-geneInfo <- data.frame(probes = probes,
+geneInfo <- data.frame(genes = colnames(data.wgcna),
                         moduleColor = moduleColors)
-geneInfo <- merge(geneInfo,
-                   unique(annots[,c("PROBEID", "SYMBOL")]),
-                   by.x = "probes", by.y = "PROBEID",
-                   all.x = TRUE, all.y = FALSE)
+# geneInfo <- merge(geneInfo,
+#                    unique(annots[,c("PROBEID", "SYMBOL")]),
+#                    by.x = "genes", by.y = "PROBEID",
+#                    all.x = TRUE, all.y = FALSE)
 # Append all the data of MM and MMP
-geneInfo0 <- merge(geneInfo, geneModuleMembership, by.x = "probes",
+geneInfo0 <- merge(geneInfo, geneModuleMembership, by.x = "genes",
                    by.y = 0, all = TRUE)
-geneInfo0 <- merge(geneInfo0, MMPvalue, by.x = "probes",
+geneInfo0 <- merge(geneInfo0, MMPvalue, by.x = "genes",
                    by.y = 0, all = TRUE)
 
-# Extract them for the specific probes
+# Extract them for the specific genes
 geneInfo1 <- lapply(unique(geneInfo$moduleColor), function(x, gI){
     mm.positions <- grep(paste0("MM", x), colnames(gI))
     info.re <- gI[gI$moduleColor == x, c(1, mm.positions)]
-    MM <- data.frame("probes" = info.re[, 1], "MM" = info.re[, 2])
-    MMP <- data.frame("probes" = info.re[, 1], "MMP.value" = info.re[, 3])
+    MM <- data.frame("genes" = info.re[, 1], "MM" = info.re[, 2])
+    MMP <- data.frame("genes" = info.re[, 1], "MMP.value" = info.re[, 3])
     return(list(unique(MM), unique(MMP)))
   }, gI = geneInfo0)
 
@@ -354,30 +404,33 @@ for (i in 1:length(geneInfo1)) {
   MM <- rbind(MM, geneInfo1[[i]][[1]])
   MMP <- rbind(MMP, geneInfo1[[i]][[2]])
 }
+
 # Add them to the original information
-geneInfo2 <- merge(geneInfo, MM, by = "probes", all.x = TRUE)
-geneInfo2 <- merge(geneInfo2, MMP, by = "probes", all.x = TRUE)
-write.csv(geneInfo2, "genes_modules.csv", row.names = FALSE, na = "")
+geneInfo2 <- merge(geneInfo, MM, by = "genes", all.x = TRUE)
+geneInfo2 <- merge(geneInfo2, MMP, by = "genes", all.x = TRUE)
+write.csv(geneInfo2, "genes_modules_sh.csv", row.names = FALSE, na = "")
 
 # Reading genes currently looked up in the laboratory with other experiments
-int.genes <- read.csv("genes_int.csv")
-int.genes.modules <- geneInfo2[geneInfo2$SYMBOL %in% int.genes$Genes_human, ]
-matrx <- table(int.genes.modules$moduleColor, int.genes.modules$SYMBOL)
+int.genes <- read.csv("../genes_int.csv")
+int.genes.modules <- geneInfo2[geneInfo2$genes %in% int.genes$Genes_human, ]
+matrx <- table(int.genes.modules$moduleColor, int.genes.modules$genes)
 matrx <- matrx[order(table(int.genes.modules$moduleColor), decreasing = TRUE), ]
 
 genes <- sapply(rownames(matrx), function(x, a){
   paste(colnames(a)[a[x, ] != 0], collapse = ", ")
 }, a = matrx)
-write.csv(as.data.frame(genes), file = "int_genes_module.csv")
+write.csv(as.data.frame(genes), file = "int_genes_module_sh.csv")
 
 # Foreach module create a table in a file with genes, GS GS-P.values
 geneInfo1 <- lapply(unique(geneInfo$moduleColor),
                     function(x, gI, GS, GSP, d, ...){
-  gT <- gI[gI$moduleColor == x, ]
-  gT <- merge(gT, GS, by.x = "probes", by.y = 0, all.x = TRUE, all.y = FALSE)
-  gT <- merge(gT, GSP, by.x = "probes", by.y = 0, all.x = TRUE, all.y = FALSE)
+  gT <- gI[as.character(gI$moduleColor) == x, ]
+  gT <- merge(gT, GS, by.x = "genes", by.y = 0, all.x = TRUE, all.y = FALSE)
+  gT <- merge(gT, GSP, by.x = "genes", by.y = 0, all.x = TRUE, all.y = FALSE)
   ord <- sapply(colnames(d), function(x){grep(x, colnames(gT))})
-  ord <- c(1, 2, 3, unique(unlist(ord)))
+  ord <- c(1, 2, unique(unlist(ord)))
   gT <- gT[, ord]
-  write.csv(gT, paste(x, "trait.csv", sep = "_"), row.names = FALSE, na = "")
+  keep.Trait <- apply(gT, 2, function(x){all(is.na(x))})
+  gT <- gT[, !keep.Trait]
+  write.csv(gT, paste(x, "trait_sh.csv", sep = "_"), row.names = FALSE, na = "")
 }, gI = geneInfo, GS = geneTraitSignificance, GSP = GSPvalue, d = disease)
