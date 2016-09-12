@@ -17,7 +17,8 @@ options(stringsAsFactors = FALSE)
 # Allow multi-threading within WGCNA. This helps speed up certain calculations.
 enableWGCNAThreads(6)
 # Load the data saved in the first part
-load(file = "InputWGCNA.RData", verbose = TRUE)
+# load(file = "InputWGCNA.RData", verbose = TRUE)
+load(file = "shared_genes.RData", verbose = TRUE)
 #The variable lnames contains the names of loaded variables.
 # library("biomaRt")
 # library("hgu133plus2.db")
@@ -52,7 +53,7 @@ sft <- pickSoftThreshold(data.wgcna, powerVector = powers, verbose = 5,
                         # corOptions = list(use = "p", bio_mat = bio_mat)
                         )
 # Plot the results:
-pdfn(file = "Power_calculations_bio.cor.pdf", width = 9, height = 5)
+pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
 par(mfrow = c(1, 2))
 cex1 <- 0.9
 
@@ -60,7 +61,7 @@ cex1 <- 0.9
 plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
      xlab = "Soft Threshold (power)",
      ylab = "Scale Free Topology Model Fit, unsigned R^2", type = "n",
-     main = paste("Scale independence"), ylim = c(0, 1))
+     main = "Scale independence", ylim = c(0, 1))
 text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
      labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
 # this line corresponds to using an R^2 cut-off of h
@@ -68,11 +69,11 @@ abline(h = 0.90, col = "red")
 # Mean connectivity as a function of the soft-thresholding power
 plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
      xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
-     main = paste("Mean connectivity"))
+     main = "Mean connectivity")
 text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
      col = "red")
 dev.off()
-stop()
+
 # ==============================================================================
 #
 #  Code chunk 3: Automatic blocks creation using the power calculated
@@ -80,15 +81,20 @@ stop()
 # ==============================================================================
 
 print(paste("Recomended power", sft$powerEstimate))
+if (is.na(sft$powerEstimate)){
+  stop("Review the power manually")
+}
 net <- blockwiseModules(data.wgcna, power = 9, # the max connectivity of 0.73
                 # Power SFT.R.sq   slope truncated.R.sq mean.k. median.k. max.k.
                 #    9   0.7250 -1.180          0.660     389    148.00   1970
-                       TOMType = "signed", minModuleSize = 30,
-                       maxBlockSize = 8000, networkType = "unsigned",
-                       pamRespectsDendro = FALSE,
-                       saveTOMs = TRUE,
-                       saveTOMFileBase = "AH_unsig.sig",
-                       verbose = 3)
+                TOMType = "unsigned",
+                minModuleSize = 30,
+                maxBlockSize = 8000,
+                networkType = "unsigned",
+                pamRespectsDendro = FALSE,
+                saveTOMs = TRUE,
+                saveTOMFileBase = "AH_unsig.unsig",
+                verbose = 3)
 
 save(net, file = "net_unsigned.RData")
 load("net_unsigned.RData")
@@ -100,7 +106,7 @@ load("net_unsigned.RData")
 
 
 # open a graphics window
-pdfn(file = "dendro.pdf", width = 12, height = 9)
+pdfn(file = "dendro_unsig.pdf", width = 12, height = 9)
 # Convert labels to colors for plotting
 mergedColors <- net$colors
 # Plot the dendrogram and the module colors underneath
@@ -124,7 +130,7 @@ MEDiss <- 1 - corME
 # Cluster module eigengenes
 METree <- hclust(as.dist(MEDiss), method = "average")
 # Plot the result
-pdfn("Modules_relationship.pdf")
+pdfn("Modules_relationship_unsig.pdf")
 plot(METree, main = "Clustering of module eigengenes",
      xlab = "", sub = "")
 MEDissThres <- 0.25

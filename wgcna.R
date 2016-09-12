@@ -123,23 +123,26 @@ sum.e <- function(eset){
 }
 
 c.isa <- rma(pheno.isa)
-co.isa <- sum.e(c.isa)
+# co.isa <- sum.e(c.isa)
 c.silvia <- rma(pheno.silvia)
-co.silvia <- sum.e(c.silvia)
+# co.silvia <- sum.e(c.silvia)
 
 
 # Merge the data of each batch into a single matrix
-co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
-co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
-merged <- rbind.fill(co.silvia.df, co.isa.df)
-rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
-save(co.silvia, co.isa, merged, file = "collapsed.micro.RData")
+# co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
+# co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
+# merged <- rbind.fill(co.silvia.df, co.isa.df)
+# rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+# save(co.silvia, co.isa, merged, file = "collapsed.micro.RData")
 load("collapsed.micro.RData", verbose = TRUE)
 with.na <- apply(merged, 2, function(x){any(is.na(x))})
 merged.shared <- merged[, !with.na] # Keep the shared genes
 merged.pca <- t(merged)
 merged.shared.pca <- t(merged.shared)
+data.wgcna <- merged.shared[1:15, ]
+save(data.wgcna, file = "shared_genes.RData")
 
+stop()
 # Merging with MergeMaid
 mergm <- mergeExprs(co.silvia, co.isa)
 corcor <- intCor(mergm)
@@ -280,7 +283,7 @@ pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
 
 setwd(origDir)
 
-## ComBat
+## ComBat ####
 library("sva")
 combat.exp <- ComBat(merged.shared.pca, orig.data,
                      # mod = matrix(1, nrow = ncol(merged.shared.pca)),
@@ -290,7 +293,7 @@ combat.exp <- ComBat(merged.shared.pca, orig.data,
 pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
           col = as.numeric(orig.data),
           outcome = as.character(orig.data))
-# QR decomposition
+# QR decomposition ####
 library("limma")
 qrexp <- removeBatchEffect(merged.shared.pca, orig.data)
 pca.graph(data = qrexp, file = "merged.shared.pca.rBE.pdf",
@@ -301,7 +304,7 @@ stop("Evaluate mergmaid")
 # load("corrected_exprs.RData", verbose = TRUE)
 #
 #
-# # Prepare the variables to the right format
+# # Prepare the variables to the right format ####
 disease.silvia <- read.csv("clean_variables.csv")
 disease.isa <- read.csv("samples_AH.csv")
 colnames(disease.isa) <- tolower(colnames(disease.isa))
@@ -310,15 +313,17 @@ clin.isa <- cbind("files" = rownames(pData(pheno.isa)),
 clin.silvia <- cbind("files" = rownames(pData(pheno.silvia)),
                      pData(pheno.silvia))
 
-colnames(clin.silvia)[colnames(clin.silvia) == 'codi_pacient'] <- 'id'
-colnames(clin.silvia)[colnames(clin.silvia) == 'creat'] <- 'creatinine'
-colnames(clin.silvia)[colnames(clin.silvia) == 'leuc'] <- 'leucos'
-colnames(clin.silvia)[colnames(clin.silvia) == 'alb'] <- 'albumin' #
-colnames(clin.silvia)[colnames(clin.silvia) == 'triglicerids'] <- 'trigycierides'
-colnames(clin.silvia)[colnames(clin.silvia) == 'glucosa'] <- 'glucose'
-# ! Units: colnames(clin.silvia)[colnames(clin.silvia) == 'hb'] <- 'hb_g.dl'
-# ! Units?: colnames(clin.silvia)[colnames(clin.silvia) == 'tp'] <- 'tp_seq'
-
+colnames(disease.isa)[colnames(disease.isa) == 'codi_pacient'] <- 'id'
+colnames(disease.isa)[colnames(disease.isa) == 'creat'] <- 'creatinine'
+colnames(disease.isa)[colnames(disease.isa) == 'leuc'] <- 'leucos'
+colnames(disease.isa)[colnames(disease.isa) == 'alb'] <- 'albumin' #
+colnames(disease.isa)[colnames(disease.isa) == 'triglicerids'] <- 'trigyicerides'
+colnames(disease.isa)[colnames(disease.isa) == 'glucosa'] <- 'glucose'
+colnames(disease.isa)[colnames(disease.isa) == 'viu_3m'] <- 'status_90'
+# ! Units?: colnames(disease.isa)[colnames(disease.isa) == 'plaq'] <- 'platelets'
+# ! Units?: colnames(disease.isa)[colnames(disease.isa) == 'hb'] <- 'hb_g.dl'
+# ! Units?: colnames(disease.isa)[colnames(disease.isa) == 'tp'] <- 'tp_seq'
+# ! AKI: yes, No // NO AKI, SIAKI
 
 clin <- rbind.fill(clin.isa, clin.silvia)
 disease <- rbind.fill(disease.silvia, disease.isa)
@@ -326,7 +331,7 @@ disease <- rbind.fill(disease.silvia, disease.isa)
 vclin <- merge(clin, disease, by.y = "Sample", by.x = "id")
 int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
             "status_90", "glucose",
-             "trigycierides", "ast", "alt", "bili_total", "creatinine",
+             "trigyicerides", "ast", "alt", "bili_total", "creatinine",
              "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
              "platelets", "tp_seg", "hvpg_corte20", "hvpg", "aki",
              "infection_hospitalization")
@@ -341,9 +346,9 @@ vclin <- vclin[, colnames(vclin) %in% int.Var]
 #
 # exp <- exprs(c.gcrma)
 
-# Subset just the AH samples
+# Subset just the AH samples ####
 # data.wgcna <- t(exp[, pData(c.gcrma)$Type == "AH"])
-data.wgcna <- merged
+data.wgcna <- merged.shared
 gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
 
 if (!gsg$allOK) {
