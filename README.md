@@ -10,4 +10,4 @@ The original article is:
 
 # Note
 
-This commes from its own repository
+This repository is linked to the TFM repository.
