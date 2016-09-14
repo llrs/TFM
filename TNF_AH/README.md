@@ -7,3 +7,7 @@ The original article is:
 
 >  Transcriptome analysis identifies TNF superfamily receptors as potential therapeutic targets in alcoholic hepatitis  
 >  Gut. 2013 March ; 62(3): 452–460. doi:10.1136/gutjnl-2011-301146.
+
+# Note
+
+As part of the TFM repository, and of my thesis I am working on this data.
