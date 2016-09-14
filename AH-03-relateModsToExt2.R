@@ -172,32 +172,7 @@ names(GSPvalue) <- paste0("p.GS.", colnames(disease))
 #  Code chunk 5: Plots the relationship between GS and MM of a module
 #
 # ==============================================================================
-select.modules <- function(MTC, MTP, p.value = 0.07, threshold = 0.3, ntop = NULL) {
-  #MTC module trait correlation
-  #MTP module trait p.value
-  #threshold is the correlation threshold
-  # Check that the p.value is minor and that the absolute value of the
-  # correlation is >= threshold or that ntop modules are get.
-  significant <- MTP <= p.value
-  vclin.names <- colnames(MTC)
-  modules.names <- rownames(MTC)
-  if (is.null(ntop)) {
-     out <- significant & abs(MTC) >= threshold
-     sapply(vclin.names, function(x, y, z) {
-       a <- z[y[, x]]
-       a[!sapply(a, is.na)]
-     }, y = out, z = modules.names)
-  } else {
-    sapply(vclin.names, function(a, x, y, z, k) {
-      cor.r <- abs(x[y[, a], a])
-      a <- names(cor.r)[rank(cor.r) <= z]
-      a[!sapply(a, is.na)]
-    }, x = MTC, y = significant, z = ntop)
-  }
-}
 
-IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
-                     p.value = 0.05, ntop = 3)
 
 GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                     disease){
@@ -286,7 +261,7 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   }
 
 # Explore for all the variables of trait the selected modules
-f.results <- "shared_signed_unsigned"
+f.results <- "shared_unsigned_unsigned"
 dir.create(file.path(f.results))
 orig <- setwd(file.path(f.results))
 
