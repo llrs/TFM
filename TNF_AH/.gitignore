@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# But not these files...
+!.gitignore
+!*.R
+AH-01*.R
+AH-03*.R
+# ...even if they are in subdirectories
+!*/
+.Rproj.user
