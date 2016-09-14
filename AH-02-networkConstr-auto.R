@@ -15,7 +15,7 @@ pdfn <- function(...){
 library("WGCNA")
 options(stringsAsFactors = FALSE)
 # Allow multi-threading within WGCNA. This helps speed up certain calculations.
-enableWGCNAThreads(6)
+nThreads <- enableWGCNAThreads(6)
 # Load the data saved in the first part
 # load(file = "InputWGCNA.RData", verbose = TRUE)
 load(file = "shared_genes.RData", verbose = TRUE)
@@ -94,7 +94,8 @@ net <- blockwiseModules(data.wgcna, power = 9, # the max connectivity of 0.73
                 pamRespectsDendro = FALSE,
                 saveTOMs = TRUE,
                 saveTOMFileBase = "AH_unsig.unsig",
-                verbose = 3)
+                verbose = 3,
+                nThreads = nThreads)
 
 save(net, file = "net_unsigned.RData")
 load("net_unsigned.RData")
