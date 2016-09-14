@@ -10,4 +10,4 @@ The original article is:
 
 # Note
 
-As part of the TFM repository, and of my thesis I am working on this data.
+I am working on this data as part of my TFM on a subtree.
