@@ -10,8 +10,4 @@ The original article is:
 
 # Note
 
-<<<<<<< HEAD
-This commes from its own repository
-=======
 This repository is linked to the TFM repository.
->>>>>>> 3501b57d74c64067dcd150005439517a5f2f731d
