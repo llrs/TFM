@@ -126,7 +126,8 @@ c.isa <- rma(pheno.isa)
 # co.isa <- sum.e(c.isa)
 c.silvia <- rma(pheno.silvia)
 # co.silvia <- sum.e(c.silvia)
-
+save(pheno.isa, pheno.silvia, file = "pheno.RData")
+load("pheno.RData")
 
 # Merge the data of each batch into a single matrix
 # co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
@@ -140,7 +141,8 @@ merged.shared <- merged[, !with.na] # Keep the shared genes
 merged.pca <- t(merged)
 merged.shared.pca <- t(merged.shared)
 data.wgcna <- merged.shared[1:15, ]
-save(data.wgcna, file = "shared_genes.RData")
+# save(data.wgcna, file = "shared_genes.RData")
+
 
 stop()
 # Merging with MergeMaid
@@ -155,8 +157,10 @@ intcor <- intcorDens(mergm)
 # cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
 #                           method = "linear")
 # plot(coeff(cox.coeff), main = "Coeficients")
-save(intcor, corcor, file = "mergemaid.RData")
 dev.off()
+save(intcor, corcor, file = "mergemaid.RData")
+load("mergemaid.RData", verbose = TRUE)
+
 
 # Store the procedence of the data
 orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
@@ -319,23 +323,34 @@ colnames(disease.isa)[colnames(disease.isa) == 'leuc'] <- 'leucos'
 colnames(disease.isa)[colnames(disease.isa) == 'alb'] <- 'albumin' #
 colnames(disease.isa)[colnames(disease.isa) == 'triglicerids'] <- 'trigyicerides'
 colnames(disease.isa)[colnames(disease.isa) == 'glucosa'] <- 'glucose'
+si <- grep("si", disease.isa$status_90)
+no <- grep("no", disease.isa$status_90)
+disease.isa$viu_3m <- NA
+disease.isa$viu_3m[si] <- "alive"
+disease.isa$viu_3m[no] <- "exitus"
 colnames(disease.isa)[colnames(disease.isa) == 'viu_3m'] <- 'status_90'
-# ! Units?: colnames(disease.isa)[colnames(disease.isa) == 'plaq'] <- 'platelets'
-# ! Units?: colnames(disease.isa)[colnames(disease.isa) == 'hb'] <- 'hb_g.dl'
-# ! Units?: colnames(disease.isa)[colnames(disease.isa) == 'tp'] <- 'tp_seq'
+disease.isa$plaq <- disease.isa$plaq*1000
+colnames(disease.isa)[colnames(disease.isa) == 'plaq'] <- 'platelets'
+disease.isa$hb <- disease.isa$hb/10
+colnames(disease.isa)[colnames(disease.isa) == 'hb'] <- 'hb_g.dl'
 # ! AKI: yes, No // NO AKI, SIAKI
 
 clin <- rbind.fill(clin.isa, clin.silvia)
 disease <- rbind.fill(disease.silvia, disease.isa)
-
+yes <- grep("(yes)|(si)", disease$aki, ignore.case = TRUE)
+no <- grep("no", disease$aki, ignore.case = TRUE)
+disease$aki <- NA
+disease$aki[yes] <- 1
+disease$aki[no] <- 0
 vclin <- merge(clin, disease, by.y = "Sample", by.x = "id")
 int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
             "status_90", "glucose",
              "trigyicerides", "ast", "alt", "bili_total", "creatinine",
              "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
-             "platelets", "tp_seg", "hvpg_corte20", "hvpg", "aki",
+             "platelets", "hvpg_corte20", "hvpg", "aki",
              "infection_hospitalization")
 vclin <- vclin[, colnames(vclin) %in% int.Var]
+
 # disease.r <- apply(vclin, 2, as.numeric)
 # nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
 #          "hvpg_corte20", "lille_corte")
@@ -365,26 +380,26 @@ if (!gsg$allOK) {
   data.wgcna <- data.wgcna[gsg$goodSamples, gsg$goodGenes]
 }
 
-pdf("samples.pdf")
+pdf("samples_sh.pdf")
 sampleTree <- hclust(dist(data.wgcna), method = "average")
 pars <- par(mar = c(0, 4, 2, 0), cex = 0.6)
 plot(sampleTree, main = "Sample clustering to detect outliers",
      sub = "", xlab = "", cex.lab = 1.5,
      cex.axis = 1.5, cex.main = 2)
 dev.off()
-stop("Prepared")
 
-# pdf("dendro_traits.pdf")
-# # Re-cluster samples
-# sampleTree2 <- hclust(dist(data.wgcna[rownames(data.wgcna) %in% vclin$files, ]),
-#                       method = "average")
-# # Convert traits to a color representation: white means low, red means high, grey means missing entry
-# traitColors <- numbers2colors(disease, signed = FALSE)
-# # Plot the sample dendrogram and the colors underneath.
-# plotDendroAndColors(sampleTree2, traitColors,
-#                     groupLabels = colnames(disease),
-#                     main = "Sample dendrogram and trait heatmap")
-# dev.off()
+
+pdf("dendro_traits_sh.pdf")
+# Re-cluster samples
+sampleTree2 <- hclust(dist(data.wgcna[rownames(data.wgcna) %in% vclin$files, ]),
+                      method = "average")
+# Convert traits to a color representation: white means low, red means high, grey means missing entry
+traitColors <- numbers2colors(disease, signed = FALSE)
+# Plot the sample dendrogram and the colors underneath.
+plotDendroAndColors(sampleTree2, traitColors,
+                    groupLabels = colnames(disease),
+                    main = "Sample dendrogram and trait heatmap")
+dev.off()
 
 save(data.wgcna, vclin, file = "InputWGCNA.merged.RData")
 
