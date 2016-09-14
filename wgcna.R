@@ -153,6 +153,9 @@ plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
      main = "Integrative correlation",
      col = 3, pch = 4)
 hist(corcor, main = "Integrative correlation coeficient")
+coef <- as.vector(corcor@pairwise.cors)
+names(coef) <- rownames(corcor@pairwise.cors)
+
 intcor <- intcorDens(mergm)
 # cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
 #                           method = "linear")
@@ -161,15 +164,19 @@ dev.off()
 save(intcor, corcor, file = "mergemaid.RData")
 load("mergemaid.RData", verbose = TRUE)
 
+comp.genes <- names(coef)[coef > 0]
+discutibles.genes <- names(coef)[coef <= 0]
 
 # Store the procedence of the data
 orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
                          rep("Isa", ncol(co.isa))))
-
+new.subset <- merged.shared.pca[rownames(merged.shared.pca) %in% comp.genes, ]
+pca.graph(data = new.subset, file = "merged.shared_filtered.pca.pdf",
+          col = as.numeric(orig.data),
+          outcome = orig.data)
 pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
           col = as.numeric(orig.data),
           outcome = orig.data)
-
 # #########
 # set colour palette
 # cols <- brewer.pal(8, "Set1")
@@ -294,6 +301,11 @@ combat.exp <- ComBat(merged.shared.pca, orig.data,
                      prior.plots = T)
 # It don't work because: system is exactly singular: U[1,1] = 0
 
+combat.subset <- ComBat(new.subset, orig.data)
+
+pca.graph(data = combat.subset, file = "merged.shared_filtered.pca.combat.pdf",
+          col = as.numeric(orig.data),
+          outcome = as.character(orig.data))
 pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
           col = as.numeric(orig.data),
           outcome = as.character(orig.data))
