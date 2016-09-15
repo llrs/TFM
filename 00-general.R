@@ -49,6 +49,8 @@ powers <- c(1:30)
 base.dir <- "/home/lrevilla/Documents"
 data.dir <- file.path(base.dir, "data")
 code.dir <- file.path(base.dir, "TFM")
+bio.corFnc <- FALSE
+
 
 # Study's options ####
 study <- "TNF_AH"
