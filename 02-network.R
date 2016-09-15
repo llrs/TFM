@@ -4,30 +4,13 @@
 #
 # ==============================================================================
 
-pdfn <- function(...){
-  # Close any device and open a pdfn with the same options
-  if (length(dev.list()) > 1) {
-    dev.off()
-  }
-  pdf(...)
-}
+source("00-general.R")
 
-library("WGCNA")
-options(stringsAsFactors = FALSE)
-# Allow multi-threading within WGCNA. This helps speed up certain calculations.
-nThreads <- enableWGCNAThreads(6)
 # Load the data saved in the first part
 # load(file = "InputWGCNA.RData", verbose = TRUE)
 load(file = "shared_genes.RData", verbose = TRUE)
 #The variable lnames contains the names of loaded variables.
-# library("biomaRt")
-# library("hgu133plus2.db")
-# library("GOstats")
-# library("graphite")
-# library("KEGGgraph")
-# library("KEGG.db")
-# library("RBGL")
-# source("bio_cor0.R")
+
 # ==============================================================================
 #
 #  Code chunk 1b: Calculate the biological information of the genes
@@ -144,10 +127,7 @@ labeledHeatmap(corME, xLabels = colnames(corME), yLabels = colnames(corME),
 gm <- table(net$colors)
 gm
 hist(gm)
-count.p <- function(data, per){
-  # Calculate the percentatge above per of data
-  sum(data >= per)/length(data)
-}
+
 perc <- unlist(lapply(gm, count.p, data = gm))
 plot(cbind(gm[order(perc)],perc[order(perc)]), type = "o",
      xlab = "Size of the modules",

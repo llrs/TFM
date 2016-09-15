@@ -1,27 +1,6 @@
 # Analyse data with WGCNA from doi:10.1136/gutjnl-2011-301146.
 
-library("GEOquery")
-library("affy")
-library("affyPLM")
-library("simpleaffy")
-library("Heatplus")
-# library("affyQCReport")
-library("corpcor")
-library("sva")
-library("annotate")
-library("hgu133plus2.db")
-library("data.table")
-library("ggbiplot")
-library("corpcor")
-library("WGCNA")
-enableWGCNAThreads(6)
-library("edgeR")
-library("limma")
-library("gcrma")
-library("RColorBrewer")
-library("hgu219.db")
-library("plyr")
-library("MergeMaid")
+source("00-general.R")
 # Prepare some variables
 gse_number <- "GSE28619"
 path_files <- "../Documents/data/GSE28619_RAW/"
@@ -34,9 +13,7 @@ path_raw <- paste(gse_number, raw.tar, sep = "/")
 #By exploring the data on GEO I found that the platform is :
 # GPL570 	[HG-U133_Plus_2] Affymetrix Human Genome U133 Plus 2.0 Array
 # So we need to load the bioconductor library with the information about it
-library("Affyhgu133Plus2Expr")
-library("hgu133plus2probe")
-library("hgu133plus2cdf")
+
 
 # Tutorial on https://www.biostars.org/p/53870/
 # Based on this tutorial:
@@ -59,68 +36,7 @@ pheno.silvia <- read.affy("pheno.silvia.txt")
 # stop("readfiles!")
 setwd(origDir)
 
-pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
-                      col = NULL, ...){
-  # Normalize data and plots PCA of samples
-  # Data is the normalized, celfiles are the raw files
-  if (is.null(data)) {
-    if (!is.null(celfiles)) {
-      data <- rma(celfiles)
-    } else {
-      stop("celfiles or data must be provided")
-    }
-  }
 
-  if ("ExpressionSet" %in% is(data)) {
-    if (is.null(outcome)) {
-      outcome <- as.character(phenoData(data)$Type)
-    }
-    dists <- as.dist(1 - cor(exprs(data), method = "spearman"))
-  } else {
-    if (is.null(outcome)) {
-      outcome <- rep("AH", ncol(data))
-    }
-    dists <- as.dist(1 - WGCNA::cor(data, method = "spearman",
-                                    use = "pairwise.complete.obs"))
-  }
-
-  cmd <- cmdscale(dists, eig = TRUE, add = TRUE)
-  perc.v <- round(cmd$eig/sum(cmd$eig)*100, 1)
-  pdf(file)
-  pca.plo <- ggbiplot(prcomp(dists, scale. = TRUE),
-                      obs.scale = 1, var.scale = 1, ellipse = TRUE,
-                      group = outcome, var.axes = FALSE,
-                      # circle = TRUE
-                      )
-  plot(pca.plo)
-  plot(cmd$points[, 1], cmd$points[, 2], type = "n", main = "MDS samples",
-       xlab = paste0("PC1 (", perc.v[1], "% explained var.)"),
-       ylab = paste0("PC2 (", perc.v[2], "% explained var.)"),
-       ...)
-  text(cmd$points[,1 ], cmd$points[, 2], col = col, cex = 0.9,
-       labels = outcome)
-  dev.off()
-  invisible(data)
-}
-
-sum.e <- function(eset){
-  # Given a expression set transforms it to the gene symbols
-  ann <- annotation(eset)
-  pkg <- paste0(ann, ".db")
-  pkg.ann <- eval(parse(text = pkg))
-  # print(class(pkg.ann))
-  symbols <- AnnotationDbi::select(pkg.ann, keys(pkg.ann), "SYMBOL")
-  expr <- exprs(eset)
-  probes <- rownames(expr)
-  rowGroup <- symbols[match(probes, symbols$PROBE),"SYMBOL"]
-  # the length of rowGroup and probes should be the same
-  # even if there is a warning we cannot omit it
-  # length(unique(rowGroup)) == length(probes.isa)
-  corr.e <- collapseRows(expr, rowGroup = rowGroup, rowID = probes,
-                         method = "Average")
-  corr.sy <- corr.e$datETcollapsed
-  return(corr.sy)
-}
 
 c.isa <- rma(pheno.isa)
 # co.isa <- sum.e(c.isa)
@@ -294,8 +210,7 @@ pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
 
 setwd(origDir)
 
-## ComBat ####
-library("sva")
+# ComBat ####
 combat.exp <- ComBat(merged.shared.pca, orig.data,
                      # mod = matrix(1, nrow = ncol(merged.shared.pca)),
                      prior.plots = T)
@@ -310,7 +225,6 @@ pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
           col = as.numeric(orig.data),
           outcome = as.character(orig.data))
 # QR decomposition ####
-library("limma")
 qrexp <- removeBatchEffect(merged.shared.pca, orig.data)
 pca.graph(data = qrexp, file = "merged.shared.pca.rBE.pdf",
           col = as.numeric(orig.data),
@@ -320,7 +234,7 @@ stop("Evaluate mergmaid")
 # load("corrected_exprs.RData", verbose = TRUE)
 #
 #
-# # Prepare the variables to the right format ####
+# Prepare the variables to the right format ####
 disease.silvia <- read.csv("clean_variables.csv")
 disease.isa <- read.csv("samples_AH.csv")
 colnames(disease.isa) <- tolower(colnames(disease.isa))

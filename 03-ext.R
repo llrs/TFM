@@ -4,23 +4,12 @@
 #
 # ==============================================================================
 
-
-library("ggplot2")
-# Load the WGCNA package
-library("WGCNA")
-library("dplyr")
-enableWGCNAThreads(6)
-# The following setting is important, do not omit.
-options(stringsAsFactors = FALSE)
 # Load the expression and trait data saved in the first part
 load(file = "InputWGCNA.RData", verbose = TRUE)
 load(file = "shared_genes.RData", verbose = TRUE)
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
 load(file = "TNF_AH-network-unsig.RData", verbose = TRUE)
-library("boot")
-# library("hgu133plus2.db")
-
 
 # ==============================================================================
 #
@@ -102,13 +91,7 @@ signif(moduleTraitPvalue, 2), ")")
 dim(textMatrix) = dim(moduleTraitCor)
 par(mar = c(6, 8.5, 3, 3))
 
-# Coloring taking into account both the correlation value and the p-value
-coloring <- sapply(colnames(moduleTraitCor), function(x){
-  moduleTraitCor[, x]/(1 + moduleTraitPvalue[, x])})
-coloring <- sapply(colnames(coloring), function(x){
-  y <- coloring[,x]
-2*(y - min(y))/(max(y) - min(y)) - 1
-})
+coloring <- coloring(moduleTraitCor, moduleTraitPvalue)
 # Calculate the number of samples used for the correlation
 n <- apply(disease, 2, function(x){sum(!is.na(x))})
 y <- table(moduleColors)
@@ -174,91 +157,6 @@ names(GSPvalue) <- paste0("p.GS.", colnames(disease))
 # ==============================================================================
 
 
-GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
-                    disease){
-  # Function to explore the module relationship with a trait
-  module <- x
-  if (is.na(module)) {
-    return(NA)
-  } else if (substring(module, 1, nchar("ME")) == "ME") {
-    module <- substring(module, 3)
-  }
-  column <- match(module, modNames)
-
-  moduleGenes <- moduleColors == module
-  varc <- match(var, colnames(disease))
-
-  data <- cbind("MM" = MM[moduleGenes, column],
-                "GS" = GS[moduleGenes, varc],
-                "GSP" = GSP[moduleGenes, varc],
-                "MMP" = MMP[moduleGenes, column])
-
-  if (ncol(data) == 2 | nrow(data) == 0) {
-    return(NA)
-  }
-  # Calculates the weighted mean of genes correlation with the trait
-  wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
-  wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
-
-  # Weights of the correlation between genes-trait and module-membership
-  w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
-
-  # Taking into account if there are empty values
-  gene <- !as.logical(apply(data[,c("MM", "GS")], 1,
-                            function(x){sum(is.na(x))}))
-  w.cor <- corr(data[gene, c("MM", "GS")], w[gene])
-  if (length(data[gene, "MM"]) == 0) {
-    return(NA)
-  }
-  u.cor <- cor(x = data[gene, "MM"], y = data[gene, "GS"])
-  png(file = paste("MM_GS", var, module, ".png", sep = "_"),
-       width = 700, height = 700)
-
-  verboseScatterplot(data[gene, "MM"], data[gene, "GS"],
-                     xlab = paste("Module Membership in", module, "module"),
-                     ylab = paste("Gene significance for", var),
-       main = paste0("Module membership vs. gene significance\nWeighted cor=",
-                                   signif(w.cor, digits = 2), ", unweighted"),
-                     abline = 1,
-                     cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
-                     col = ifelse(module %in% c("white", "floralwhite"),
-                                  "black", module),
-       sub = paste("Correlation of genes with trait: Weighted mean",
-                   signif(wgenecor, 2), "normal",
-                   signif(mean(data[, "GS"], na.rm = TRUE), 2)))
-  dev.off()
-
-
-  png(file = paste("MM_GS_ggplot", var, module, ".png", sep = "_"),
-      width = 700, height = 700)
-  # With ggplot with size for the weights
-  ab <- lm(data[gene, "GS"] ~ data[gene, "MM"])
-  plot.g <- ggplot() +
-    geom_point(aes(x = data[gene, "MM"], y = data[gene, "GS"],
-                   size = w[gene]),
-               col = ifelse(module %in% c("white", "floralwhite"),
-                            "black", module)) + theme_bw() +
-  geom_abline(slope = ab$coefficients[2], intercept = ab$coefficients[1]) +
-    labs(title = paste0("Module membership vs. gene significance",
-                        "\nWeighted cor=", signif(w.cor, digits = 2),
-                        ", unweighted cor=", signif(u.cor, digits = 2),
-                        " p=",
-                        signif(corPvalueStudent(u.cor, nrow(data[gene, ])),
-                        digits = 2))) +
-         xlab(paste("Module Membership in", module, "module")) +
-         ylab(paste("Gene significance for", var))
-  # Point of the weighted mean
-    # geom_point(aes(wmmcor, wgenecor),
-    #            col = ifelse(module == "red", "green", "red")) +
-  # Point of the unweighted mean
-    # geom_point(aes(mean(data[gene, "MM"], na.rm = TRUE),
-    #                mean(data[gene, "GS"]), na.rm = TRUE),
-    #            col = ifelse(module == "green", "orange", "green"))
-
-  ggsave(filename = paste("MM_GS", var, module, "ggplot.png", sep = "_"),
-         plot = plot.g)
-  dev.off()
-  }
 
 # Explore for all the variables of trait the selected modules
 f.results <- "shared_unsigned_unsigned"
@@ -278,28 +176,6 @@ a <- sapply(names(IM), function(y, d){
 #  Code chunk 6: Explore the genes top related to each clinical variable
 #
 # ==============================================================================
-select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3, ntop = NULL) {
-  vclin <- substring(colnames(GTS), 4)
-  colnames(GTS) <- vclin
-  colnames(GSP) <- vclin
-  genes <- rownames(GTS)
-
-  sign <- GSP <= p.value
-  if (is.null(ntop)) {
-    out <- sign & abs(GTS) >= threshold
-    sapply(colnames(GSP), function(x, y, z) {
-      a <- z[y[, x]]
-      a[!sapply(a, is.na)]
-    }, y = out, z = rownames(GTS))
-  } else {
-    sapply(vclin, function(a, x, y, z, k) {
-      cor.r <- abs(x[y[, a], a])
-      names(cor.r) <- k[y[, a]]
-      b <- names(cor.r)[rank(cor.r) <= z]
-      b[!sapply(b, is.na)]
-    }, x = GTS, y = sign, z = ntop, k = genes)
-  }
-}
 
 genes.interes <- select.genes(geneTraitSignificance, GSPvalue,
                               p.value = 0.05, ntop = 100)

@@ -1,16 +1,6 @@
 #  Analyse the modules with globaltest o GOstats, SPIA, hopach
 
-
-library("topGO")
-library("Rgraphviz")
-library("hgu133plus2.db")
-library("WGCNA")
-enableWGCNAThreads(6)
-library("ReactomePA")
-library("clusterProfiler")
-library("igraph")
-library("ggplot2")
-library("org.Hs.eg.db")
+source("00-general.R")
 
 # Load previously work done
 # load(file = "TNF_AH-network-auto.RData", verbose = TRUE)
@@ -42,14 +32,6 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nrow(data.wgcna))
 f.results <- "shared_unsigned_unsigned"
 orig <- setwd(file.path(f.results))
 
-pdfn <- function(...){
-  # Close any device and open a pdfn with the same options
-  if (length(dev.list()) > 1) {
-    dev.off()
-  }
-  pdf(...)
-}
-
 # Reconvert the data to the "normal" format, of each column a sample.
 exprs <- t(data.wgcna)
 
@@ -78,16 +60,6 @@ names(genes) <- rownames(exprs)
 clusters <- sapply(unique(moduleColors), function(x, genes, nc){
   names(genes[genes == nc[x]])
 }, genes = genes, nc = numb.col)
-
-moduleSel <- function(modul, a){
-  # Function to generate function to select the module
-  selFun <- function(genes){
-    # Function to select those genees of the same group
-    # return(a[x])
-    return(genes == a[modul])
-    }
-  return(selFun)
-}
 
 
 # ==============================================================================
@@ -124,31 +96,6 @@ clustersEntrez <- sapply(clusters, function(x){
 # save(eK, file = "eK.RData")
 # plot(eK) + ggtitle("Enrich KEGG") + x.axis
 # dev.off()
-
-select.modules <- function(MTC, MTP, p.value = 0.07,
-                           threshold = 0.3, ntop = NULL) {
-  #MTC module trait correlation
-  #MTP module trait p.value
-  #threshold is the correlation threshold
-  # Check that the p.value is minor and that the absolute value of the
-  # correlation is >= threshold or that ntop modules are get.
-  significant <- MTP <= p.value
-  vclin.names <- colnames(MTC)
-  modules.names <- rownames(MTC)
-  if (is.null(ntop)) {
-    out <- significant & abs(MTC) >= threshold
-    sapply(vclin.names, function(x, y, z) {
-      a <- z[y[, x]]
-      a[!sapply(a, is.na)]
-    }, y = out, z = modules.names)
-  } else {
-    sapply(vclin.names, function(a, x, y, z, k) {
-      cor.r <- abs(x[y[, a], a])
-      a <- names(cor.r)[rank(cor.r) <= z]
-      a[!sapply(a, is.na)]
-    }, x = MTC, y = significant, z = ntop)
-  }
-}
 
 IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
                      p.value = 0.05, ntop = 3)
