@@ -7,9 +7,9 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 # Load input data ####
 # Phenodata contains the information of the experiment space separated!
 # not tab separated
-getwd()
-pheno.isa <- read.affy(pheno1)
-pheno.silvia <- read.affy(pheno2)
+
+# pheno.isa <- read.affy(pheno1)
+# pheno.silvia <- read.affy(pheno2)
 
 # Download set ####
 # geosupp <- getGEOSuppFiles(gse_number)
@@ -24,20 +24,25 @@ disease.silvia <- read.csv("clean_variables.csv")
 disease.isa <- read.csv("samples_AH.csv")
 
 setwd(data.files.out)
-
-c.isa <- rma(pheno.isa)
-co.isa <- sum.e(c.isa)
-c.silvia <- rma(pheno.silvia)
-co.silvia <- sum.e(c.silvia)
-save(pheno.isa, pheno.silvia, file = "pheno.RData")
+# save(pheno.isa, pheno.silvia, file = "pheno.RData")
 load("pheno.RData", verbose = TRUE)
 
+c.isa <- rma(pheno.isa)
+c.silvia <- rma(pheno.silvia)
+# save(c.isa, c.silvia, file = "rma.pheno.RData")
+load("rma.pheno.RData")
+co.isa <- sum.e(c.isa)
+co.silvia <- sum.e(c.silvia)
+# save(co.isa, co.silvia, file = "exprs.RData")
+load("exprs.RData", verbose = TRUE)
+
+
 # Merge the data of each batch into a single matrix
-# co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
-# co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
-# merged <- rbind.fill(co.silvia.df, co.isa.df)
-# rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
-# save(co.silvia, co.isa, merged, file = "collapsed.micro.RData")
+co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
+co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
+merged <- rbind.fill(co.silvia.df, co.isa.df)
+rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+save(co.silvia, co.isa, merged, file = "collapsed.micro.RData")
 load("collapsed.micro.RData", verbose = TRUE)
 with.na <- apply(merged, 2, function(x){any(is.na(x))})
 merged.shared <- merged[, !with.na] # Keep the shared genes

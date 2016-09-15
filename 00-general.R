@@ -115,7 +115,7 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
   invisible(data)
 }
 
-# Given a expression set transforms it to the gene symbols
+# Given a expression set transforms it to the gene symbols and averages the expr
 sum.e <- function(eset){
 
   ann <- annotation(eset)
