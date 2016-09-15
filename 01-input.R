@@ -1,7 +1,7 @@
 # Read the files
 
-library("WGCNA")
-enableWGCNAThreads()
+source("00-general.R")
+
 pheno <- read.csv("miRNA_phenotype.csv")
 exprs <- read.csv("miRNA_normQ.csv", row.names = 1)
 vclin <- read.csv("DB_MIR-Alcoholic_Hepatitis_Sept2015.csv")
@@ -20,7 +20,7 @@ ids <- c(AH, normal)
 samplename <- substring(pheno$sampleid, 8)
 convert <- function(x){
   #Remove the 0 of the second position
-  ifelse(substring(x, 2, 2) == "0", paste0(substring(x, 1, 1), 
+  ifelse(substring(x, 2, 2) == "0", paste0(substring(x, 1, 1),
                                            substring(x, 3, 3)),
          x)
 }
@@ -31,7 +31,7 @@ pheno <- cbind(pheno, "samplename" = samplename,
 
 vclin <- merge(pheno, vclin, by.x = "patientid", by.y = "id", all.x = TRUE)
 inter_v <- c("patientid", "sampleid", "samplename", "group",
-             grep("mir_", colnames(vclin), fixed = T, value = T), "age", 
+             grep("mir_", colnames(vclin), fixed = T, value = T), "age",
              "gender", "meld", "lille", "glucose", "follow_up_90", "status_180",
              "ast", "alt")
 am <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
@@ -52,11 +52,11 @@ gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
 if (!gsg$allOK)
 { # Optionally, print the gene and sample names that were removed:
   if (sum(!gsg$goodGenes) > 0)
-    printFlush(paste("Removing genes:", 
+    printFlush(paste("Removing genes:",
                      paste(names(data.wgcna)[!gsg$goodGenes],
                            collapse = ", ")))
   if (sum(!gsg$goodSamples) > 0)
-    printFlush(paste("Removing samples:", 
+    printFlush(paste("Removing samples:",
                      paste(rownames(data.wgcna)[!gsg$goodSamples],
                            collapse = ", ")))
   # Remove the offending genes and samples from the data:
@@ -67,7 +67,7 @@ if (!gsg$allOK)
 pdf("samples_dendrogram.pdf")
 sampleTree <- hclust(dist(data.wgcna), method = "average")
 pars <- par(mar = c(0, 4, 2, 0), cex = 0.6)
-plot(sampleTree, main = "Sample clustering to detect outliers", 
+plot(sampleTree, main = "Sample clustering to detect outliers",
      sub = "", xlab = "", cex.lab = 1.5,
      cex.axis = 1.5, cex.main = 2)
 dev.off()

@@ -4,20 +4,11 @@
 #
 # ==============================================================================
 
-pdfn <- function(...){
-  # Close any device and open a pdfn with the same options
-  if (length(dev.list()) > 1) {
-    dev.off()
-  }
-  pdf(...)
-}
 
-library(WGCNA)
-options(stringsAsFactors = FALSE) 
-# Allow multi-threading within WGCNA. This helps speed up certain calculations.
-enableWGCNAThreads(6)
+source("00-general.R")
+
 # Load the data saved in the first part
-load(file = "Input.RData", verbose = TRUE) 
+load(file = "Input.RData", verbose = TRUE)
 #The variable lnames contains the names of loaded variables.
 
 
@@ -60,7 +51,7 @@ text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
 #
 #  Code chunk 3: Calculating adjacency
 #
-# ============================================================================== 
+# ==============================================================================
 message(paste("Calculating adjacency with power", sft$powerEstimate))
 
 if (1/sqrt(ncol(data.wgcna)) ^ sft$powerEstimate * ncol(data.wgcna) >= 0.1) {
@@ -97,7 +88,7 @@ message("Building the hierarchical clustering")
 geneTree <- hclust(as.dist(dissTOM), method = "average")
 # Plot the resulting clustering tree (dendrogram)
 png("TOMdiss_clustring.png")
-plot(geneTree, xlab = "", sub = "", 
+plot(geneTree, xlab = "", sub = "",
      main = "Gene clustering on TOM-based dissimilarity",
      labels = FALSE, hang = 0.04)
 dev.off()
@@ -167,7 +158,7 @@ MEDissThres <- 0.25
 # Plot the cut line into the dendrogram
 abline(h = MEDissThres, col = "red")
 # Call an automatic merging function
-merge <- mergeCloseModules(data.wgcna, dynamicColors, cutHeight = MEDissThres, 
+merge <- mergeCloseModules(data.wgcna, dynamicColors, cutHeight = MEDissThres,
                            verbose = 3)
 # The merged module colors
 mergedColors <- merge$colors
@@ -191,7 +182,7 @@ dev.off()
 
 # ==============================================================================
 #
-#  Code chunk 11: Save the data 
+#  Code chunk 11: Save the data
 #
 # ==============================================================================
 
