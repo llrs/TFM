@@ -1,49 +1,36 @@
-# Analyse data with WGCNA from doi:10.1136/gutjnl-2011-301146.
+# Input files should be modified to address:
+#  - more studies combined
+#  - more clinical information
 
-source("00-general.R")
-# Prepare some variables
-gse_number <- "GSE28619"
-path_files <- "../Documents/data/GSE28619_RAW/"
-test_file <- "GSM709348.CEL.gz"
-path_file <- paste0(path_files, test_file)
-data.dir <- "../data"
-origDir <- setwd(data.dir)
-raw.tar <- paste0(gse_number, "_RAW.tar")
-path_raw <- paste(gse_number, raw.tar, sep = "/")
-#By exploring the data on GEO I found that the platform is :
-# GPL570 	[HG-U133_Plus_2] Affymetrix Human Genome U133 Plus 2.0 Array
-# So we need to load the bioconductor library with the information about it
+source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 
-
-# Tutorial on https://www.biostars.org/p/53870/
-# Based on this tutorial:
-# http://bioinformatics.knowledgeblog.org/2011/06/20/analysing-microarray-data-in-bioconductor/
-# Download set
-# geosupp <- getGEOSuppFiles(gse_number)
-# geosupp
-#Unpack the CEL files
-# untar(path_raw, exdir = "data")
-# cels <- list.files("data/", pattern = "[gz]")
-# sapply(paste("data", cels, sep = "/"), gunzip)
-# cels  <-  list.files("data/", pattern = "CEL")
-setwd("../data/")
-
+# Load input data ####
 # Phenodata contains the information of the experiment space separated!
 # not tab separated
-warning("phenodata is manually created! And not under git!")
-pheno.isa <- read.affy("pheno.isa.txt")
-pheno.silvia <- read.affy("pheno.silvia.txt")
-# stop("readfiles!")
-setwd(origDir)
+getwd()
+pheno.isa <- read.affy(pheno1)
+pheno.silvia <- read.affy(pheno2)
 
+# Download set ####
+# geosupp <- getGEOSuppFiles(gse_number)
+# geosupp
+# Unpack the CEL files
+# untar(path.raw, exdir = study.dir)
+# cels <- list.files(study.dir, pattern = "[gz]")
+# sapply(cels, gunzip)
+# cels  <-  list.files(study.dir, pattern = "CEL")
 
+disease.silvia <- read.csv("clean_variables.csv")
+disease.isa <- read.csv("samples_AH.csv")
+
+setwd(data.files.out)
 
 c.isa <- rma(pheno.isa)
-# co.isa <- sum.e(c.isa)
+co.isa <- sum.e(c.isa)
 c.silvia <- rma(pheno.silvia)
-# co.silvia <- sum.e(c.silvia)
+co.silvia <- sum.e(c.silvia)
 save(pheno.isa, pheno.silvia, file = "pheno.RData")
-load("pheno.RData")
+load("pheno.RData", verbose = TRUE)
 
 # Merge the data of each batch into a single matrix
 # co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
@@ -59,8 +46,6 @@ merged.shared.pca <- t(merged.shared)
 data.wgcna <- merged.shared[1:15, ]
 # save(data.wgcna, file = "shared_genes.RData")
 
-
-stop()
 # Merging with MergeMaid
 mergm <- mergeExprs(co.silvia, co.isa)
 corcor <- intCor(mergm)
@@ -208,7 +193,6 @@ pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
 # dev.off()
 # ####
 
-setwd(origDir)
 
 # ComBat ####
 combat.exp <- ComBat(merged.shared.pca, orig.data,
@@ -229,14 +213,30 @@ qrexp <- removeBatchEffect(merged.shared.pca, orig.data)
 pca.graph(data = qrexp, file = "merged.shared.pca.rBE.pdf",
           col = as.numeric(orig.data),
           outcome = as.character(orig.data))
-stop("Evaluate mergmaid")
+
+mergm <- mergeExprs(combat.exp[ ,1:15], combat.exp[, 16:ncol(combat.exp)])
+corcor <- intCor(mergm)
+pdf("mergmaid_combat.pdf")
+plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+     main = "Integrative correlation",
+     col = 3, pch = 4)
+hist(corcor, main = "Integrative correlation coeficient")
+coef <- as.vector(corcor@pairwise.cors)
+names(coef) <- rownames(corcor@pairwise.cors)
+
+intcor <- intcorDens(mergm)
+# cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
+#                           method = "linear")
+# plot(coeff(cox.coeff), main = "Coeficients")
+dev.off()
+save(intcor, corcor, file = "mergemaid_combat.RData")
+load("mergemaid_combat.RData", verbose = TRUE)
 
 # load("corrected_exprs.RData", verbose = TRUE)
 #
 #
 # Prepare the variables to the right format ####
-disease.silvia <- read.csv("clean_variables.csv")
-disease.isa <- read.csv("samples_AH.csv")
+
 colnames(disease.isa) <- tolower(colnames(disease.isa))
 clin.isa <- cbind("files" = rownames(pData(pheno.isa)),
                   pData(pheno.isa))

@@ -13,10 +13,10 @@ library("data.table")
 library("ggplot2")
 library("ggbiplot")
 library("corpcor")
+library("topGO")
 library("WGCNA")
 library("edgeR")
 library("limma")
-library("gcrma")
 library("RColorBrewer")
 library("plyr")
 library("dplyr")
@@ -28,7 +28,6 @@ library("Affyhgu133Plus2Expr")
 library("hgu133plus2probe")
 library("hgu133plus2cdf")
 library("boot")
-library("topGO")
 library("Rgraphviz")
 library("ReactomePA")
 library("clusterProfiler")
@@ -41,16 +40,40 @@ enableWGCNAThreads(6) # Speeding up certain calculations with multi-threading.
 # The following setting is important, do not omit.
 options(stringsAsFactors = FALSE)
 
+# Negative correlations are as much valued as positive cor.
+adj.opt <- "unsigned"
+# Reduce the impact in genes when correlations are both positive and negative
+TOM.opt <- "signed"
+
+base.dir <- "/home/lrevilla/Documents"
+data.dir <- file.path(base.dir, "data")
+code.dir <- file.path(base.dir, "TFM")
+
+# Study's options ####
+study <- "TNF_AH"
+pheno1 <- "pheno.isa.txt"
+pheno2 <- "pheno.silvia.txt"
+
+study.dir <- file.path(data.dir, "hepatitis")
+orig.dir <- setwd(study.dir)
+gse.number <- "GSE28619"
+path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))
+raw.tar <- paste0(gse.number, "_RAW.tar")
+path.raw <- file.path(data.dir, raw.tar)
+data.out <- file.path(base.dir, study)
+run.dir <- paste(study, adj.opt, TOM.opt, sep = "_")
+data.files.out <- file.path(data.out, run.dir)
+dir.create(data.files.out)
+
 # Development ####
 
-source("bio_cor0.R")
+source(file.path(code.dir, "bio_cor.R"))
 
 # Functions ####
 
-
+# Normalize data and plots PCA of samples
 pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
                       col = NULL, ...){
-  # Normalize data and plots PCA of samples
   # Data is the normalized, celfiles are the raw files
   if (is.null(data)) {
     if (!is.null(celfiles)) {
@@ -92,8 +115,9 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
   invisible(data)
 }
 
+# Given a expression set transforms it to the gene symbols
 sum.e <- function(eset){
-  # Given a expression set transforms it to the gene symbols
+
   ann <- annotation(eset)
   pkg <- paste0(ann, ".db")
   pkg.ann <- eval(parse(text = pkg))
@@ -111,22 +135,23 @@ sum.e <- function(eset){
   return(corr.sy)
 }
 
+# Close any device and open a pdf. Allow the same options as pdf
 pdfn <- function(...){
-  # Close any device and open a pdf. Allow the same options as pdf
+
   if (length(dev.list()) > 1) {
     dev.off()
   }
   pdf(...)
 }
 
+# Calculate the percentatge above per of data
 count.p <- function(data, per){
-  # Calculate the percentatge above per of data
   sum(data >= per)/length(data)
 }
 
+# Function to explore the module relationship with a trait
 GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                     disease){
-  # Function to explore the module relationship with a trait
   module <- x
   if (is.na(module)) {
     return(NA)
@@ -214,9 +239,9 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   dev.off()
 }
 
+# Select genes above a threshold of correlation or the top ntop
 select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3,
                          ntop = NULL) {
-  # Select genes above a threshold of correlation or the top ntop
   # GTS is the geneTraitSignificance
   # GSP is the p-values
   #
@@ -242,6 +267,7 @@ select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3,
   }
 }
 
+# Select modules by ME above a threshold of correlation or the top ntop
 select.modules <- function(MTC, MTP, p.value = 0.07,
                            threshold = 0.3, ntop = NULL) {
   #MTC module trait correlation
@@ -267,8 +293,8 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
   }
 }
 
+# Coloring taking into account both the correlation value and the p-value
 coloring <- function(MTC, MTP) {
-  # Coloring taking into account both the correlation value and the p-value
   colors <- sapply(colnames(MTC), function(x){
     MTC[, x]/(1 + MTP[, x])})
   colors.value <- sapply(colnames(colors), function(x){
@@ -278,8 +304,8 @@ coloring <- function(MTC, MTP) {
   colors.value
 }
 
+# Function to generate function to select the module
 moduleSel <- function(modul, a){
-  # Function to generate function to select the module
   selFun <- function(genes){
     # Function to select those genees of the same group
     # return(a[x])

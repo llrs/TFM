@@ -4,6 +4,8 @@
 #
 # ==============================================================================
 
+source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
+
 # Load the expression and trait data saved in the first part
 load(file = "InputWGCNA.RData", verbose = TRUE)
 load(file = "shared_genes.RData", verbose = TRUE)

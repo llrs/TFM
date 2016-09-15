@@ -4,7 +4,7 @@
 #
 # ==============================================================================
 
-source("00-general.R")
+source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 
 # Load the data saved in the first part
 # load(file = "InputWGCNA.RData", verbose = TRUE)
