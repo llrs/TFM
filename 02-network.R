@@ -7,9 +7,7 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 
 # Load the data saved in the first part
-# load(file = "InputWGCNA.RData", verbose = TRUE)
-load(file = "shared_genes.RData", verbose = TRUE)
-#The variable lnames contains the names of loaded variables.
+load(file = "Input.RData", verbose = TRUE)
 
 # ==============================================================================
 #
@@ -17,9 +15,14 @@ load(file = "shared_genes.RData", verbose = TRUE)
 #
 # ==============================================================================
 
+if (bio.corFnc) {
+  tryCatch({load("bio_correlation.RData")},
+           error = function(x){
+             bio_mat <- bio.cor(colnames(data.wgcna))
+             save(bio_mat, file = "bio_correlation.RData")
+           })
+}
 
-# bio_mat <- bio.cor(colnames(data.wgcna))
-# save(bio_mat, file = "bio_correlation.RData")
 
 # ==============================================================================
 #
@@ -30,8 +33,18 @@ load(file = "shared_genes.RData", verbose = TRUE)
 # Choose a set of soft-thresholding powers
 
 # Call the network topology analysis function
-sft <- pickSoftThreshold(data.wgcna, powerVector = powers, verbose = 5,
-                        networkType = adj.opt)
+if (bio.corFnc) {
+  sft <- pickSoftThreshold(data.wgcna,
+                           powerVector = powers,
+                           verbose = 5,
+                           networkType = adj.opt,
+                           corFnc = cor.all)
+} else {
+  sft <- pickSoftThreshold(data.wgcna,
+                           powerVector = powers, verbose = 5,
+                           networkType = adj.opt)
+}
+
 # Plot the results:
 pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
 par(mfrow = c(1, 2))
