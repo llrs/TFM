@@ -332,7 +332,10 @@ plotDendroAndColors(sampleTree2, traitColors,
                     main = "Sample dendrogram and trait heatmap")
 dev.off()
 
-save(data.wgcna, vclin, file = "InputWGCNA.merged.RData")
+nGenes <- ncol(data.wgcna)
+nSamples <- nrow(data.wgnca)
+save(data.wgcna, nGenes, nSamples, vclin,
+     file = "Input.RData")
 
 
 
