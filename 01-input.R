@@ -227,30 +227,30 @@ pca.graph(data = qrexp, file = "merged.shared.pca.rBE.pdf",
           outcome = as.character(orig.data))
 
 # Mergemaid after using Combat to make them comparable ###s
-isa <- combat.exp[ ,1:15]
-silvia <- combat.exp[, 16:ncol(combat.exp)]
-
-mergm <- mergeExprs(isa, silvia)
-corcor <- intCor(mergm)
-
-pdf("mergmaid_combat.pdf")
-plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
-     main = "Integrative correlation",
-     col = 3, pch = 4)
-hist(corcor, main = "Integrative correlation coeficient")
-
-intcor <- intcorDens(mergm)
-# cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
-#                           method = "linear")
-# plot(coeff(cox.coeff), main = "Coeficients")
-dev.off()
-save(intcor, corcor, file = "mergemaid_combat.RData")
-load("mergemaid_combat.RData", verbose = TRUE)
-
-coef <- as.vector(corcor@pairwise.cors)
-names(coef) <- rownames(corcor@pairwise.cors)
-comp.genes <- names(coef)[coef > 0]
-discutibles.genes <- names(coef)[coef <= 0]
+# isa <- combat.exp[ ,1:15]
+# silvia <- combat.exp[, 16:ncol(combat.exp)]
+#
+# mergm <- mergeExprs(isa, silvia)
+# corcor <- intCor(mergm)
+#
+# pdf("mergmaid_combat.pdf")
+# plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+#      main = "Integrative correlation",
+#      col = 3, pch = 4)
+# hist(corcor, main = "Integrative correlation coeficient")
+#
+# intcor <- intcorDens(mergm)
+# # cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
+# #                           method = "linear")
+# # plot(coeff(cox.coeff), main = "Coeficients")
+# dev.off()
+# save(intcor, corcor, file = "mergemaid_combat.RData")
+# load("mergemaid_combat.RData", verbose = TRUE)
+#
+# coef <- as.vector(corcor@pairwise.cors)
+# names(coef) <- rownames(corcor@pairwise.cors)
+# comp.genes <- names(coef)[coef > 0]
+# discutibles.genes <- names(coef)[coef <= 0]
 
 # Prepare the variables to the right format ####
 
@@ -259,31 +259,35 @@ clin.isa <- cbind("files" = rownames(pData(pheno.isa)),
                   pData(pheno.isa))
 clin.silvia <- cbind("files" = rownames(pData(pheno.silvia)),
                      pData(pheno.silvia))
+disease.isa <- rename.col(disease.isa, "codi_pacient", "id")
+disease.isa <- rename.col(disease.isa, 'creat', 'creatinine')
+disease.isa <- rename.col(disease.isa, 'leuc', 'leucos')
+disease.isa <- rename.col(disease.isa, 'alb', 'albumin')
+disease.isa <- rename.col(disease.isa, 'triglicerids', 'trigyicerides')
+disease.isa <- rename.col(disease.isa, 'glucosa', 'glucose')
+disease.isa <- rename.col(disease.isa, 'viu_3m', 'status_90')
+disease.isa$status_90 <- fact2num(disease.isa$status_90, "si", "alive")
+disease.isa$status_90 <- fact2num(disease.isa$status_90, "no", "exitus")
 
-colnames(disease.isa)[colnames(disease.isa) == 'codi_pacient'] <- 'id'
-colnames(disease.isa)[colnames(disease.isa) == 'creat'] <- 'creatinine'
-colnames(disease.isa)[colnames(disease.isa) == 'leuc'] <- 'leucos'
-colnames(disease.isa)[colnames(disease.isa) == 'alb'] <- 'albumin' #
-colnames(disease.isa)[colnames(disease.isa) == 'triglicerids'] <- 'trigyicerides'
-colnames(disease.isa)[colnames(disease.isa) == 'glucosa'] <- 'glucose'
-si <- grep("si", disease.isa$status_90)
-no <- grep("no", disease.isa$status_90)
-disease.isa$viu_3m <- NA
-disease.isa$viu_3m[si] <- "alive"
-disease.isa$viu_3m[no] <- "exitus"
-colnames(disease.isa)[colnames(disease.isa) == 'viu_3m'] <- 'status_90'
 disease.isa$plaq <- disease.isa$plaq*1000
-colnames(disease.isa)[colnames(disease.isa) == 'plaq'] <- 'platelets'
+disease.isa <- rename.col(disease.isa, 'plaq', 'platelets')
 disease.isa$hb <- disease.isa$hb/10
-colnames(disease.isa)[colnames(disease.isa) == 'hb'] <- 'hb_g.dl'
+disease.isa <- rename.col(disease.isa, 'hb', 'hb_g.dl')
 
 clin <- rbind.fill(clin.isa, clin.silvia)
 disease <- rbind.fill(disease.silvia, disease.isa)
-yes <- grep("(yes)|(si)", disease$aki, ignore.case = TRUE)
-no <- grep("no", disease$aki, ignore.case = TRUE)
-disease$aki <- NA
-disease$aki[yes] <- 1
-disease$aki[no] <- 0
+
+disease$aki <- fact2num(disease$aki, "(yes)|(si)", 1)
+disease$aki <- fact2num(disease$aki, "no", 0)
+disease$aki <- level.na(disease$aki)
+
+disease$status_90 <- fact2num(disease$status_90, "alive", 1)
+disease$status_90 <- fact2num(disease$status_90, "exitus", 0)
+disease$status_90 <- level.na(disease$status_90)
+intersect(colnames(clin), colnames(disease))
+colnames(clin)
+colnames(disease)
+
 vclin <- merge(clin, disease, by.y = "Sample", by.x = "id")
 int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
             "status_90", "glucose",
