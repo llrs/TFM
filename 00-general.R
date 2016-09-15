@@ -44,7 +44,8 @@ options(stringsAsFactors = FALSE)
 adj.opt <- "unsigned"
 # Reduce the impact in genes when correlations are both positive and negative
 TOM.opt <- "signed"
-
+# Powers to test with
+powers <- c(1:30)
 base.dir <- "/home/lrevilla/Documents"
 data.dir <- file.path(base.dir, "data")
 code.dir <- file.path(base.dir, "TFM")
