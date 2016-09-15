@@ -27,23 +27,25 @@ setwd(data.files.out)
 # save(pheno.isa, pheno.silvia, file = "pheno.RData")
 load("pheno.RData", verbose = TRUE)
 
-c.isa <- rma(pheno.isa)
-c.silvia <- rma(pheno.silvia)
+# Adjusting intensity and making them comparable ####
+# c.isa <- rma(pheno.isa)
+# c.silvia <- rma(pheno.silvia)
 # save(c.isa, c.silvia, file = "rma.pheno.RData")
 load("rma.pheno.RData")
-co.isa <- sum.e(c.isa)
-co.silvia <- sum.e(c.silvia)
+# co.isa <- sum.e(c.isa)
+# co.silvia <- sum.e(c.silvia)
 # save(co.isa, co.silvia, file = "exprs.RData")
 load("exprs.RData", verbose = TRUE)
 
-
+# Merging datasets ####
 # Merge the data of each batch into a single matrix
-co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
-co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
-merged <- rbind.fill(co.silvia.df, co.isa.df)
-rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
-save(co.silvia, co.isa, merged, file = "collapsed.micro.RData")
+# co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
+# co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
+# merged <- rbind.fill(co.silvia.df, co.isa.df)
+# rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+# save(merged, file = "collapsed.micro.RData")
 load("collapsed.micro.RData", verbose = TRUE)
+
 with.na <- apply(merged, 2, function(x){any(is.na(x))})
 merged.shared <- merged[, !with.na] # Keep the shared genes
 merged.pca <- t(merged)
@@ -51,25 +53,27 @@ merged.shared.pca <- t(merged.shared)
 data.wgcna <- merged.shared[1:15, ]
 # save(data.wgcna, file = "shared_genes.RData")
 
-# Merging with MergeMaid
-mergm <- mergeExprs(co.silvia, co.isa)
-corcor <- intCor(mergm)
-pdf("mergmaid.pdf")
-plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
-     main = "Integrative correlation",
-     col = 3, pch = 4)
-hist(corcor, main = "Integrative correlation coeficient")
-coef <- as.vector(corcor@pairwise.cors)
-names(coef) <- rownames(corcor@pairwise.cors)
+# Merging with MergeMaid ####
 
-intcor <- intcorDens(mergm)
-# cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
-#                           method = "linear")
-# plot(coeff(cox.coeff), main = "Coeficients")
-dev.off()
-save(intcor, corcor, file = "mergemaid.RData")
+# mergm <- mergeExprs(co.silvia, co.isa)
+# corcor <- intCor(mergm)
+# pdf("mergmaid.pdf")
+# plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+#      main = "Integrative correlation",
+#      col = 3, pch = 4)
+# hist(corcor, main = "Integrative correlation coeficient")
+#
+# intcor <- intcorDens(mergm)
+# plot(intcor)
+# # cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
+# #                           method = "linear")
+# # plot(coeff(cox.coeff), main = "Coeficients")
+# dev.off()
+# save(intcor, corcor, file = "mergemaid.RData")
 load("mergemaid.RData", verbose = TRUE)
 
+coef <- as.vector(corcor@pairwise.cors)
+names(coef) <- rownames(corcor@pairwise.cors)
 comp.genes <- names(coef)[coef > 0]
 discutibles.genes <- names(coef)[coef <= 0]
 
@@ -77,13 +81,16 @@ discutibles.genes <- names(coef)[coef <= 0]
 orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
                          rep("Isa", ncol(co.isa))))
 new.subset <- merged.shared.pca[rownames(merged.shared.pca) %in% comp.genes, ]
+
 pca.graph(data = new.subset, file = "merged.shared_filtered.pca.pdf",
           col = as.numeric(orig.data),
           outcome = orig.data)
+
 pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
           col = as.numeric(orig.data),
           outcome = orig.data)
-# #########
+
+# Code used for the DE analysis ######
 # set colour palette
 # cols <- brewer.pal(8, "Set1")
 #
@@ -196,38 +203,41 @@ pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
 # dev.off()
 # save(c.gcrma, file = "corrected_exprs.RData")
 # dev.off()
-# ####
-
+#
 
 # ComBat ####
-combat.exp <- ComBat(merged.shared.pca, orig.data,
-                     # mod = matrix(1, nrow = ncol(merged.shared.pca)),
-                     prior.plots = T)
-# It don't work because: system is exactly singular: U[1,1] = 0
+
+combat.exp <- ComBat(merged.shared.pca, orig.data)
+
+pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
+          col = as.numeric(orig.data),
+          outcome = as.character(orig.data))
 
 combat.subset <- ComBat(new.subset, orig.data)
 
 pca.graph(data = combat.subset, file = "merged.shared_filtered.pca.combat.pdf",
           col = as.numeric(orig.data),
           outcome = as.character(orig.data))
-pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
-          col = as.numeric(orig.data),
-          outcome = as.character(orig.data))
+
 # QR decomposition ####
+
 qrexp <- removeBatchEffect(merged.shared.pca, orig.data)
 pca.graph(data = qrexp, file = "merged.shared.pca.rBE.pdf",
           col = as.numeric(orig.data),
           outcome = as.character(orig.data))
 
-mergm <- mergeExprs(combat.exp[ ,1:15], combat.exp[, 16:ncol(combat.exp)])
+# Mergemaid after using Combat to make them comparable ###s
+isa <- combat.exp[ ,1:15]
+silvia <- combat.exp[, 16:ncol(combat.exp)]
+
+mergm <- mergeExprs(isa, silvia)
 corcor <- intCor(mergm)
+
 pdf("mergmaid_combat.pdf")
 plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
      main = "Integrative correlation",
      col = 3, pch = 4)
 hist(corcor, main = "Integrative correlation coeficient")
-coef <- as.vector(corcor@pairwise.cors)
-names(coef) <- rownames(corcor@pairwise.cors)
 
 intcor <- intcorDens(mergm)
 # cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
@@ -237,9 +247,11 @@ dev.off()
 save(intcor, corcor, file = "mergemaid_combat.RData")
 load("mergemaid_combat.RData", verbose = TRUE)
 
-# load("corrected_exprs.RData", verbose = TRUE)
-#
-#
+coef <- as.vector(corcor@pairwise.cors)
+names(coef) <- rownames(corcor@pairwise.cors)
+comp.genes <- names(coef)[coef > 0]
+discutibles.genes <- names(coef)[coef <= 0]
+
 # Prepare the variables to the right format ####
 
 colnames(disease.isa) <- tolower(colnames(disease.isa))
@@ -264,7 +276,6 @@ disease.isa$plaq <- disease.isa$plaq*1000
 colnames(disease.isa)[colnames(disease.isa) == 'plaq'] <- 'platelets'
 disease.isa$hb <- disease.isa$hb/10
 colnames(disease.isa)[colnames(disease.isa) == 'hb'] <- 'hb_g.dl'
-# ! AKI: yes, No // NO AKI, SIAKI
 
 clin <- rbind.fill(clin.isa, clin.silvia)
 disease <- rbind.fill(disease.silvia, disease.isa)
@@ -294,24 +305,25 @@ vclin <- vclin[, colnames(vclin) %in% int.Var]
 
 # Subset just the AH samples ####
 # data.wgcna <- t(exp[, pData(c.gcrma)$Type == "AH"])
+
 data.wgcna <- merged.shared
 gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
 
 if (!gsg$allOK) {
   # Optionally, print the gene and sample names that were removed:
-  if (sum(!gsg$goodGenes) > 0)
-    printFlush(paste("Removing genes:",
-                     paste(names(data.wgcna)[!gsg$goodGenes],
-                           collapse = ", ")));
-  if (sum(!gsg$goodSamples) > 0)
-    printFlush(paste("Removing samples:",
-                     paste(rownames(data.wgcna)[!gsg$goodSamples],
-                           collapse = ", ")));
+  # if (sum(!gsg$goodGenes) > 0)
+  #   printFlush(paste("Removing genes:",
+  #                    paste(names(data.wgcna)[!gsg$goodGenes],
+  #                          collapse = ", ")));
+  # if (sum(!gsg$goodSamples) > 0)
+  #   printFlush(paste("Removing samples:",
+  #                    paste(rownames(data.wgcna)[!gsg$goodSamples],
+  #                          collapse = ", ")));
   # Remove the offending genes and samples from the data:
   data.wgcna <- data.wgcna[gsg$goodSamples, gsg$goodGenes]
 }
 
-pdf("samples_sh.pdf")
+pdf("Samples.pdf")
 sampleTree <- hclust(dist(data.wgcna), method = "average")
 pars <- par(mar = c(0, 4, 2, 0), cex = 0.6)
 plot(sampleTree, main = "Sample clustering to detect outliers",
@@ -320,11 +332,12 @@ plot(sampleTree, main = "Sample clustering to detect outliers",
 dev.off()
 
 
-pdf("dendro_traits_sh.pdf")
+pdf("Dendro_traits.pdf")
 # Re-cluster samples
 sampleTree2 <- hclust(dist(data.wgcna[rownames(data.wgcna) %in% vclin$files, ]),
                       method = "average")
-# Convert traits to a color representation: white means low, red means high, grey means missing entry
+# Convert traits to a color representation: white means low, red means high,
+# grey means missing entry
 traitColors <- numbers2colors(disease, signed = FALSE)
 # Plot the sample dendrogram and the colors underneath.
 plotDendroAndColors(sampleTree2, traitColors,
@@ -334,8 +347,7 @@ dev.off()
 
 nGenes <- ncol(data.wgcna)
 nSamples <- nrow(data.wgnca)
-save(data.wgcna, nGenes, nSamples, vclin,
-     file = "Input.RData")
+save(data.wgcna, nGenes, nSamples, vclin, file = "Input.RData")
 
 
 
