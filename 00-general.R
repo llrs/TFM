@@ -317,3 +317,27 @@ moduleSel <- function(modul, a){
   return(selFun)
 }
 
+# Change the name of the column
+rename.col <- function(df, colname, new.colname) {
+  colnames(df)[colnames(df) == colname] <- new.colname
+  df
+}
+
+# Convert factors using eq level names as factor and eq values as number
+fact2num <- function(vec, level, new.level){
+  vec <- as.factor(vec)
+  levels(vec) <- c(levels(vec), new.level)
+  vec[grep(level, vec, ignore.case = TRUE)] <- new.level
+  vec <- droplevels(vec)
+  vec
+}
+
+# If any level which is a number is left, then is converted to NA
+level.na <- function(vec){
+  vec <- as.factor(vec)
+  levels(vec) <- as.numeric(levels(vec))
+  vec
+}
+
+
+
