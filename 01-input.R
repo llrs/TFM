@@ -288,7 +288,7 @@ intersect(colnames(clin), colnames(disease))
 colnames(clin)
 colnames(disease)
 
-vclin <- merge(clin, disease, by.y = "Sample", by.x = "id")
+vclin <- merge(clin, disease, by.x = "Sample", by.y = "id")
 int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
             "status_90", "glucose",
              "trigyicerides", "ast", "alt", "bili_total", "creatinine",
