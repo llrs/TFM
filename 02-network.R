@@ -1,15 +1,17 @@
-# ==============================================================================
+# 1 ============================================================================
 #
 #  Code chunk 1: Starting from the previously saved data
 #
 # ==============================================================================
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
-
+setwd(data.files.out)
 # Load the data saved in the first part
-load(file = "Input.RData", verbose = TRUE)
-
-# ==============================================================================
+# load(file = "Input.RData", verbose = TRUE)
+load(file = "shared_genes.RData", verbose = TRUE)
+nGenes <- ncol(data.wgcna)
+nSamples <- nrow(data.wgcna)
+# 1b ===========================================================================
 #
 #  Code chunk 1b: Calculate the biological information of the genes
 #
@@ -24,7 +26,7 @@ if (bio.corFnc) {
 }
 
 
-# ==============================================================================
+# 2 ============================================================================
 #
 #  Code chunk 2: Deciding the power to use
 #
@@ -33,73 +35,76 @@ if (bio.corFnc) {
 # Choose a set of soft-thresholding powers
 
 # Call the network topology analysis function
-if (bio.corFnc) {
-  sft <- pickSoftThreshold(data.wgcna,
-                           powerVector = powers,
-                           verbose = 5,
-                           networkType = adj.opt,
-                           corFnc = cor.all)
-} else {
-  sft <- pickSoftThreshold(data.wgcna,
-                           powerVector = powers, verbose = 5,
-                           networkType = adj.opt)
-}
+# if (bio.corFnc) {
+#   sft <- pickSoftThreshold(data.wgcna,
+#                            powerVector = powers,
+#                            verbose = 5,
+#                            networkType = adj.opt,
+#                            corFnc = cor.all)
+# } else {
+#   sft <- pickSoftThreshold(data.wgcna,
+#                            powerVector = powers, verbose = 5,
+#                            networkType = adj.opt)
+# }
+#
+# # Plot the results:
+# pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
+# par(mfrow = c(1, 2))
+# cex1 <- 0.9
+#
+# # Scale-free topology fit index as a function of the soft-thresholding power
+# plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
+#      xlab = "Soft Threshold (power)",
+#      ylab = "Scale Free Topology Model Fit, R^2", type = "n",
+#      main = "Scale independence", ylim = c(0, 1))
+# text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
+#      labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
+# # this line corresponds to using an R^2 cut-off of h
+# abline(h = c(0.90, 0.85), col = c("red", "green"))
+# # Mean connectivity as a function of the soft-thresholding power
+# plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
+#      xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
+#      main = "Mean connectivity")
+# text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
+#      col = "red")
+# abline(h = c(100, 1000), col = c("green", "red"))
+# dev.off()
 
-# Plot the results:
-pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
-par(mfrow = c(1, 2))
-cex1 <- 0.9
-
-# Scale-free topology fit index as a function of the soft-thresholding power
-plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
-     xlab = "Soft Threshold (power)",
-     ylab = "Scale Free Topology Model Fit, R^2", type = "n",
-     main = "Scale independence", ylim = c(0, 1))
-text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
-     labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
-# this line corresponds to using an R^2 cut-off of h
-abline(h = 0.90, col = "red")
-# Mean connectivity as a function of the soft-thresholding power
-plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
-     xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
-     main = "Mean connectivity")
-text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
-     col = "red")
-dev.off()
-
-# ==============================================================================
+# 3 ============================================================================
 #
 #  Code chunk 3: Automatic blocks creation using the power calculated
 #
 # ==============================================================================
-
-print(paste("Recomended power", sft$powerEstimate))
-if (is.na(sft$powerEstimate)) {
-  stop("Estimated power, is NA\nReview the power manually!")
-} else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
-  warning("Are you sure of this power?")
-}
-net <- blockwiseModules(data.wgcna,
-                        power = sft$powerEstimate,
-                TOMType = TOM.opt,
-                minModuleSize = 30,
-                maxBlockSize = 8000,
-                networkType = adj.opt,
-                pamRespectsDendro = FALSE,
-                saveTOMs = TRUE,
-                saveTOMFileBase = "TOM",
-                verbose = 3)
-
-save(net, file = "net.RData")
+#
+# print(paste("Recomended power", sft$powerEstimate))
+# if (is.na(sft$powerEstimate)) {
+#   stop("Estimated power, is NA\nReview the power manually!")
+# } else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
+#   warning("Are you sure of this power?")
+# }
+# net <- blockwiseModules(data.wgcna,
+#                         power = sft$powerEstimate,
+#                 TOMType = TOM.opt,
+#                 minModuleSize = 30,
+#                 maxBlockSize = 8000,
+#                 networkType = adj.opt,
+#                 pamRespectsDendro = FALSE,
+#                 saveTOMs = TRUE,
+#                 saveTOMFileBase = "TOM",
+#                 verbose = 3,
+#                 TOMType = TOM.opt)
+#
+# save(net, file = "net.RData")
 load("net.RData")
-# ==============================================================================
+
+# 4 ============================================================================
 #
 #  Code chunk 4: Plot how the modules correlate in a first dendrogram
 #
 # ==============================================================================
 
 
-pdfn(file = "dendro.pdf", width = 12, height = 9)
+pdf(file = "dendro.pdf", width = 12, height = 9)
 # Convert labels to colors for plotting
 mergedColors <- net$colors
 # Plot the dendrogram and the module colors underneath
@@ -107,45 +112,86 @@ plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
                     "Module colors of first dendrogram",
                     dendroLabels = FALSE, hang = 0.03,
                     addGuide = TRUE, guideHang = 0.05)
+dev.off()
 
-# ==============================================================================
+# 5 ============================================================================
 #
-#  Code chunk 5: See how are the modules found
+#  Code chunk 5: Explore the connectivity
+#
+# ==============================================================================
+
+connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
+                                             networkType = adj.opt,
+                                             power = 13,
+                                             scaleByMax = TRUE)
+dim(connect)
+pdf("Connectivity.pdf")
+verboseScatterplot(connect[, 1], connect[, 2],
+                   xlab = "kTotal", ylab = "kWithin",
+                   col = net$colors[net$colors != "grey"],
+                   main = "Connectivity", abline = TRUE)
+verboseScatterplot(connect[, 1], connect[, 3],
+                   xlab = "kTotal", ylab = "kOut",
+                   col = net$colors[net$colors != "grey"],
+                   main = "Connectivity", abline = TRUE)
+verboseScatterplot(connect[, 1], connect[, 4],
+                   xlab = "kTotal", ylab = "kDiff",
+                   main = "Connectivity", abline = TRUE)
+verboseScatterplot(connect[, 2], connect[, 3],
+                   xlab = "kWithin", ylab = "kOut",
+                   col = net$colors[net$colors != "grey"],
+                   main = "Connectivity", abline = TRUE)
+verboseScatterplot(connect[, 2], connect[, 4],
+                   xlab = "kWithin", ylab = "kDiff",
+                   col = net$colors[net$colors != "grey"],
+                   main = "Connectivity", abline = TRUE)
+verboseScatterplot(connect[, 3], connect[, 4],
+                   xlab = "kOut", ylab = "kDiff",
+                   col = net$colors[net$colors != "grey"],
+                   main = "Connectivity", abline = TRUE)
+dev.off()
+
+# 5b ===========================================================================
+#
+#  Code chunk 5b: See how are the modules found
 #
 # ==============================================================================
 
 # Calculate eigengenes
 MEList <- moduleEigengenes(data.wgcna, colors = net$colors)
 MEs <- MEList$eigengenes
+MEs <- orderME(MEs)
 # Calculate dissimilarity of module eigengenes
 corME <- cor(MEs)
 MEDiss <- 1 - corME
 # Cluster module eigengenes
 METree <- hclust(as.dist(MEDiss), method = "average")
 # Plot the result
-pdfn("Modules_relationship_unsig.pdf")
+pdfn("Modules_relationship.pdf")
 plot(METree, main = "Clustering of module eigengenes",
      xlab = "", sub = "")
 MEDissThres <- 0.25
 # Plot the cut line into the dendrogram
 abline(h = MEDissThres, col = "red")
 
-labeledHeatmap(corME, xLabels = colnames(corME), yLabels = colnames(corME),
+labeledHeatmap(MEDiss, xLabels = colnames(corME), yLabels = colnames(corME),
                sSymbols = colnames(corME), ySymbols = colnames(corME))
 
 gm <- table(net$colors)
 gm
-hist(gm)
+gm <- gm[names(gm) != "grey"]
+hist(gm, xlab = "Size of modules")
 
 perc <- unlist(lapply(gm, count.p, data = gm))
-plot(cbind(gm[order(perc)],perc[order(perc)]), type = "o",
+plot(cbind(gm[order(perc)], perc[order(perc)]), type = "o",
      xlab = "Size of the modules",
      ylab = "Proportion of modules above the size",
      main = "Distribution of the size of the modules",
      col = names(gm[order(perc)]))
 
 dev.off()
-# ==============================================================================
+
+# 6 ============================================================================
 #
 #  Code chunk 6: Save the data for the next process
 #
