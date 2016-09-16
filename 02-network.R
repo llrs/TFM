@@ -7,10 +7,11 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the data saved in the first part
-# load(file = "Input.RData", verbose = TRUE)
-load(file = "shared_genes.RData", verbose = TRUE)
+load(file = "Input.RData", verbose = TRUE)
+# load(file = "shared_genes.RData", verbose = TRUE)
 nGenes <- ncol(data.wgcna)
 nSamples <- nrow(data.wgcna)
+
 # 1b ===========================================================================
 #
 #  Code chunk 1b: Calculate the biological information of the genes
@@ -48,7 +49,8 @@ if (bio.corFnc) {
 # }
 #
 # save(sft, file = "sft.RData")
-# load("sft.RData", verbose = TRUE)
+load("sft.RData", verbose = TRUE)
+#
 # # Plot the results:
 # pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
 # par(mfrow = c(1, 2))
@@ -77,27 +79,26 @@ if (bio.corFnc) {
 #  Code chunk 3: Automatic blocks creation using the power calculated
 #
 # ==============================================================================
-#
-# print(paste("Recomended power", sft$powerEstimate))
-# if (is.na(sft$powerEstimate)) {
-#   stop("Estimated power, is NA\nReview the power manually!")
-# } else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
-#   warning("Are you sure of this power?")
-# }
+
+print(paste("Recomended power", sft$powerEstimate))
+if (is.na(sft$powerEstimate)) {
+  stop("Estimated power, is NA\nReview the power manually!")
+} else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
+  warning("Are you sure of this power?")
+}
 # net <- blockwiseModules(data.wgcna,
 #                         power = sft$powerEstimate,
 #                 TOMType = TOM.opt,
+#                 networkType = adj.opt,
 #                 minModuleSize = 30,
 #                 maxBlockSize = 8000,
-#                 networkType = adj.opt,
 #                 pamRespectsDendro = FALSE,
 #                 saveTOMs = TRUE,
 #                 saveTOMFileBase = "TOM",
-#                 verbose = 3,
-#                 TOMType = TOM.opt)
+#                 verbose = 3)
 #
 # save(net, file = "net.RData")
-load("net.RData")
+load("net.RData", verbose = TRUE)
 
 # 4 ============================================================================
 #
@@ -106,15 +107,15 @@ load("net.RData")
 # ==============================================================================
 
 
-pdf(file = "dendro.pdf", width = 12, height = 9)
-# Convert labels to colors for plotting
-mergedColors <- net$colors
-# Plot the dendrogram and the module colors underneath
-plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
-                    "Module colors of first dendrogram",
-                    dendroLabels = FALSE, hang = 0.03,
-                    addGuide = TRUE, guideHang = 0.05)
-dev.off()
+# pdf(file = "dendro.pdf", width = 12, height = 9)
+# # Convert labels to colors for plotting
+# mergedColors <- net$colors
+# # Plot the dendrogram and the module colors underneath
+# plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
+#                     "Module colors of first dendrogram",
+#                     dendroLabels = FALSE, hang = 0.03,
+#                     addGuide = TRUE, guideHang = 0.05)
+# dev.off()
 
 # 5 ============================================================================
 #
@@ -141,7 +142,7 @@ MEs <- orderMEs(MEs)
 # kME <- signedKME(data.wgcna, MEs)
 # save(kME, file = "kME.RData")
 load("kME.RData", verbose = TRUE)
-head(kME)
+# head(kME)
 # plot(kME)
 # dev.off()
 
@@ -188,6 +189,6 @@ dev.off()
 #
 # ==============================================================================
 
-moduleColors <- mergedColors
+moduleColors <- net$colors
 
 save(MEs, moduleColors, file = "modules_ME.RData")
