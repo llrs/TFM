@@ -82,13 +82,13 @@ orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
                          rep("Isa", ncol(co.isa))))
 new.subset <- merged.shared.pca[rownames(merged.shared.pca) %in% comp.genes, ]
 
-pca.graph(data = new.subset, file = "merged.shared_filtered.pca.pdf",
-          col = as.numeric(orig.data),
-          outcome = orig.data)
-
-pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
-          col = as.numeric(orig.data),
-          outcome = orig.data)
+# pca.graph(data = new.subset, file = "merged.shared_filtered.pca.pdf",
+#           col = as.numeric(orig.data),
+#           outcome = orig.data)
+#
+# pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
+#           col = as.numeric(orig.data),
+#           outcome = orig.data)
 
 # Code used for the DE analysis ######
 # set colour palette
@@ -209,24 +209,24 @@ pca.graph(data = merged.shared.pca, file = "merged.shared.pca.pdf",
 
 combat.exp <- ComBat(merged.shared.pca, orig.data)
 
-pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
-          col = as.numeric(orig.data),
-          outcome = as.character(orig.data))
+# pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
+#           col = as.numeric(orig.data),
+#           outcome = as.character(orig.data))
 
-combat.subset <- ComBat(new.subset, orig.data)
+# combat.subset <- ComBat(new.subset, orig.data)
 
-pca.graph(data = combat.subset, file = "merged.shared_filtered.pca.combat.pdf",
-          col = as.numeric(orig.data),
-          outcome = as.character(orig.data))
+# pca.graph(data = combat.subset, file = "merged.shared_filtered.pca.combat.pdf",
+#           col = as.numeric(orig.data),
+#           outcome = as.character(orig.data))
 
 # QR decomposition ####
 
-qrexp <- removeBatchEffect(merged.shared.pca, orig.data)
-pca.graph(data = qrexp, file = "merged.shared.pca.rBE.pdf",
-          col = as.numeric(orig.data),
-          outcome = as.character(orig.data))
+# qrexp <- removeBatchEffect(merged.shared.pca, orig.data)
+# pca.graph(data = qrexp, file = "merged.shared.pca.rBE.pdf",
+#           col = as.numeric(orig.data),
+#           outcome = as.character(orig.data))
 
-# Mergemaid after using Combat to make them comparable ###s
+# Mergemaid after using Combat to make them comparable ####
 # isa <- combat.exp[ ,1:15]
 # silvia <- combat.exp[, 16:ncol(combat.exp)]
 #
@@ -276,6 +276,7 @@ disease.isa <- rename.col(disease.isa, 'hb', 'hb_g.dl')
 
 clin <- rbind.fill(clin.isa, clin.silvia)
 disease <- rbind.fill(disease.silvia, disease.isa)
+disease <- as.data.frame(apply(disease, 2, trim))
 
 disease$aki <- fact2num(disease$aki, "(yes)|(si)", 1)
 disease$aki <- fact2num(disease$aki, "no", 0)
@@ -284,11 +285,9 @@ disease$aki <- level.na(disease$aki)
 disease$status_90 <- fact2num(disease$status_90, "alive", 1)
 disease$status_90 <- fact2num(disease$status_90, "exitus", 0)
 disease$status_90 <- level.na(disease$status_90)
-intersect(colnames(clin), colnames(disease))
-colnames(clin)
-colnames(disease)
 
-vclin <- merge(clin, disease, by.x = "Sample", by.y = "id")
+
+vclin <- merge(clin, disease, by.x = "Sample", by.y = "id", all.x = TRUE)
 int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
             "status_90", "glucose",
              "trigyicerides", "ast", "alt", "bili_total", "creatinine",
@@ -296,6 +295,10 @@ int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
              "platelets", "hvpg_corte20", "hvpg", "aki",
              "infection_hospitalization")
 vclin <- vclin[, colnames(vclin) %in% int.Var]
+# 1 above, 0 below
+vclin$hvpg_corte20 <- as.numeric(as.numeric(vclin$hvpg) > 20)
+# 1 below, 0 above
+vclin$lille_corte <- as.numeric(as.numeric(vclin$lille) < 0.45)
 
 # disease.r <- apply(vclin, 2, as.numeric)
 # nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
@@ -310,48 +313,59 @@ vclin <- vclin[, colnames(vclin) %in% int.Var]
 # Subset just the AH samples ####
 # data.wgcna <- t(exp[, pData(c.gcrma)$Type == "AH"])
 
-data.wgcna <- merged.shared
+data.wgcna <- t(combat.exp)
+# Filtering those with low correlation between studies
+data.wgcna <- data.wgcna[colnames(combat.exp) %in% comp.genes]
+# Changing the name of the files by the samples name
+rownames(data.wgcna) <- vclin$Sample[match(rownames(data.wgcna), vclin$files)]
 gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
 
 if (!gsg$allOK) {
   # Optionally, print the gene and sample names that were removed:
-  # if (sum(!gsg$goodGenes) > 0)
-  #   printFlush(paste("Removing genes:",
-  #                    paste(names(data.wgcna)[!gsg$goodGenes],
-  #                          collapse = ", ")));
-  # if (sum(!gsg$goodSamples) > 0)
-  #   printFlush(paste("Removing samples:",
-  #                    paste(rownames(data.wgcna)[!gsg$goodSamples],
-  #                          collapse = ", ")));
+  if (sum(!gsg$goodGenes) > 0) {
+    printFlush(paste("Removing", sum(!gsg$goodGenes),"genes"))
+    # printFlush(paste("Removing genes:",
+    #                  paste(names(data.wgcna)[!gsg$goodGenes],
+    #                        collapse = ", ")))
+  }
+  if (sum(!gsg$goodSamples) > 0) {
+    printFlush(paste("Removing", sum(!gsg$goodSamples),"samples."))
+    # printFlush(paste("Removing samples:",
+    #                  paste(rownames(data.wgcna)[!gsg$goodSamples],
+    #                        collapse = ", ")))
+  }
   # Remove the offending genes and samples from the data:
   data.wgcna <- data.wgcna[gsg$goodSamples, gsg$goodGenes]
 }
 
+samples.pre <- t(merged.shared.pca)
+rownames(samples.pre) <- vclin$Sample[match(rownames(samples.pre), vclin$files)]
 pdf("Samples.pdf")
-sampleTree <- hclust(dist(data.wgcna), method = "average")
-pars <- par(mar = c(0, 4, 2, 0), cex = 0.6)
+sampleTree <- hclust(dist(samples.pre), method = "average")
 plot(sampleTree, main = "Sample clustering to detect outliers",
-     sub = "", xlab = "", cex.lab = 1.5,
+     sub = "Before ComBat correction", xlab = "", cex.lab = 1.5,
+     cex.axis = 1.5, cex.main = 2)
+sampleTree <- hclust(dist(data.wgcna), method = "average")
+plot(sampleTree, main = "Sample clustering to detect outliers",
+     sub = "After ComBat correction", xlab = "", cex.lab = 1.5,
      cex.axis = 1.5, cex.main = 2)
 dev.off()
 
+# pdf("Dendro_traits.pdf")
+# # Re-cluster samples
+# sampleTree2 <- hclust(dist(data.wgcna),
+#                       method = "average")
+# # Convert traits to a color representation: white means low, red means high,
+# # grey means missing entry
+# v <- apply(vclin, 2, as.numeric)
+# v <- v[apply(v, 2, function(x) all(is.na(x)))]
+# traitColors <- numbers2colors(v, signed = FALSE)
+# # Plot the sample dendrogram and the colors underneath.
+# dim(traitColors)
+# length(sampleTree2)
+# plotDendroAndColors(sampleTree2, traitColors,
+#                     groupLabels = colnames(traitColors),
+#                     main = "Sample dendrogram and trait heatmap")
+# dev.off()
 
-pdf("Dendro_traits.pdf")
-# Re-cluster samples
-sampleTree2 <- hclust(dist(data.wgcna[rownames(data.wgcna) %in% vclin$files, ]),
-                      method = "average")
-# Convert traits to a color representation: white means low, red means high,
-# grey means missing entry
-traitColors <- numbers2colors(disease, signed = FALSE)
-# Plot the sample dendrogram and the colors underneath.
-plotDendroAndColors(sampleTree2, traitColors,
-                    groupLabels = colnames(disease),
-                    main = "Sample dendrogram and trait heatmap")
-dev.off()
-
-nGenes <- ncol(data.wgcna)
-nSamples <- nrow(data.wgnca)
-save(data.wgcna, nGenes, nSamples, vclin, file = "Input.RData")
-
-
-
+save(data.wgcna, vclin, file = "Input.RData")
