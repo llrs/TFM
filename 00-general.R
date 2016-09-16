@@ -53,7 +53,7 @@ bio.corFnc <- FALSE
 
 
 # Study's options ####
-study <- "TNF_AH"
+study <- "comparison"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 
@@ -64,7 +64,8 @@ path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))
 raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
-run.dir <- paste(study, adj.opt, TOM.opt, sep = "_")
+dir.create(data.out)
+run.dir <- paste(adj.opt, TOM.opt, sep = "_")
 data.files.out <- file.path(data.out, run.dir)
 dir.create(data.files.out)
 
