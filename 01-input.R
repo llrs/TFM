@@ -286,6 +286,9 @@ disease$status_90 <- fact2num(disease$status_90, "alive", 1)
 disease$status_90 <- fact2num(disease$status_90, "exitus", 0)
 disease$status_90 <- level.na(disease$status_90)
 
+disease$infection_hospitalization <- fact2num(disease$status_90, "yes", 0)
+disease$infection_hospitalization <- fact2num(disease$status_90, "no", 1)
+disease$status_90 <- level.na(disease$status_90)
 
 vclin <- merge(clin, disease, by.x = "Sample", by.y = "id", all.x = TRUE)
 int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
@@ -300,22 +303,9 @@ vclin$hvpg_corte20 <- as.numeric(as.numeric(vclin$hvpg) > 20)
 # 1 below, 0 above
 vclin$lille_corte <- as.numeric(as.numeric(vclin$lille) < 0.45)
 
-# disease.r <- apply(vclin, 2, as.numeric)
-# nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
-#          "hvpg_corte20", "lille_corte")
-# for (n in nam) {
-#   disease.r[,n] <- as.factor(vclin[,n])
-# }
-# disease <- disease.r[, -c(1, 2)]
-#
-# exp <- exprs(c.gcrma)
-
-# Subset just the AH samples ####
-# data.wgcna <- t(exp[, pData(c.gcrma)$Type == "AH"])
-
 data.wgcna <- t(combat.exp)
 # Filtering those with low correlation between studies
-data.wgcna <- data.wgcna[colnames(combat.exp) %in% comp.genes]
+data.wgcna <- data.wgcna[ , colnames(data.wgcna) %in% comp.genes]
 # Changing the name of the files by the samples name
 rownames(data.wgcna) <- vclin$Sample[match(rownames(data.wgcna), vclin$files)]
 gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
@@ -351,21 +341,22 @@ plot(sampleTree, main = "Sample clustering to detect outliers",
      cex.axis = 1.5, cex.main = 2)
 dev.off()
 
-# pdf("Dendro_traits.pdf")
-# # Re-cluster samples
-# sampleTree2 <- hclust(dist(data.wgcna),
-#                       method = "average")
-# # Convert traits to a color representation: white means low, red means high,
-# # grey means missing entry
-# v <- apply(vclin, 2, as.numeric)
-# v <- v[apply(v, 2, function(x) all(is.na(x)))]
-# traitColors <- numbers2colors(v, signed = FALSE)
-# # Plot the sample dendrogram and the colors underneath.
-# dim(traitColors)
-# length(sampleTree2)
-# plotDendroAndColors(sampleTree2, traitColors,
-#                     groupLabels = colnames(traitColors),
-#                     main = "Sample dendrogram and trait heatmap")
-# dev.off()
+pdf("Dendro_traits.pdf")
+# Re-cluster samples
+sampleTree2 <- hclust(dist(data.wgcna),
+                      method = "average")
+# Convert traits to a color representation: white means low, red means high,
+# grey means missing entry
+v <- apply(vclin[, 3:ncol(vclin)], 2, as.numeric)
+no.keep <- apply(v, 2, function(x)all(is.na(x)))
+v <- v[, !no.keep]
+rownames(v) <- vclin$Sample
+traitColors <- numbers2colors(v, signed = FALSE)
+dimnames(traitColors) <- dimnames(v)
+# Plot the sample dendrogram and the colors underneath.
 
+plotDendroAndColors(sampleTree2, traitColors,
+                    main = "Sample dendrogram and trait heatmap")
+dev.off()
+plotOrderedColors
 save(data.wgcna, vclin, file = "Input.RData")
