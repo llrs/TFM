@@ -47,6 +47,8 @@ if (bio.corFnc) {
 #                            networkType = adj.opt)
 # }
 #
+# save(sft, file = "sft.RData")
+# load("sft.RData", verbose = TRUE)
 # # Plot the results:
 # pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
 # par(mfrow = c(1, 2))
@@ -119,37 +121,29 @@ dev.off()
 #  Code chunk 5: Explore the connectivity
 #
 # ==============================================================================
+#
+# connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
+#                                              networkType = adj.opt,
+#                                              power = 13,
+#                                              scaleByMax = TRUE)
+# save(connect, file = "kIM.RData")
+# head(connect)
+# pdf("Connectivity_KIM.pdf")
+# pairs(connect)
+# dev.off()
 
-connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
-                                             networkType = adj.opt,
-                                             power = 13,
-                                             scaleByMax = TRUE)
-dim(connect)
-pdf("Connectivity.pdf")
-verboseScatterplot(connect[, 1], connect[, 2],
-                   xlab = "kTotal", ylab = "kWithin",
-                   col = net$colors[net$colors != "grey"],
-                   main = "Connectivity", abline = TRUE)
-verboseScatterplot(connect[, 1], connect[, 3],
-                   xlab = "kTotal", ylab = "kOut",
-                   col = net$colors[net$colors != "grey"],
-                   main = "Connectivity", abline = TRUE)
-verboseScatterplot(connect[, 1], connect[, 4],
-                   xlab = "kTotal", ylab = "kDiff",
-                   main = "Connectivity", abline = TRUE)
-verboseScatterplot(connect[, 2], connect[, 3],
-                   xlab = "kWithin", ylab = "kOut",
-                   col = net$colors[net$colors != "grey"],
-                   main = "Connectivity", abline = TRUE)
-verboseScatterplot(connect[, 2], connect[, 4],
-                   xlab = "kWithin", ylab = "kDiff",
-                   col = net$colors[net$colors != "grey"],
-                   main = "Connectivity", abline = TRUE)
-verboseScatterplot(connect[, 3], connect[, 4],
-                   xlab = "kOut", ylab = "kDiff",
-                   col = net$colors[net$colors != "grey"],
-                   main = "Connectivity", abline = TRUE)
-dev.off()
+# Calculate eigengenes
+MEList <- moduleEigengenes(data.wgcna, colors = net$colors)
+MEs <- MEList$eigengenes
+MEs <- orderMEs(MEs)
+
+# pdf("Connectivity_KME.pdf")
+# kME <- signedKME(data.wgcna, MEs)
+# save(kME, file = "kME.RData")
+load("kME.RData", verbose = TRUE)
+head(kME)
+# plot(kME)
+# dev.off()
 
 # 5b ===========================================================================
 #
@@ -157,10 +151,7 @@ dev.off()
 #
 # ==============================================================================
 
-# Calculate eigengenes
-MEList <- moduleEigengenes(data.wgcna, colors = net$colors)
-MEs <- MEList$eigengenes
-MEs <- orderME(MEs)
+
 # Calculate dissimilarity of module eigengenes
 corME <- cor(MEs)
 MEDiss <- 1 - corME
