@@ -48,8 +48,7 @@ if (bio.corFnc) {
 #                            networkType = adj.opt)
 # }
 #
-# save(sft, file = "sft.RData")
-load("sft.RData", verbose = TRUE)
+
 #
 # # Plot the results:
 # pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
@@ -79,13 +78,16 @@ load("sft.RData", verbose = TRUE)
 #  Code chunk 3: Automatic blocks creation using the power calculated
 #
 # ==============================================================================
-
+load("sft.RData", verbose = TRUE)
 print(paste("Recomended power", sft$powerEstimate))
 if (is.na(sft$powerEstimate)) {
   stop("Estimated power, is NA\nReview the power manually!")
 } else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
   warning("Are you sure of this power?")
 }
+# save(sft, file = "sft.RData")
+
+
 # net <- blockwiseModules(data.wgcna,
 #                         power = sft$powerEstimate,
 #                 TOMType = TOM.opt,
@@ -123,28 +125,22 @@ load("net.RData", verbose = TRUE)
 #
 # ==============================================================================
 #
-# connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
-#                                              networkType = adj.opt,
-#                                              power = 13,
-#                                              scaleByMax = TRUE)
-# save(connect, file = "kIM.RData")
-# head(connect)
-# pdf("Connectivity_KIM.pdf")
-# pairs(connect)
-# dev.off()
+connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
+                                             networkType = adj.opt,
+                                             power = sft$powerEstimate,
+                                             scaleByMax = TRUE)
+save(connect, file = "kIM.RData")
+load(file = "kIM.RData", verbose = TRUE)
+
 
 # Calculate eigengenes
 MEList <- moduleEigengenes(data.wgcna, colors = net$colors)
 MEs <- MEList$eigengenes
 MEs <- orderMEs(MEs)
 
-# pdf("Connectivity_KME.pdf")
 # kME <- signedKME(data.wgcna, MEs)
 # save(kME, file = "kME.RData")
 load("kME.RData", verbose = TRUE)
-# head(kME)
-# plot(kME)
-# dev.off()
 
 # 5b ===========================================================================
 #
