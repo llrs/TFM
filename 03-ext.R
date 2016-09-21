@@ -5,13 +5,13 @@
 # ==============================================================================
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
-
+setwd(data.files.out)
 # Load the expression and trait data saved in the first part
-load(file = "InputWGCNA.RData", verbose = TRUE)
-load(file = "shared_genes.RData", verbose = TRUE)
+load(file = "Input.RData", verbose = TRUE)
+
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
-load(file = "TNF_AH-network-unsig.RData", verbose = TRUE)
+load(file = "modules_ME.RData", verbose = TRUE)
 
 # ==============================================================================
 #
@@ -23,26 +23,9 @@ load(file = "TNF_AH-network-unsig.RData", verbose = TRUE)
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
-# We don't need to recalculate as we store it previously
-# # Recalculate MEs with color labels
-# MEs0 <- moduleEigengenes(data.wgcna, moduleColors)
-# save(MEs0, file = "ME.RData")
-# # load("ME.RData")
-# MEs <- orderMEs(MEs0$eigengenes)
 
-disease.r <- apply(vclin, 2, as.numeric)
-nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
-         "hvpg_corte20", "lille_corte")
-for (n in nam) {
-  a <- as.factor(vclin[,n])
-  levels(a)[levels(a) == ""] <- NA
-  disease.r[, n] <- a
-}
-disease <- disease.r[, -c(1, 2)]
-
-keepSamples <- rownames(data.wgcna) %in% vclin$files
-moduleTraitCor <- cor(MEs[keepSamples, ], disease,
-                      use = "p")
+keepSamples <- rownames(data.wgcna) %in% vclin$Sample
+moduleTraitCor <- cor(MEs[keepSamples, ], vclin, use = "p")
 
 # Calculating the adjusted p-value
 # moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
@@ -51,6 +34,8 @@ moduleTraitCor <- cor(MEs[keepSamples, ], disease,
 
 moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
+# TODO ####
+#
 # TODO: Correct the p-values for multiple testing using the cor.test
 # TODO: Calculate the statistical power
 #
@@ -79,14 +64,14 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 #
 # result4 <- extract(result, "estimate")
 
-# ==============================================================================
+# 3 ============================================================================
 #
 #  Code chunk 3: Display the correlations of modules and variables in a heatmap
 #
 # ==============================================================================
 
 
-pdf(file = "variables_heatmap_sh.pdf", width = 10, height = 6, onefile = TRUE)
+pdf(file = "variables_heatmap.pdf", width = 10, height = 6, onefile = TRUE)
 # Will display correlations and their p-values as text
 textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(",
 signif(moduleTraitPvalue, 2), ")")
