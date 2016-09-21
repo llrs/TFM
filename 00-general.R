@@ -33,6 +33,18 @@ library("ReactomePA")
 library("clusterProfiler")
 library("igraph")
 library("org.Hs.eg.db")
+library("biomaRt")
+library("hgu133plus2.db")
+library("testthat")
+library("GOstats")
+library("graphite")
+library("WGCNA")
+library("KEGGgraph")
+library("KEGG.db")
+library("RBGL")
+library("org.Hs.eg.db")
+library("graph")
+library("Rgraphviz")
 
 # Options and configurations ####
 
@@ -190,30 +202,28 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
     return(NA)
   }
   u.cor <- cor(x = data[gene, "MM"], y = data[gene, "GS"])
-  png(file = paste("MM_GS", var, module, ".png", sep = "_"),
-      width = 700, height = 700)
+  # png(file = paste("MM_GS", var, module, ".png", sep = "_"),
+  #     width = 700, height = 700)
+  #
+  # verboseScatterplot(data[gene, "MM"],
+  #                    data[gene, "GS"],
+  #                    xlab = paste("Module Membership in", module, "module"),
+  #                    ylab = paste("Gene significance for", var),
+  #                    main = paste0("Module membership vs. gene ",
+  #                                  "significance\nWeighted cor=",
+  #                                  signif(w.cor, digits = 2), ", unweighted"),
+  #                    abline = 1,
+  #                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
+  #                    col = ifelse(module %in% c("white", "floralwhite"),
+  #                                 "black", module),
+  #                    sub = paste("Correlation of genes with trait:",
+  #                                "Weighted mean",
+  #                                signif(wgenecor, 2), "normal",
+  #                                signif(mean(data[, "GS"],
+  #                                            na.rm = TRUE), 2)))
+  # dev.off()
 
-  verboseScatterplot(data[gene, "MM"],
-                     data[gene, "GS"],
-                     xlab = paste("Module Membership in", module, "module"),
-                     ylab = paste("Gene significance for", var),
-                     main = paste0("Module membership vs. gene ",
-                                   "significance\nWeighted cor=",
-                                   signif(w.cor, digits = 2), ", unweighted"),
-                     abline = 1,
-                     cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
-                     col = ifelse(module %in% c("white", "floralwhite"),
-                                  "black", module),
-                     sub = paste("Correlation of genes with trait:",
-                                 "Weighted mean",
-                                 signif(wgenecor, 2), "normal",
-                                 signif(mean(data[, "GS"],
-                                             na.rm = TRUE), 2)))
-  dev.off()
 
-
-  png(file = paste("MM_GS_ggplot", var, module, ".png", sep = "_"),
-      width = 700, height = 700)
   # With ggplot with size for the weights
   ab <- lm(data[gene, "GS"] ~ data[gene, "MM"])
   plot.g <- ggplot() +
@@ -238,9 +248,9 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   #                mean(data[gene, "GS"]), na.rm = TRUE),
   #            col = ifelse(module == "green", "orange", "green"))
 
-  ggsave(filename = paste("MM_GS", var, module, "ggplot.png", sep = "_"),
+  ggsave(filename = paste("MM_GS", var, module, ".png", sep = "_"),
          plot = plot.g)
-  dev.off()
+  # dev.off()
 }
 
 # Select genes above a threshold of correlation or the top ntop
@@ -362,4 +372,80 @@ fnlist <- function(x, fil) {
     cat(nams[i], "\t",  x[[i]], "\n",
         file = fil, append = TRUE)
   }
+}
+
+select.interesting.modules <- function(MTC, MTP, p.value = 0.07,
+                                       threshold = 0.3, ntop = NULL,
+                                       var = c("meld", "ggt", "bilirubin"),
+                                       var.sign = c(1, 1, -1)) {
+  #MTC module trait correlation
+  #MTP module trait p.value
+  #threshold is the correlation threshold
+  # Check that the p.value is minor and that the absolute value of the
+  # correlation is >= threshold or that ntop modules are get.
+  # TODO: implement this
+  # var indicates the clinical variables of interest.
+  # var.sign indicate the sign of correlation each module should have with the
+  #    clinical variable
+  significant <- MTP <= p.value
+  vclin.names <- colnames(MTC)
+  modules.names <- rownames(MTC)
+  if (is.null(ntop)) {
+    out <- significant & abs(MTC) >= threshold
+    sapply(vclin.names, function(x, y, z) {
+      a <- z[y[, x]]
+      a[!sapply(a, is.na)]
+    }, y = out, z = modules.names)
+  } else {
+    sapply(vclin.names, function(a, x, y, z, k) {
+      cor.r <- abs(x[y[, a], a])
+      a <- names(cor.r)[rank(cor.r) <= z]
+      a[!sapply(a, is.na)]
+    }, x = MTC, y = significant, z = ntop)
+  }
+}
+
+connectivity.plot <- function(modules, con, GS, var){
+  colorlevels <- unique(modules)
+  colorh1 <- modules
+  column <- grep(var, colnames(GS))
+  if (length(column) >= 2) {
+    stop("Variable matches with two columns")
+  }
+  a <- lapply(colorlevels, function(x){
+    if (x == "grey") {
+      return(NULL)
+    }
+    png(paste("K", var, x, ".png", sep = "_"))
+    restrict1 <- (colorh1 == x)
+    verboseScatterplot(con$kWithin[restrict1],
+         GS[restrict1, column],
+         col = colorh1[restrict1],
+         main = x,
+         # xlim = c(0, max(con$kWithin[restrict1]), na.rm = TRUE),
+         xlab = "Intramodular connectivity (kWithin)",
+         ylab = "Gene Significance with meld")
+    dev.off()
+  })
+}
+
+
+MM_kWithin <- function(MM, con, col, power) {
+  sapply(unique(col), function(x){
+    if (x == "grey"){
+      return(NULL)
+    }
+    print(x)
+
+    png(paste("MM_Kwithin", x, ".png", sep = "_"))
+    verboseScatterplot(con$kWithin[col == x],
+                       abs(MM[col == x, paste0("MM", x)] ^ power),
+                       xlab = "Intramodular Connectivity (kWithin)",
+                       ylab = paste("Module Membership ^", power),
+                       main = paste("Module", x),
+                       col = x,
+                       abline = TRUE)
+    dev.off()
+
+  })
 }
