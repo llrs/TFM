@@ -8,6 +8,8 @@ library("KEGGgraph")
 library("KEGG.db")
 library("RBGL")
 library("org.Hs.eg.db")
+library("graph")
+library("Rgraphviz")
 
 ".combinadic" <- function(n, r, i) {
 
@@ -45,14 +47,15 @@ compare_graphs <- function(g1, g2){
   }
   score <- (length(intersect(prot1, prot2)))*2/(
     length(prot2) + length(prot1))
+  score
 }
 
-mapfun <- function(x) mget(x, revmap(org.Hs.egGO2EG), ifnotfound = NA)
 
-go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", ...){
-  # Calculates the degree of overlap of the GO BP ontologies of entrez ids.
+# Calculates the degree of overlap of the GO BP ontologies of entrez ids.
+go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL, ...){
   # https://support.bioconductor.org/p/85702/#85732
   if (!is.null(mapfun)) {
+    mapfun <- function(x) mget(x, revmap(org.Hs.egGO2EG), ifnotfound = NA)
     LP <- simLL(e_a, e_b, "BP", measure = "LP", mapfun = mapfun, ...)
     UI <- simLL(e_a, e_b, "BP", measure = "UI", mapfun = mapfun, ...)
   } else {
@@ -82,11 +85,10 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", ...){
   (UI$sim/LP$sim)*max(s.path(LP$g1), s.path(LP$g2))
 }
 
+# function that given two kegg pathways calculates the similarity
 kegg_cor <- function(react_a, react_b){
-  # Function that correlates based on reactome ids
+  # Function that correlates based on kegg ids
   # Basically calculates how many nodes do overlap between pathways
-  # We can build it without downloading from internet following this link
-  # https://www.biostars.org/p/2449/#5887
 
   if (is.na(react_a) | is.na(react_b)) {
     return(NA)
@@ -346,3 +348,31 @@ cor.all <- function(datExpr, bio_mat, ...){
   cors <- c(cor_mat, bio_mat)
   apply(simplify2array(cors), c(1,2), weighted, w = c(0.5, 0.18, 0.10, 0.22))
 }
+
+# Builds a graph of the kegg pahtways known
+kegg_build <- function(entrez_id){
+  # We can build it without downloading from internet following this link
+  # https://www.biostars.org/p/2449/#5887
+  ## map -- KEGG id links the KEGG and org.Hs.eg packages
+  name2id <- toTable(KEGGPATHNAME2ID)
+  id2gene <- toTable(revmap(org.Hs.egPATH))
+  paths <- unique(id2gene[id2gene$gene_id == entrez_id, "path_id"])
+  # add gene SYMBOL for each Entrez id
+  id2gene$symbol <- unlist(mget(id2gene$gene_id, org.Hs.egSYMBOL))
+  path2gene <- merge(name2id, id2gene, by = "path_id") # 'join'
+
+  ## create a graphBAM instance
+  met <- sapply(paths, function(x){
+    pathway <- path2gene[path2gene$path_id == x, ]
+    df <- with(pathway, data.frame(from = symbol, to = symbol,
+                                     weight = 1,
+                                     stringsAsFactors = FALSE))
+    df <- unique(df)
+    gr <- graphBAM(df, edgemode = "directed")
+    gr <- as(gr,"graphNEL")
+    gr
+  })
+  met
+
+}
+
