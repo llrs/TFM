@@ -358,5 +358,5 @@ dimnames(traitColors) <- dimnames(v)
 plotDendroAndColors(sampleTree2, traitColors,
                     main = "Sample dendrogram and trait heatmap")
 dev.off()
-plotOrderedColors
+
 save(data.wgcna, vclin, file = "Input.RData")
