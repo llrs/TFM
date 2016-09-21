@@ -7,11 +7,14 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the expression and trait data saved in the first part
+load(file = "../../comparison/unsigned_signed/Input.RData", verbose = TRUE)
 load(file = "Input.RData", verbose = TRUE)
 
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
 load(file = "modules_ME.RData", verbose = TRUE)
+# rfiles <- list.files(pattern = ".RData")
+# sapply(rfiles, load, verbose = TRUE)
 
 # ==============================================================================
 #
@@ -23,9 +26,12 @@ load(file = "modules_ME.RData", verbose = TRUE)
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
-
-keepSamples <- rownames(data.wgcna) %in% vclin$Sample
-moduleTraitCor <- cor(MEs[keepSamples, ], vclin, use = "p")
+disease <- vclin[vclin$files %in% rownames(data.wgcna), 3:ncol(vclin)]
+names.disease <- colnames(disease)
+keepSamples <- rownames(data.wgcna) %in% vclin$files # Samples
+moduleTraitCor <- cor(MEs[keepSamples, ],
+                      disease,
+                      use = "p")
 
 # Calculating the adjusted p-value
 # moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
@@ -78,7 +84,7 @@ signif(moduleTraitPvalue, 2), ")")
 dim(textMatrix) = dim(moduleTraitCor)
 par(mar = c(6, 8.5, 3, 3))
 
-coloring <- coloring(moduleTraitCor, moduleTraitPvalue)
+colors_mo <- coloring(moduleTraitCor, moduleTraitPvalue)
 # Calculate the number of samples used for the correlation
 n <- apply(disease, 2, function(x){sum(!is.na(x))})
 y <- table(moduleColors)
@@ -87,8 +93,8 @@ ylabels <- paste0("ME", names(y[match(names(y), colors)]),
                   " (", y, ")")
 
 # Display the correlation values within a heatmap plot
-labeledHeatmap.multiPage(Matrix = coloring,
-               xLabels = paste0(colnames(disease), " (", n, ")"),
+labeledHeatmap.multiPage(Matrix = colors_mo,
+               xLabels = paste0(names.disease, " (", n, ")"),
                yLabels = ylabels,
                ySymbols = names(MEs),
                colorLabels = FALSE,
@@ -100,7 +106,7 @@ labeledHeatmap.multiPage(Matrix = coloring,
                addPageNumberToMain = FALSE,
                main = "Module-trait relationships")
 dev.off()
-save(moduleTraitCor, moduleTraitPvalue, file = "Module_info_sh.RData")
+save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
 # ==============================================================================
 #
@@ -108,12 +114,6 @@ save(moduleTraitCor, moduleTraitPvalue, file = "Module_info_sh.RData")
 #                variable and the module membership
 #
 # ==============================================================================
-
-
-# Define variable weight containing the weight column of datTrait
-#weight = as.data.frame(datTraits$weight_g)
-#names(weight) = "weight"
-# names (colors) of the modules
 
 modNames <- substring(names(MEs), 3)
 
@@ -133,8 +133,8 @@ geneTraitSignificance <- as.data.frame(
 GSPvalue <- as.data.frame(
   corPvalueStudent(as.matrix(geneTraitSignificance), nSamples))
 
-names(geneTraitSignificance) <- paste0("GS.", colnames(disease))
-names(GSPvalue) <- paste0("p.GS.", colnames(disease))
+names(geneTraitSignificance) <- paste0("GS.", names.disease)
+names(GSPvalue) <- paste0("p.GS.", names.disease)
 
 
 # ==============================================================================
@@ -143,20 +143,47 @@ names(GSPvalue) <- paste0("p.GS.", colnames(disease))
 #
 # ==============================================================================
 
-
+IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
+                                 p.value = 0.07, ntop = 3)
+IM
+if (length(IM) == 0) {
+  stop("Not significant modules")
+}
 
 # Explore for all the variables of trait the selected modules
-f.results <- "shared_unsigned_unsigned"
-dir.create(file.path(f.results))
-orig <- setwd(file.path(f.results))
+# a <- sapply(names(IM), function(y, d){
+#   sapply(d[[y]],
+#          GGMMfun, var = y, MM = geneModuleMembership,
+#          GS = geneTraitSignificance,
+#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+#          modNames = modNames, disease = disease)
+# }, d = IM)
 
-a <- sapply(names(IM), function(y, d){
-  sapply(d[[y]],
-         GGMMfun, var = y, MM = geneModuleMembership,
-         GS = geneTraitSignificance,
-         GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-         modNames = modNames, disease = disease)
-}, d = IM)
+# ==============================================================================
+#
+#  Code chunk 5b: Plots the relationship between GS and connectivity
+#
+# ==============================================================================
+load(file = "kIM.RData", verbose = TRUE)
+load(file = "sft.RData", verbose = TRUE)
+
+# Explore the connectivity of all modules for a variables
+
+# MM vs kWithin
+MM_kWithin(geneModuleMembership, connect, moduleColors,
+           power = sft$powerEstimate)
+
+# GS vs kWithin
+connectivity.plot(moduleColors, connect,
+                  geneTraitSignificance, "meld")
+
+# Furhter Screening ####
+#
+# autoScreen <- automaticNetworkScreening(data.wgcna, disease$meld,
+#                           datME = MEs, minimumSampleSize = 4,
+#                           power = sft$powerEstimate)
+#               networkScreeningGS()
+
 
 # ==============================================================================
 #
@@ -166,22 +193,15 @@ a <- sapply(names(IM), function(y, d){
 
 genes.interes <- select.genes(geneTraitSignificance, GSPvalue,
                               p.value = 0.05, ntop = 100)
-fnlist <- function(x, fil) {
-  nams <- names(x)
-  for (i in seq_along(x)) {
-    cat(nams[i], "\t",  x[[i]], "\n",
-        file = fil, append = TRUE)
-  }
-}
+fnlist(genes.interes, "significant_genes_variables.csv")
 
-fnlist(genes.interes, "testingfile.csv")
 # ==============================================================================
 #
 #  Code chunk 7: Explore the top genes related to each module in a clinical var
 #
 # ==============================================================================
-# genes.modules <- function(vclin, GTS, modules, threshold = 0.3) {
-#   genes <- GTS[, match(vclin, colnames(GTS))]
+# genes.modules <- function(disease, GTS, modules, threshold = 0.3) {
+#   genes <- GTS[, match(disease, colnames(GTS))]
 #   genes.i <- abs(genes) >= threshold
 #   colnames(genes)[genes.i]
 # }
@@ -246,10 +266,10 @@ for (i in 1:length(geneInfo1)) {
 # Add them to the original information
 geneInfo2 <- merge(geneInfo, MM, by = "genes", all.x = TRUE)
 geneInfo2 <- merge(geneInfo2, MMP, by = "genes", all.x = TRUE)
-write.csv(geneInfo2, "genes_modules_sh.csv", row.names = FALSE, na = "")
+write.csv(geneInfo2, "genes_modules.csv", row.names = FALSE, na = "")
 
 # Reading genes currently looked up in the laboratory with other experiments
-int.genes <- read.csv("../genes_int.csv")
+int.genes <- read.csv(file.path(study.dir, "genes_int.csv"))
 int.genes.modules <- geneInfo2[geneInfo2$genes %in% int.genes$Genes_human, ]
 matrx <- table(int.genes.modules$moduleColor, int.genes.modules$genes)
 matrx <- matrx[order(table(int.genes.modules$moduleColor), decreasing = TRUE), ]
@@ -257,7 +277,7 @@ matrx <- matrx[order(table(int.genes.modules$moduleColor), decreasing = TRUE), ]
 genes <- sapply(rownames(matrx), function(x, a){
   paste(colnames(a)[a[x, ] != 0], collapse = ", ")
 }, a = matrx)
-write.csv(as.data.frame(genes), file = "int_genes_module_sh.csv")
+write.csv(as.data.frame(genes), file = "int_genes_module.csv")
 
 # Foreach module create a table in a file with genes, GS GS-P.values
 geneInfo1 <- lapply(unique(geneInfo$moduleColor),
@@ -270,5 +290,5 @@ geneInfo1 <- lapply(unique(geneInfo$moduleColor),
   gT <- gT[, ord]
   keep.Trait <- apply(gT, 2, function(x){all(is.na(x))})
   gT <- gT[, !keep.Trait]
-  write.csv(gT, paste(x, "trait_sh.csv", sep = "_"), row.names = FALSE, na = "")
+  write.csv(gT, paste(x, "trait.csv", sep = "_"), row.names = FALSE, na = "")
 }, gI = geneInfo, GS = geneTraitSignificance, GSP = GSPvalue, d = disease)
