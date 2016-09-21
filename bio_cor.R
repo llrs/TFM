@@ -85,6 +85,8 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", ...){
 kegg_cor <- function(react_a, react_b){
   # Function that correlates based on reactome ids
   # Basically calculates how many nodes do overlap between pathways
+  # We can build it without downloading from internet following this link
+  # https://www.biostars.org/p/2449/#5887
 
   if (is.na(react_a) | is.na(react_b)) {
     return(NA)
