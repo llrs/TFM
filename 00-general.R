@@ -405,6 +405,7 @@ select.interesting.modules <- function(MTC, MTP, p.value = 0.07,
   }
 }
 
+# Plots GS vs kWithin
 connectivity.plot <- function(modules, con, GS, var){
   colorlevels <- unique(modules)
   colorh1 <- modules
@@ -419,20 +420,19 @@ connectivity.plot <- function(modules, con, GS, var){
     png(paste("K", var, x, ".png", sep = "_"))
     restrict1 <- (colorh1 == x)
     verboseScatterplot(con$kWithin[restrict1],
-         GS[restrict1, column],
+         abs(GS[restrict1, column]),
          col = colorh1[restrict1],
          main = x,
-         # xlim = c(0, max(con$kWithin[restrict1]), na.rm = TRUE),
          xlab = "Intramodular connectivity (kWithin)",
-         ylab = "Gene Significance with meld")
+         ylab = paste("abs(Gene Significance) with", var))
     dev.off()
   })
 }
 
-
+# Plots MM vs kWithin
 MM_kWithin <- function(MM, con, col, power) {
   sapply(unique(col), function(x){
-    if (x == "grey"){
+    if (x == "grey") {
       return(NULL)
     }
     print(x)
