@@ -53,7 +53,7 @@ bio.corFnc <- FALSE
 
 
 # Study's options ####
-study <- "comparison"
+study <- "TNF_AH"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 
@@ -302,7 +302,7 @@ coloring <- function(MTC, MTP) {
   colors <- sapply(colnames(MTC), function(x){
     MTC[, x]/(1 + MTP[, x])})
   colors.value <- sapply(colnames(colors), function(x){
-    y <- coloring[,x]
+    y <- colors[,x]
     2*(y - min(y))/(max(y) - min(y)) - 1
   })
   colors.value
@@ -355,4 +355,11 @@ trim <- function(x) {
   gsub("^\\s+|\\s+$", "", x)
 }
 
-
+# Print all the elements of a list in columns in the file fil
+fnlist <- function(x, fil) {
+  nams <- names(x)
+  for (i in seq_along(x)) {
+    cat(nams[i], "\t",  x[[i]], "\n",
+        file = fil, append = TRUE)
+  }
+}
