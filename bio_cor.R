@@ -17,10 +17,14 @@ library("reactome.db")
   # http://msdn.microsoft.com/en-us/library/aa289166(VS.71).aspx
   # http://en.wikipedia.org/wiki/Combinadic
   n0 <- length(n)
-  if (i < 1 | i > choose(n0,r)) stop("'i' must be 0 < i <= n!/(n-r)!")
+  if (i < 1 | i > choose(n0,r)) {
+    stop("'i' must be 0 < i <= n0!/(n0-r)!")
+  }
   largestV <- function(n, r, i) {
-    v <- n                                  # Adjusted for one-based indexing
-    while (choose(v,r) >= i) v <- v - 1        # Adjusted for one-based indexing
+    v <- n # Adjusted for one-based indexing
+    while (choose(v,r) >= i) { # Adjusted for one-based indexing
+      v <- v - 1
+    }
     return(v)
   }
 
@@ -85,7 +89,12 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL, ...){
     UI <- simLL(e_a, e_b, "BP", measure = "UI", chip = chip, ...)
   }
 
-  if (is.na(LP) | is.na(UI) | is.na(LP$sim) | is.na(UI$sim)) {
+
+  if (length(LP) > 1 | length(UI) > 1) {
+    if (is.na(LP["sim"]) | is.na(UI["sim"])) {
+      return(NA)
+    }
+  } else if (is.na(LP) | is.na(UI)) {
     return(NA)
   }
 
@@ -108,6 +117,7 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL, ...){
 }
 
 # function that given two kegg pathways calculates the similarity
+# Just needed on bio.cor not in bio.cor2
 kegg_cor <- function(react_a, react_b){
   # Function that correlates based on kegg ids
   # Basically calculates how many nodes do overlap between pathways
@@ -180,8 +190,10 @@ dist_cor <- function(a, b, info){
   return(score)
 }
 
+
+# Function that correlates based on reactome ids
+# Just needed on bio.cor not in bio.cor2
 react_cor <- function(react_a, react_b, hR){
-  # Function that correlates based on reactome ids
   # Basically calculates how many nodes do overlap between pathways
 
   if (is.na(react_a) | is.na(react_b)) {
@@ -206,9 +218,9 @@ react_cor <- function(react_a, react_b, hR){
   score
 }
 
+# Funcion to perform efficiently the conversion from combinations
+# to symmetric matrix
 comb2mat <- function(input, func, ...){
-  # Funcion to perform efficiently the conversion from combinations
-  #  to symmetric matrix
   # Perform all the combinations of 2 from the input
   cobs <- list()
   for (i in 1:length(input)) {
@@ -243,7 +255,7 @@ seq2mat <- function(x, dat) {
 }
 
 # Extract all the ids of biopath for each element on the combination
-#  and compare them all
+# and compare them all
 comb_biopath <- function(comb, info, by, biopath){
   # react_path <- apply(comb, 2, function(y){
   a <- unique(info[info[by] == comb[1], biopath])
@@ -264,6 +276,7 @@ comb_biopath <- function(comb, info, by, biopath){
 }
 
 # Check if something is a matrix (internal use only)
+# Not used in bio.cor2
 check_na <- function(x){
   if (class(x) != "matrix") {
     if (length(x) == 0) {
@@ -278,6 +291,7 @@ check_na <- function(x){
 }
 
 # Using data correlates biologically two genes
+# not used in bio.cor2
 bio.cor <- function(x, ... ){
   # Using data correlates biologically two genes or probes
   # From the graphite package
@@ -374,6 +388,7 @@ bio.cor <- function(x, ... ){
 
 }
 
+# Not used in bio.cor2 but in cor.all
 weighted <- function(x, w){
   if (length(x) != length(w)) {
     stop(paste("Weights and data don't match the length.\n",
@@ -384,10 +399,11 @@ weighted <- function(x, w){
 
 # Function that used the previously calculated biological correlation to
 # calculate the total correlation
-cor.all <- function(datExpr, bio_mat, ...){
+cor.all <- function(datExpr, bio_mat, w = c(0.5, 0.18, 0.10, 0.22), ...){
+  # exp, reactome, kegg, go
   cor_mat <- cor(datExpr, use = "p")
-  cors <- c(cor_mat, bio_mat)
-  apply(simplify2array(cors), c(1,2), weighted, w = c(0.5, 0.18, 0.10, 0.22))
+  cors <- c(list(exp = cor_mat), bio_mat)
+  apply(simplify2array(cors), c(1,2), weighted, w = w)
 }
 
 # Builds a graph of the kegg pahtways known
@@ -446,18 +462,18 @@ bio.cor2 <- function(x, ids = "Entrez Gene", ... ) {
   # Calculate the GO correlation
   go_mat <- comb2mat(genes_id, go_cor, mapfun = TRUE)
 
-    # Calculate the pathways correlation
+  # Calculate the pathways correlation
   for (i in 1:choose(length(genes_id), 2)) {
     comb <- .combinadic(genes_id, 2, i)
 
     # Kegg calculus
-    kegg.bio[i] <- react_genes(comb, genes, "KEGG")
+    kegg.bio[i] <- react_genes(comb, genes, "KEGG", ids)
     # Reactome calculus
-    react.bio[i] <- react_genes(comb, genes, "Reactome")
+    react.bio[i] <- react_genes(comb, genes, "Reactome", ids)
   }
 
-  react_mat <- seq2mat(names_probes, react.bio)
-  kegg_mat <- seq2mat(names_probes, kegg.bio)
+  react_mat <- seq2mat(genes_id, react.bio)
+  kegg_mat <- seq2mat(genes_id, kegg.bio)
   cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
 }
 
@@ -469,15 +485,25 @@ genes.info <- function(genes, colm, id) {
 }
 
 # Calculates for all the combinations of pathway the right score
-react_genes <- function(comb, genes, react) {
+react_genes <- function(comb, genes, react, id) {
   if (!react %in% colnames(genes)) {
     stop("Please check which type of reaction you want")
   }
-  react_path <- comb_biopath(comb, genes, ids, react)
+  react_path <- comb_biopath(comb, genes, id, react)
+
+  # Check that we have pathways info for this combination
+  if (length(react_path) != 0) {
+    if (nrow(react_path) == 0) {
+      return(NA)
+    }
+  } else if (is.null(react_path) | is.na(react_path)) {
+    return(NA)
+  }
+
   react <- apply(react_path, 1, function(x){
     a <- genes.info(genes, react, x[1])
     b <- genes.info(genes, react, x[2])
-    out <- compare_graph(a, b)
+    out <- compare_graphs(a, b)
     out
   })
 
@@ -489,3 +515,8 @@ react_genes <- function(comb, genes, react) {
   }
   out
 }
+
+Rprof(tmp <- tempfile())
+a <- bio.cor2(c(10, 100, 1000))
+Rprof()
+summaryRprof(tmp)
