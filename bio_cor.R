@@ -10,6 +10,7 @@ library("RBGL")
 library("org.Hs.eg.db")
 library("graph")
 library("Rgraphviz")
+library("reactome.db")
 
 ".combinadic" <- function(n, r, i) {
 
@@ -18,9 +19,7 @@ library("Rgraphviz")
   n0 <- length(n)
   if (i < 1 | i > choose(n0,r)) stop("'i' must be 0 < i <= n!/(n-r)!")
   largestV <- function(n, r, i) {
-    #v <- n-1
     v <- n                                  # Adjusted for one-based indexing
-    #while(choose(v,r) > i) v <- v-1
     while (choose(v,r) >= i) v <- v - 1        # Adjusted for one-based indexing
     return(v)
   }
@@ -40,11 +39,24 @@ library("Rgraphviz")
 compare_graphs <- function(g1, g2){
   # Function to estimate how much two graphs overlap by looking if the nodes
   # are the same
-  prot1 <- nodes(g1)
-  prot2 <- nodes(g2)
-  if (length(prot1) == 0 | length(prot2) == 0) {
-    return(NA)
+  # Check which case are we using
+  if (is(g1, "graph") & is(g2, "graph")) {
+    prot1 <- nodes(g1)
+    prot2 <- nodes(g2)
+    if (length(prot1) == 0 | length(prot2) == 0) {
+      return(NA)
+    }
+  } else if (is(g1, "graph") & is.character(g2)) {
+    prot1 <- nodes(g1)
+    prot2 <- g2
+  } else if (is(g2, "graph") & is.character(g1)) {
+    prot2 <- nodes(g2)
+    prot1 <- g1
+  } else {
+    prot1 <- g1
+    prot2 <- g2
   }
+
   score <- (length(intersect(prot1, prot2)))*2/(
     length(prot2) + length(prot1))
   score
@@ -54,10 +66,20 @@ compare_graphs <- function(g1, g2){
 # Calculates the degree of overlap of the GO BP ontologies of entrez ids.
 go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL, ...){
   # https://support.bioconductor.org/p/85702/#85732
-  if (!is.null(mapfun)) {
-    mapfun <- function(x) mget(x, revmap(org.Hs.egGO2EG), ifnotfound = NA)
-    LP <- simLL(e_a, e_b, "BP", measure = "LP", mapfun = mapfun, ...)
-    UI <- simLL(e_a, e_b, "BP", measure = "UI", mapfun = mapfun, ...)
+
+  if (is.na(e_a) | is.na(e_b)) {
+    return(NA)
+  }
+
+  # Ensure proper format
+  e_a <- as.character(e_a)
+  e_b <- as.character(e_b)
+
+  if (mapfun) {
+    mapfunc <- function(x) mget(x, revmap(org.Hs.egGO2EG), ifnotfound = NA)
+
+    LP <- simLL(e_a, e_b, "BP", measure = "LP", mapfun = mapfunc, ...)
+    UI <- simLL(e_a, e_b, "BP", measure = "UI", mapfun = mapfunc, ...)
   } else {
     LP <- simLL(e_a, e_b, "BP", measure = "LP", chip = chip, ...)
     UI <- simLL(e_a, e_b, "BP", measure = "UI", chip = chip, ...)
@@ -194,7 +216,7 @@ comb2mat <- function(input, func, ...){
   }
   # cobs <- combn(input, 2)
 
-  N <- sapply(cobs, function(x, ...){func(x[1], x[2], ...)})
+  N <- sapply(cobs, function(x){func(x[1], x[2], ...)})
   # Function that performs the calculus
   # N <- seq_len(ncol(combs))
   out <- matrix(ncol = length(input), nrow = length(input))
@@ -207,6 +229,8 @@ comb2mat <- function(input, func, ...){
   return(out)
 }
 
+# Transform a vector to a symetric matrix
+# Uses dat to fill it and x to set names
 seq2mat <- function(x, dat) {
   out <- matrix(ncol = length(x), nrow = length(x))
   out[lower.tri(out)] <- unlist(dat)
@@ -218,15 +242,21 @@ seq2mat <- function(x, dat) {
   return(out)
 }
 
-# Extract all the id of reactome for each combination and compare them all
+# Extract all the ids of biopath for each element on the combination
+#  and compare them all
 comb_biopath <- function(comb, info, by, biopath){
   # react_path <- apply(comb, 2, function(y){
   a <- unique(info[info[by] == comb[1], biopath])
   a <- a[a != ""]
+  a <- a[!is.na(a)]
 
   b <- unique(info[info[by] == comb[2], biopath])
   b <- b[b != ""]
+  b <- b[!is.na(b)]
+
   if (all(sapply(a, is.na)) | all(sapply(b, is.na))) {
+    return(NA)
+  } else if (length(a) == 0 | length(b) == 0) {
     return(NA)
   }
   expand.grid(a, b)
@@ -247,26 +277,35 @@ check_na <- function(x){
   return(FALSE)
 }
 
+# Using data correlates biologically two genes
 bio.cor <- function(x, ... ){
   # Using data correlates biologically two genes or probes
   # From the graphite package
+  # x should be entrez id
+  # or change the internals from "Entrez Gene" to "Symbols"
   names_probes <- x
   humanReactome <- pathways("hsapiens", "reactome")
   # humanKegg <- pathways("hsapiens", "kegg")
 
-  mart <- useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
-  attri <- c("affy_hg_u133_plus_2","entrezgene",
-             "gene_biotype", "start_position", "end_position", "chromosome_name",
-             "strand", "reactome",
-             "hgnc_symbol")
-  info <- getBM(attributes = attri,
-                filters = "affy_hg_u133_plus_2", values = names_probes,
-                mart = mart)
+  # mart <- useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
+  # attri <- c("affy_hg_u133_plus_2","entrezgene",
+  #            "gene_biotype", "start_position", "end_position", "chromosome_name",
+  #            "strand", "reactome",
+  #            "hgnc_symbol")
+  # info <- getBM(attributes = attri,
+  #               filters = "affy_hg_u133_plus_2", values = names_probes,
+  #               mart = mart)
 
-  affy.id <- select(hgu133plus2.db, keys = names_probes,
-                    columns = c("PROBEID", "ENTREZID", "SYMBOL", "PATH"))
-
-  go_mat <- comb2mat(names_probes, go_cor, mapfun = mapfun)
+  # affy.id <- select(hgu133plus2.db, keys = names_probes,
+                    # columns = c("PROBEID", "ENTREZID", "SYMBOL", "PATH"))
+  gene.symbol <- unique(toTable(org.Hs.egSYMBOL2EG))
+  gene.kegg <- unique(toTable(org.Hs.egPATH2EG))
+  gene.reactome <- unique(toTable(reactomePATHID2EXTID))
+  genes <- merge(gene.symbol, gene.kegg, by.x = "gene_id", by.y = "gene_id",
+                 all = TRUE)
+  genes <- unique(merge(genes, gene.reactome, all = TRUE))
+  colnames(genes) <- c("Entrez Gene", "Symbol", "KEGG", "Reactome")
+  go_mat <- comb2mat(names_probes, go_cor, mapfun = TRUE)
   # dist_mat <- comb2mat(x, dist_cor, info) # Not useful
 
   # TODO: extract a lab notebook
@@ -275,17 +314,19 @@ bio.cor <- function(x, ... ){
   kegg.bio <- react.bio
   for (i in 1:choose(length(names_probes), 2)) {
     comb <- .combinadic(names_probes, 2, i)
-    react_path <- comb_biopath(comb, info, "affy_hg_u133_plus_2","reactome")
-    # Calculate the max of the correlation of both ids
-    if (check_na(react_path)){
+    react_path <- comb_biopath(comb, genes, "Entrez Gene","Reactome")
+
+
+    if (check_na(react_path)) {
       a <- NA
     } else {
       a <- apply(react_path, 1, function(y){
         react_cor(y[1], y[2], hR = humanReactome)
-      }
-      )
+      })
     }
-    if (length(a) != 0) {
+
+    # Calculate the max of the correlation of both ids
+    if (length(a) != 0 | sum(!is.na(a)) >= 1) {
       react.bio[i] <- max(a, na.rm = TRUE)
     } else {
       react.bio[i] <- NA
@@ -293,7 +334,7 @@ bio.cor <- function(x, ... ){
     # # })
     # print(head(comb))
     # print(head(affy.id))
-    kegg_path <- comb_biopath(comb, affy.id, "PROBEID","PATH")
+    kegg_path <- comb_biopath(comb, genes, "Entrez Gene","KEGG")
     # Calculate the max of the correlation of both ids
     # N <- lapply(kegg_path, function(x){
     #   if (check_na(x)) {
@@ -361,8 +402,8 @@ kegg_build <- function(entrez_id){
   id2gene$symbol <- unlist(mget(id2gene$gene_id, org.Hs.egSYMBOL))
   path2gene <- merge(name2id, id2gene, by = "path_id") # 'join'
 
-  ## create a graphBAM instance
   met <- sapply(paths, function(x){
+    ## create a graphBAM instance for each pathway
     pathway <- path2gene[path2gene$path_id == x, ]
     df <- with(pathway, data.frame(from = symbol, to = symbol,
                                      weight = 1,
@@ -370,9 +411,81 @@ kegg_build <- function(entrez_id){
     df <- unique(df)
     gr <- graphBAM(df, edgemode = "directed")
     gr <- as(gr,"graphNEL")
-    gr
+    nodes(gr)
   })
   met
 
 }
 
+# Using data correlates biologically two genes
+bio.cor2 <- function(x, ids = "Entrez Gene", ... ) {
+  # Using data correlates biologically two genes or probes
+  # From the graphite package
+  # x should be entrez id
+  # or change the internals from "Entrez Gene" to "Symbols"
+  if (!ids %in% c("Entrez Gene", "Symbol")) {
+    stop("Please check the input of genes in Symbol or Entrez Gene format")
+  }
+  genes_id <- x
+
+  # Obtain data from the annotation packages
+  gene.symbol <- unique(toTable(org.Hs.egSYMBOL2EG))
+  gene.kegg <- unique(toTable(org.Hs.egPATH2EG))
+  gene.reactome <- unique(toTable(reactomePATHID2EXTID))
+
+  # Merge them
+  genes <- merge(gene.symbol, gene.kegg, all = TRUE)
+  genes <- unique(merge(genes, gene.reactome, all = TRUE))
+  colnames(genes) <- c("Entrez Gene", "Symbol", "KEGG", "Reactome")
+
+  # Create the empty matrices of data
+  react.bio <- rep(NA, choose(length(genes_id), 2))
+  kegg.bio <- react.bio
+
+  ## Calculate for each combination the values
+  # Calculate the GO correlation
+  go_mat <- comb2mat(genes_id, go_cor, mapfun = TRUE)
+
+    # Calculate the pathways correlation
+  for (i in 1:choose(length(genes_id), 2)) {
+    comb <- .combinadic(genes_id, 2, i)
+
+    # Kegg calculus
+    kegg.bio[i] <- react_genes(comb, genes, "KEGG")
+    # Reactome calculus
+    react.bio[i] <- react_genes(comb, genes, "Reactome")
+  }
+
+  react_mat <- seq2mat(names_probes, react.bio)
+  kegg_mat <- seq2mat(names_probes, kegg.bio)
+  cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
+}
+
+# Extract which genes are from which reactome
+genes.info <- function(genes, colm, id) {
+  # Genes is the df, colm is the column you want, id is the id of the pathway
+  out <- unique(genes[genes[colm] == id, "Symbol"])
+  out[!is.na(out)]
+}
+
+# Calculates for all the combinations of pathway the right score
+react_genes <- function(comb, genes, react) {
+  if (!react %in% colnames(genes)) {
+    stop("Please check which type of reaction you want")
+  }
+  react_path <- comb_biopath(comb, genes, ids, react)
+  react <- apply(react_path, 1, function(x){
+    a <- genes.info(genes, react, x[1])
+    b <- genes.info(genes, react, x[2])
+    out <- compare_graph(a, b)
+    out
+  })
+
+  # If NA returns NA
+  if (length(react) != sum(is.na(react))) {
+    out <- max(react, na.rm = TRUE)
+  } else {
+    out <- NA
+  }
+  out
+}
