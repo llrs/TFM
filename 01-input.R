@@ -28,22 +28,22 @@ setwd(data.files.out)
 load("pheno.RData", verbose = TRUE)
 
 # Adjusting intensity and making them comparable ####
-# c.isa <- rma(pheno.isa)
-# c.silvia <- rma(pheno.silvia)
-# save(c.isa, c.silvia, file = "rma.pheno.RData")
+c.isa <- rma(pheno.isa)
+c.silvia <- rma(pheno.silvia)
+save(c.isa, c.silvia, file = "rma.pheno.RData")
 load("rma.pheno.RData")
-# co.isa <- sum.e(c.isa)
-# co.silvia <- sum.e(c.silvia)
-# save(co.isa, co.silvia, file = "exprs.RData")
+co.isa <- sum.e(c.isa)
+co.silvia <- sum.e(c.silvia)
+save(co.isa, co.silvia, file = "exprs.RData")
 load("exprs.RData", verbose = TRUE)
 
 # Merging datasets ####
-# Merge the data of each batch into a single matrix
-# co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
-# co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
-# merged <- rbind.fill(co.silvia.df, co.isa.df)
-# rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
-# save(merged, file = "collapsed.micro.RData")
+Merge the data of each batch into a single matrix
+co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
+co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
+merged <- rbind.fill(co.silvia.df, co.isa.df)
+rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+save(merged, file = "collapsed.micro.RData")
 load("collapsed.micro.RData", verbose = TRUE)
 
 with.na <- apply(merged, 2, function(x){any(is.na(x))})

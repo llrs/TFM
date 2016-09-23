@@ -21,7 +21,8 @@ nSamples <- nrow(data.wgcna)
 if (bio.corFnc) {
   tryCatch({load("bio_correlation.RData")},
            error = function(x){
-             bio_mat <- bio.cor(colnames(data.wgcna))
+             bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
+                                 react = TRUE)
              save(bio_mat, file = "bio_correlation.RData")
            })
 }
@@ -41,7 +42,8 @@ if (bio.corFnc) {
 #                            powerVector = powers,
 #                            verbose = 5,
 #                            networkType = adj.opt,
-#                            corFnc = cor.all)
+#                            corFnc = cor.all, corOptions(bio_mat = bio_mat,
+#                            w = c(0.5, 0.5)))
 # } else {
 #   sft <- pickSoftThreshold(data.wgcna,
 #                            powerVector = powers, verbose = 5,
@@ -51,8 +53,8 @@ if (bio.corFnc) {
 
 #
 # # Plot the results:
-# pdfn(file = "Power_calculations.pdf", width = 9, height = 5)
-# par(mfrow = c(1, 2))
+# pdfn(file = "Network_building.pdf")
+# pars <- par(mfrow = c(1, 2))
 # cex1 <- 0.9
 #
 # # Scale-free topology fit index as a function of the soft-thresholding power
@@ -71,6 +73,9 @@ if (bio.corFnc) {
 # text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
 #      col = "red")
 # abline(h = c(100, 1000), col = c("green", "red"))
+# k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$estimatedPower)
+# density(k)
+# scaleFreePlot(k, main="Check scale free topology\n")
 # dev.off()
 
 # 3 ============================================================================
