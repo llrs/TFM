@@ -407,6 +407,7 @@ cor.all <- function(datExpr, bio_mat, w = c(0.5, 0.18, 0.10, 0.22), ...){
 }
 
 # Builds a graph of the kegg pahtways known
+# Not used in bio.cor and neigher in bio.cor2
 kegg_build <- function(entrez_id){
   # We can build it without downloading from internet following this link
   # https://www.biostars.org/p/2449/#5887
@@ -434,7 +435,8 @@ kegg_build <- function(entrez_id){
 }
 
 # Using data correlates biologically two genes
-bio.cor2 <- function(x, ids = "Entrez Gene", ... ) {
+bio.cor2 <- function(x, ids = "Entrez Gene",
+                     go = FALSE, react = TRUE, kegg = FALSE, all = FALSE) {
   # Using data correlates biologically two genes or probes
   # From the graphite package
   # x should be entrez id
@@ -442,39 +444,70 @@ bio.cor2 <- function(x, ids = "Entrez Gene", ... ) {
   if (!ids %in% c("Entrez Gene", "Symbol")) {
     stop("Please check the input of genes in Symbol or Entrez Gene format")
   }
+  if (all) {
+    go <- kegg <- react <- all
+  }
+
   genes_id <- x
 
   # Obtain data from the annotation packages
   gene.symbol <- unique(toTable(org.Hs.egSYMBOL2EG))
-  gene.kegg <- unique(toTable(org.Hs.egPATH2EG))
-  gene.reactome <- unique(toTable(reactomePATHID2EXTID))
+  gene.symbol <- gene.symbol[gene.symbol$gene_id %in% genes_id, ]
+  colnames(gene.symbol) <- c("Entrez Gene", "Symbol")
 
-  # Merge them
-  genes <- merge(gene.symbol, gene.kegg, all = TRUE)
-  genes <- unique(merge(genes, gene.reactome, all = TRUE))
-  colnames(genes) <- c("Entrez Gene", "Symbol", "KEGG", "Reactome")
-
-  # Create the empty matrices of data
-  react.bio <- rep(NA, choose(length(genes_id), 2))
-  kegg.bio <- react.bio
+  if (kegg) {
+    # Obtain data
+    gene.kegg <- unique(toTable(org.Hs.egPATH2EG))
+    colnames(gene.kegg) <- c("Entrez Gene", "KEGG")
+    # Merge data
+    genes <- merge(gene.symbol, gene.kegg, all = TRUE)
+    kegg.bio <- rep(NA, choose(length(genes_id), 2))
+  }
+  if (react) {
+    gene.reactome <- unique(toTable(reactomePATHID2EXTID))
+    colnames(gene.reactome) <- c("Entrez Gene", "Reactome")
+    genes <- unique(merge(genes, gene.reactome, all = TRUE))
+    react.bio <- rep(NA, choose(length(genes_id), 2))
+  }
 
   ## Calculate for each combination the values
   # Calculate the GO correlation
-  go_mat <- comb2mat(genes_id, go_cor, mapfun = TRUE)
+  if (go) {
+    go_mat <- comb2mat(genes_id, go_cor, mapfun = TRUE)
+  }
+  if (kegg | react) {
+    # Calculate the pathways correlation
+    for (i in 1:choose(length(genes_id), 2)) {
+      comb <- .combinadic(genes_id, 2, i)
 
-  # Calculate the pathways correlation
-  for (i in 1:choose(length(genes_id), 2)) {
-    comb <- .combinadic(genes_id, 2, i)
-
-    # Kegg calculus
-    kegg.bio[i] <- react_genes(comb, genes, "KEGG", ids)
-    # Reactome calculus
-    react.bio[i] <- react_genes(comb, genes, "Reactome", ids)
+      # Kegg calculus
+      if (kegg) {
+        kegg.bio[i] <- react_genes(comb, genes, "KEGG", ids)
+      }
+      # Reactome calculus
+      if (react) {
+        react.bio[i] <- react_genes(comb, genes, "Reactome", ids)
+      }
+    }
   }
 
-  react_mat <- seq2mat(genes_id, react.bio)
-  kegg_mat <- seq2mat(genes_id, kegg.bio)
-  cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
+  if (react) {
+    react_mat <- seq2mat(genes_id, react.bio)
+  }
+  if (kegg) {
+    kegg_mat <- seq2mat(genes_id, kegg.bio)
+  }
+
+  if (all) {
+    cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
+  } else if (kegg & react) {
+    cor_mat <- list(reactome = react_mat, kegg = kegg_mat)
+  } else if (kegg & go) {
+    cor_mat <- list(kegg = kegg_mat, go = go_mat)
+  } else  if (go & react) {
+    cor_mat <- list(reactome = react_mat, go = go_mat)
+  }
+  return(cor_mat)
 }
 
 # Extract which genes are from which reactome
@@ -515,8 +548,3 @@ react_genes <- function(comb, genes, react, id) {
   }
   out
 }
-
-Rprof(tmp <- tempfile())
-a <- bio.cor2(c(10, 100, 1000))
-Rprof()
-summaryRprof(tmp)
