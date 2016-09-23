@@ -248,7 +248,7 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   #                mean(data[gene, "GS"]), na.rm = TRUE),
   #            col = ifelse(module == "green", "orange", "green"))
 
-  ggsave(filename = paste("MM_GS", var, module, ".png", sep = "_"),
+  ggsave(filename = name.file("MM_GS", var, module, ".png"),
          plot = plot.g)
   # dev.off()
 }
@@ -417,7 +417,7 @@ connectivity.plot <- function(modules, con, GS, var){
     if (x == "grey") {
       return(NULL)
     }
-    png(paste("K", var, x, ".png", sep = "_"))
+    png(name.file("K", var, x, ".png"))
     restrict1 <- (colorh1 == x)
     verboseScatterplot(con$kWithin[restrict1],
          abs(GS[restrict1, column]),
@@ -437,7 +437,7 @@ MM_kWithin <- function(MM, con, col, power) {
     }
     print(x)
 
-    png(paste("MM_Kwithin", x, ".png", sep = "_"))
+    png(name.file("MM_Kwithin", x, ".png"))
     verboseScatterplot(con$kWithin[col == x],
                        abs(MM[col == x, paste0("MM", x)] ^ power),
                        xlab = "Intramodular Connectivity (kWithin)",
@@ -448,4 +448,10 @@ MM_kWithin <- function(MM, con, col, power) {
     dev.off()
 
   })
+}
+
+# Join with sep, except the last one
+name.file <- function(..., sep = "_"){
+  arg <- c(...)
+  paste0(paste0(arg[-length(arg)], collapse = sep), arg[length(arg)])
 }
