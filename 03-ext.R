@@ -33,6 +33,8 @@ moduleTraitCor <- cor(MEs[keepSamples, ],
                       disease,
                       use = "p")
 
+keep.variables <- apply(moduleTraitCor, 2, function(x){!all(is.na(x))})
+moduleTraitCor <- moduleTraitCor[, keep.variables]
 # Calculating the adjusted p-value
 # moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
 # dim(moduleTraitPvalue) <- dim(moduleTraitCor)
@@ -40,7 +42,8 @@ moduleTraitCor <- cor(MEs[keepSamples, ],
 
 moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
-# TODO ####
+
+# TODO #########################################################################
 #
 # TODO: Correct the p-values for multiple testing using the cor.test
 # TODO: Calculate the statistical power
@@ -77,11 +80,12 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 # ==============================================================================
 
 
-pdf(file = "variables_heatmap.pdf", width = 10, height = 6, onefile = TRUE)
+pdf(file = "variables_heatmap.pdf", width = 10, height = 6,
+    onefile = TRUE)
 # Will display correlations and their p-values as text
-textMatrix =  paste0(signif(moduleTraitCor, 2), "\n(",
-signif(moduleTraitPvalue, 2), ")")
-dim(textMatrix) = dim(moduleTraitCor)
+textMatrix <- paste0(signif(moduleTraitCor, 2), "\n(",
+                     signif(moduleTraitPvalue, 2), ")")
+dim(textMatrix) <- dim(moduleTraitCor)
 par(mar = c(6, 8.5, 3, 3))
 
 colors_mo <- coloring(moduleTraitCor, moduleTraitPvalue)
@@ -94,7 +98,7 @@ ylabels <- paste0("ME", names(y[match(names(y), colors)]),
 
 # Display the correlation values within a heatmap plot
 labeledHeatmap.multiPage(Matrix = colors_mo,
-               xLabels = paste0(names.disease, " (", n, ")"),
+               xLabels = paste0(moduleTraitCor, " (", n, ")"),
                yLabels = ylabels,
                ySymbols = names(MEs),
                colorLabels = FALSE,
@@ -290,5 +294,5 @@ geneInfo1 <- lapply(unique(geneInfo$moduleColor),
   gT <- gT[, ord]
   keep.Trait <- apply(gT, 2, function(x){all(is.na(x))})
   gT <- gT[, !keep.Trait]
-  write.csv(gT, paste(x, "trait.csv", sep = "_"), row.names = FALSE, na = "")
+  write.csv(gT, name.file(x, "trait.csv"), row.names = FALSE, na = "")
 }, gI = geneInfo, GS = geneTraitSignificance, GSP = GSPvalue, d = disease)
