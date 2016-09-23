@@ -26,9 +26,23 @@ load(file = "modules_ME.RData", verbose = TRUE)
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
+
+keepSamples <- rownames(data.wgcna) %in% vclin$files # Samples
 disease <- vclin[vclin$files %in% rownames(data.wgcna), 3:ncol(vclin)]
 names.disease <- colnames(disease)
-keepSamples <- rownames(data.wgcna) %in% vclin$files # Samples
+names.samples <- vclin$Samples[keepSamples]
+if (sum(keepSamples) < 3) {
+  disease <- vclin[vclin$Sample %in% rownames(data.wgcna), 3:ncol(vclin)]
+  names.disease <- colnames(disease)
+  keepSamples <- rownames(data.wgcna) %in% vclin$Sample
+  names.samples <- vclin$Samples[keepSamples]
+}
+if (sum(keepSamples) == 0) {
+  stop("Subset correctly the samples with clinical data")
+}
+if (!all(rownames(data.wgcna[keepSamples]) == names.samples)) {
+  stop("Order of samples in clinical variable and expression is not the same!")
+}
 moduleTraitCor <- cor(MEs[keepSamples, ],
                       disease,
                       use = "p")
@@ -98,7 +112,7 @@ ylabels <- paste0("ME", names(y[match(names(y), colors)]),
 
 # Display the correlation values within a heatmap plot
 labeledHeatmap.multiPage(Matrix = colors_mo,
-               xLabels = paste0(moduleTraitCor, " (", n, ")"),
+               xLabels = paste0(names.samples, " (", n, ")"),
                yLabels = ylabels,
                ySymbols = names(MEs),
                colorLabels = FALSE,
@@ -180,6 +194,8 @@ MM_kWithin(geneModuleMembership, connect, moduleColors,
 # GS vs kWithin
 connectivity.plot(moduleColors, connect,
                   geneTraitSignificance, "meld")
+connectivity.plot(moduleColors, connect,
+                  geneTraitSignificance, "ggt")
 
 # Furhter Screening ####
 #

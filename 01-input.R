@@ -38,7 +38,7 @@ save(co.isa, co.silvia, file = "exprs.RData")
 load("exprs.RData", verbose = TRUE)
 
 # Merging datasets ####
-Merge the data of each batch into a single matrix
+# Merge the data of each batch into a single matrix
 co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
 co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
 merged <- rbind.fill(co.silvia.df, co.isa.df)
@@ -51,7 +51,7 @@ merged.shared <- merged[, !with.na] # Keep the shared genes
 merged.pca <- t(merged)
 merged.shared.pca <- t(merged.shared)
 data.wgcna <- merged.shared[1:15, ]
-# save(data.wgcna, file = "shared_genes.RData")
+save(data.wgcna, file = "shared_genes.RData")
 
 # Merging with MergeMaid ####
 

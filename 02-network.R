@@ -49,62 +49,61 @@ if (bio.corFnc) {
 #                            powerVector = powers, verbose = 5,
 #                            networkType = adj.opt)
 # }
-#
 
-#
-# # Plot the results:
-# pdfn(file = "Network_building.pdf")
-# pars <- par(mfrow = c(1, 2))
-# cex1 <- 0.9
-#
-# # Scale-free topology fit index as a function of the soft-thresholding power
-# plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
-#      xlab = "Soft Threshold (power)",
-#      ylab = "Scale Free Topology Model Fit, R^2", type = "n",
-#      main = "Scale independence", ylim = c(0, 1))
-# text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
-#      labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
-# # this line corresponds to using an R^2 cut-off of h
-# abline(h = c(0.90, 0.85), col = c("red", "green"))
-# # Mean connectivity as a function of the soft-thresholding power
-# plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
-#      xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
-#      main = "Mean connectivity")
-# text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
-#      col = "red")
-# abline(h = c(100, 1000), col = c("green", "red"))
-# k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$estimatedPower)
-# density(k)
-# scaleFreePlot(k, main="Check scale free topology\n")
-# dev.off()
+
+load("sft.RData", verbose = TRUE)
+# Plot the results:
+pdfn(file = "Network_building.pdf")
+# Scale-free topology fit index as a function of the soft-thresholding power
+plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
+     xlab = "Soft Threshold (power)",
+     ylab = "Scale Free Topology Model Fit, R^2", type = "n",
+     main = "Scale independence", ylim = c(0, 1))
+text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
+     labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
+# this line corresponds to using an R^2 cut-off of h
+abline(h = c(0.90, 0.85), col = c("red", "green"))
+# Mean connectivity as a function of the soft-thresholding power
+plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
+     xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
+     main = "Mean connectivity")
+text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
+     col = "red")
+abline(h = c(100, 1000), col = c("green", "red"))
+
+# Calculate connectivity and plot it
+k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate)
+plot(density(k))
+scaleFreePlot(k, main = "Check scale free topology\n")
+dev.off()
 
 # 3 ============================================================================
 #
 #  Code chunk 3: Automatic blocks creation using the power calculated
 #
 # ==============================================================================
-load("sft.RData", verbose = TRUE)
+
 print(paste("Recomended power", sft$powerEstimate))
 if (is.na(sft$powerEstimate)) {
   stop("Estimated power, is NA\nReview the power manually!")
 } else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
   warning("Are you sure of this power?")
 }
-# save(sft, file = "sft.RData")
+save(sft, file = "sft.RData")
 
 
-# net <- blockwiseModules(data.wgcna,
-#                         power = sft$powerEstimate,
-#                 TOMType = TOM.opt,
-#                 networkType = adj.opt,
-#                 minModuleSize = 30,
-#                 maxBlockSize = 8000,
-#                 pamRespectsDendro = FALSE,
-#                 saveTOMs = TRUE,
-#                 saveTOMFileBase = "TOM",
-#                 verbose = 3)
-#
-# save(net, file = "net.RData")
+net <- blockwiseModules(data.wgcna,
+                        power = sft$powerEstimate,
+                TOMType = TOM.opt,
+                networkType = adj.opt,
+                minModuleSize = 30,
+                maxBlockSize = 8000,
+                pamRespectsDendro = FALSE,
+                saveTOMs = TRUE,
+                saveTOMFileBase = "TOM",
+                verbose = 3)
+
+save(net, file = "net.RData")
 load("net.RData", verbose = TRUE)
 
 # 4 ============================================================================
@@ -114,15 +113,15 @@ load("net.RData", verbose = TRUE)
 # ==============================================================================
 
 
-# pdf(file = "dendro.pdf", width = 12, height = 9)
-# # Convert labels to colors for plotting
-# mergedColors <- net$colors
-# # Plot the dendrogram and the module colors underneath
-# plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
-#                     "Module colors of first dendrogram",
-#                     dendroLabels = FALSE, hang = 0.03,
-#                     addGuide = TRUE, guideHang = 0.05)
-# dev.off()
+pdf(file = "dendro.pdf", width = 12, height = 9)
+# Convert labels to colors for plotting
+mergedColors <- net$colors
+# Plot the dendrogram and the module colors underneath
+plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
+                    "Module colors of first dendrogram",
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+dev.off()
 
 # 5 ============================================================================
 #
@@ -143,9 +142,9 @@ MEList <- moduleEigengenes(data.wgcna, colors = net$colors)
 MEs <- MEList$eigengenes
 MEs <- orderMEs(MEs)
 
-# kME <- signedKME(data.wgcna, MEs)
-# save(kME, file = "kME.RData")
-load("kME.RData", verbose = TRUE)
+kME <- signedKME(data.wgcna, MEs)
+save(kME, file = "kME.RData")
+# load("kME.RData", verbose = TRUE)
 
 # 5b ===========================================================================
 #
