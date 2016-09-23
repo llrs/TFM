@@ -431,12 +431,10 @@ connectivity.plot <- function(modules, con, GS, var){
 
 # Plots MM vs kWithin
 MM_kWithin <- function(MM, con, col, power) {
-  sapply(unique(col), function(x){
+  out <- sapply(unique(col), function(x){
     if (x == "grey") {
       return(NULL)
     }
-    print(x)
-
     png(name.file("MM_Kwithin", x, ".png"))
     verboseScatterplot(con$kWithin[col == x],
                        abs(MM[col == x, paste0("MM", x)] ^ power),
