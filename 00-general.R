@@ -13,10 +13,10 @@ library("data.table")
 library("ggplot2")
 library("ggbiplot")
 library("corpcor")
+library("topGO")
 library("WGCNA")
 library("edgeR")
 library("limma")
-library("gcrma")
 library("RColorBrewer")
 library("plyr")
 library("dplyr")
@@ -28,12 +28,23 @@ library("Affyhgu133Plus2Expr")
 library("hgu133plus2probe")
 library("hgu133plus2cdf")
 library("boot")
-library("topGO")
 library("Rgraphviz")
 library("ReactomePA")
 library("clusterProfiler")
 library("igraph")
 library("org.Hs.eg.db")
+library("biomaRt")
+library("hgu133plus2.db")
+library("testthat")
+library("GOstats")
+library("graphite")
+library("WGCNA")
+library("KEGGgraph")
+library("KEGG.db")
+library("RBGL")
+library("org.Hs.eg.db")
+library("graph")
+library("Rgraphviz")
 
 # Options and configurations ####
 
@@ -41,16 +52,44 @@ enableWGCNAThreads(6) # Speeding up certain calculations with multi-threading.
 # The following setting is important, do not omit.
 options(stringsAsFactors = FALSE)
 
+# Negative correlations are as much valued as positive cor.
+adj.opt <- "unsigned"
+# Reduce the impact in genes when correlations are both positive and negative
+TOM.opt <- "signed"
+# Powers to test with
+powers <- c(1:30)
+base.dir <- "/home/lrevilla/Documents"
+data.dir <- file.path(base.dir, "data")
+code.dir <- file.path(base.dir, "TFM")
+bio.corFnc <- FALSE
+
+
+# Study's options ####
+study <- "TNF_AH"
+pheno1 <- "pheno.isa.txt"
+pheno2 <- "pheno.silvia.txt"
+
+study.dir <- file.path(data.dir, "hepatitis")
+orig.dir <- setwd(study.dir)
+gse.number <- "GSE28619"
+path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))
+raw.tar <- paste0(gse.number, "_RAW.tar")
+path.raw <- file.path(data.dir, raw.tar)
+data.out <- file.path(base.dir, study)
+dir.create(data.out)
+run.dir <- paste(adj.opt, TOM.opt, sep = "_")
+data.files.out <- file.path(data.out, run.dir)
+dir.create(data.files.out)
+
 # Development ####
 
-source("bio_cor0.R")
+source(file.path(code.dir, "bio_cor.R"))
 
 # Functions ####
 
-
+# Normalize data and plots PCA of samples
 pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
                       col = NULL, ...){
-  # Normalize data and plots PCA of samples
   # Data is the normalized, celfiles are the raw files
   if (is.null(data)) {
     if (!is.null(celfiles)) {
@@ -92,8 +131,9 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
   invisible(data)
 }
 
+# Given a expression set transforms it to the gene symbols and averages the expr
 sum.e <- function(eset){
-  # Given a expression set transforms it to the gene symbols
+
   ann <- annotation(eset)
   pkg <- paste0(ann, ".db")
   pkg.ann <- eval(parse(text = pkg))
@@ -111,22 +151,23 @@ sum.e <- function(eset){
   return(corr.sy)
 }
 
+# Close any device and open a pdf. Allow the same options as pdf
 pdfn <- function(...){
-  # Close any device and open a pdf. Allow the same options as pdf
+
   if (length(dev.list()) > 1) {
     dev.off()
   }
   pdf(...)
 }
 
+# Calculate the percentatge above per of data
 count.p <- function(data, per){
-  # Calculate the percentatge above per of data
   sum(data >= per)/length(data)
 }
 
+# Function to explore the module relationship with a trait
 GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                     disease){
-  # Function to explore the module relationship with a trait
   module <- x
   if (is.na(module)) {
     return(NA)
@@ -161,30 +202,28 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
     return(NA)
   }
   u.cor <- cor(x = data[gene, "MM"], y = data[gene, "GS"])
-  png(file = paste("MM_GS", var, module, ".png", sep = "_"),
-      width = 700, height = 700)
+  # png(file = paste("MM_GS", var, module, ".png", sep = "_"),
+  #     width = 700, height = 700)
+  #
+  # verboseScatterplot(data[gene, "MM"],
+  #                    data[gene, "GS"],
+  #                    xlab = paste("Module Membership in", module, "module"),
+  #                    ylab = paste("Gene significance for", var),
+  #                    main = paste0("Module membership vs. gene ",
+  #                                  "significance\nWeighted cor=",
+  #                                  signif(w.cor, digits = 2), ", unweighted"),
+  #                    abline = 1,
+  #                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
+  #                    col = ifelse(module %in% c("white", "floralwhite"),
+  #                                 "black", module),
+  #                    sub = paste("Correlation of genes with trait:",
+  #                                "Weighted mean",
+  #                                signif(wgenecor, 2), "normal",
+  #                                signif(mean(data[, "GS"],
+  #                                            na.rm = TRUE), 2)))
+  # dev.off()
 
-  verboseScatterplot(data[gene, "MM"],
-                     data[gene, "GS"],
-                     xlab = paste("Module Membership in", module, "module"),
-                     ylab = paste("Gene significance for", var),
-                     main = paste0("Module membership vs. gene ",
-                                   "significance\nWeighted cor=",
-                                   signif(w.cor, digits = 2), ", unweighted"),
-                     abline = 1,
-                     cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
-                     col = ifelse(module %in% c("white", "floralwhite"),
-                                  "black", module),
-                     sub = paste("Correlation of genes with trait:",
-                                 "Weighted mean",
-                                 signif(wgenecor, 2), "normal",
-                                 signif(mean(data[, "GS"],
-                                             na.rm = TRUE), 2)))
-  dev.off()
 
-
-  png(file = paste("MM_GS_ggplot", var, module, ".png", sep = "_"),
-      width = 700, height = 700)
   # With ggplot with size for the weights
   ab <- lm(data[gene, "GS"] ~ data[gene, "MM"])
   plot.g <- ggplot() +
@@ -209,14 +248,14 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   #                mean(data[gene, "GS"]), na.rm = TRUE),
   #            col = ifelse(module == "green", "orange", "green"))
 
-  ggsave(filename = paste("MM_GS", var, module, "ggplot.png", sep = "_"),
+  ggsave(filename = name.file("MM_GS", var, module, ".png"),
          plot = plot.g)
-  dev.off()
+  # dev.off()
 }
 
+# Select genes above a threshold of correlation or the top ntop
 select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3,
                          ntop = NULL) {
-  # Select genes above a threshold of correlation or the top ntop
   # GTS is the geneTraitSignificance
   # GSP is the p-values
   #
@@ -242,6 +281,7 @@ select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3,
   }
 }
 
+# Select modules by ME above a threshold of correlation or the top ntop
 select.modules <- function(MTC, MTP, p.value = 0.07,
                            threshold = 0.3, ntop = NULL) {
   #MTC module trait correlation
@@ -267,19 +307,19 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
   }
 }
 
+# Coloring taking into account both the correlation value and the p-value
 coloring <- function(MTC, MTP) {
-  # Coloring taking into account both the correlation value and the p-value
   colors <- sapply(colnames(MTC), function(x){
     MTC[, x]/(1 + MTP[, x])})
   colors.value <- sapply(colnames(colors), function(x){
-    y <- coloring[,x]
+    y <- colors[,x]
     2*(y - min(y))/(max(y) - min(y)) - 1
   })
   colors.value
 }
 
+# Function to generate function to select the module
 moduleSel <- function(modul, a){
-  # Function to generate function to select the module
   selFun <- function(genes){
     # Function to select those genees of the same group
     # return(a[x])
@@ -288,3 +328,128 @@ moduleSel <- function(modul, a){
   return(selFun)
 }
 
+# Change the name of the column
+rename.col <- function(df, colname, new.colname) {
+  colnames(df)[colnames(df) == colname] <- new.colname
+  df
+}
+
+# Convert factors using eq level names as factor and eq values as number
+fact2num <- function(vec, level, new.level){
+  vec <- as.factor(vec)
+  levels(vec) <- c(levels(vec), new.level)
+  vec[grep(level, vec, ignore.case = TRUE)] <- new.level
+  vec <- droplevels(vec)
+  vec
+}
+
+# If any level which is a number is left, then is converted to NA
+level.na <- function(vec){
+  vec <- as.factor(vec)
+  levels(vec) <- as.numeric(levels(vec))
+  vec
+}
+
+# returns string w/o leading whitespace
+trim.leading <- function(x) {
+  sub("^\\s+", "", x)
+}
+
+# returns string w/o trailing whitespace
+trim.trailing <- function(x) {
+  sub("\\s+$", "", x)
+}
+
+# returns string w/o leading or trailing whitespace
+trim <- function(x) {
+  gsub("^\\s+|\\s+$", "", x)
+}
+
+# Print all the elements of a list in columns in the file fil
+fnlist <- function(x, fil) {
+  nams <- names(x)
+  for (i in seq_along(x)) {
+    cat(nams[i], "\t",  x[[i]], "\n",
+        file = fil, append = TRUE)
+  }
+}
+
+select.interesting.modules <- function(MTC, MTP, p.value = 0.07,
+                                       threshold = 0.3, ntop = NULL,
+                                       var = c("meld", "ggt", "bilirubin"),
+                                       var.sign = c(1, 1, -1)) {
+  #MTC module trait correlation
+  #MTP module trait p.value
+  #threshold is the correlation threshold
+  # Check that the p.value is minor and that the absolute value of the
+  # correlation is >= threshold or that ntop modules are get.
+  # TODO: implement this
+  # var indicates the clinical variables of interest.
+  # var.sign indicate the sign of correlation each module should have with the
+  #    clinical variable
+  significant <- MTP <= p.value
+  vclin.names <- colnames(MTC)
+  modules.names <- rownames(MTC)
+  if (is.null(ntop)) {
+    out <- significant & abs(MTC) >= threshold
+    sapply(vclin.names, function(x, y, z) {
+      a <- z[y[, x]]
+      a[!sapply(a, is.na)]
+    }, y = out, z = modules.names)
+  } else {
+    sapply(vclin.names, function(a, x, y, z, k) {
+      cor.r <- abs(x[y[, a], a])
+      a <- names(cor.r)[rank(cor.r) <= z]
+      a[!sapply(a, is.na)]
+    }, x = MTC, y = significant, z = ntop)
+  }
+}
+
+# Plots GS vs kWithin
+connectivity.plot <- function(modules, con, GS, var){
+  colorlevels <- unique(modules)
+  colorh1 <- modules
+  column <- grep(var, colnames(GS))
+  if (length(column) >= 2) {
+    stop("Variable matches with two columns")
+  }
+  a <- lapply(colorlevels, function(x){
+    if (x == "grey") {
+      return(NULL)
+    }
+    png(name.file("K", var, x, ".png"))
+    restrict1 <- (colorh1 == x)
+    verboseScatterplot(con$kWithin[restrict1],
+         abs(GS[restrict1, column]),
+         col = colorh1[restrict1],
+         main = x,
+         xlab = "Intramodular connectivity (kWithin)",
+         ylab = paste("abs(Gene Significance) with", var))
+    dev.off()
+  })
+}
+
+# Plots MM vs kWithin
+MM_kWithin <- function(MM, con, col, power) {
+  out <- sapply(unique(col), function(x){
+    if (x == "grey") {
+      return(NULL)
+    }
+    png(name.file("MM_Kwithin", x, ".png"))
+    verboseScatterplot(con$kWithin[col == x],
+                       abs(MM[col == x, paste0("MM", x)] ^ power),
+                       xlab = "Intramodular Connectivity (kWithin)",
+                       ylab = paste("Module Membership ^", power),
+                       main = paste("Module", x),
+                       col = x,
+                       abline = TRUE)
+    dev.off()
+
+  })
+}
+
+# Join with sep, except the last one
+name.file <- function(..., sep = "_"){
+  arg <- c(...)
+  paste0(paste0(arg[-length(arg)], collapse = sep), arg[length(arg)])
+}
