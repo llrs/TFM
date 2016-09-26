@@ -52,6 +52,7 @@ if (bio.corFnc) {
 
 
 load("sft.RData", verbose = TRUE)
+cex1 <- 0.9
 # Plot the results:
 pdfn(file = "Network_building.pdf")
 # Scale-free topology fit index as a function of the soft-thresholding power
