@@ -1,36 +1,42 @@
 #  Analyse the modules with globaltest o GOstats, SPIA, hopach
 
-source("00-general.R")
+source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
+setwd(data.files.out)
 
 # Load previously work done
-# load(file = "TNF_AH-network-auto.RData", verbose = TRUE)
-load(file = "InputWGCNA.RData", verbose = TRUE)
-load(file = "shared_genes.RData", verbose = TRUE)
-load(file = "TNF_AH-network-unsig.RData", verbose = TRUE)
- ## MEs moduleColors
-# load(file = "InputWGCNA.RData", verbose = TRUE)
- ## data.wgcna disease samples ids
-# load(file = "ME.RData", verbose = TRUE)
-## MEs0
-# load(file = "Module_info.RData", verbose = TRUE)
- ## moduleTraitCor moduleTraitPvalue
+load(file = "Input.RData", verbose = TRUE)
+load(file = "modules_ME.RData", verbose = TRUE)
+
 keepSamples <- rownames(data.wgcna) %in% vclin$files
 
-disease.r <- apply(vclin, 2, as.numeric)
-nam <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
-         "hvpg_corte20", "lille_corte")
-for (n in nam) {
-  a <- as.factor(vclin[,n])
-  levels(a)[levels(a) == ""] <- NA
-  disease.r[, n] <- a
-}
-disease <- disease.r[, -c(1, 2)]
+# Define numbers of genes and samples
+nGene <- ncol(data.wgcna)
+nSamples <- nrow(vclin)
 
-moduleTraitCor <- cor(MEs[keepSamples, ], disease,
+keepSamples <- rownames(data.wgcna) %in% vclin$files # Samples
+disease <- vclin[vclin$files %in% rownames(data.wgcna), 3:ncol(vclin)]
+names.disease <- colnames(disease)
+names.samples <- vclin$Samples[keepSamples]
+if (sum(keepSamples) < 3) {
+  disease <- vclin[vclin$Sample %in% rownames(data.wgcna), 3:ncol(vclin)]
+  names.disease <- colnames(disease)
+  keepSamples <- rownames(data.wgcna) %in% vclin$Sample
+  names.samples <- vclin$Samples[keepSamples]
+}
+if (sum(keepSamples) == 0) {
+  stop("Subset correctly the samples with clinical data")
+}
+if (!all(rownames(data.wgcna[keepSamples]) == names.samples)) {
+  stop("Order of samples in clinical variable and expression is not the same!")
+}
+moduleTraitCor <- cor(MEs[keepSamples, ],
+                      disease,
                       use = "p")
-moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nrow(data.wgcna))
-f.results <- "shared_unsigned_unsigned"
-orig <- setwd(file.path(f.results))
+
+keep.variables <- apply(moduleTraitCor, 2, function(x){!all(is.na(x))})
+moduleTraitCor <- moduleTraitCor[, keep.variables]
+
+moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
 # Reconvert the data to the "normal" format, of each column a sample.
 exprs <- t(data.wgcna)
@@ -56,7 +62,7 @@ for (x in names(numb.col)) {
 genes <- as.numeric(levels(genes))[genes]
 names(genes) <- rownames(exprs)
 
-# Grup al genes of the same group
+# Grup all genes of the same group
 clusters <- sapply(unique(moduleColors), function(x, genes, nc){
   names(genes[genes == nc[x]])
 }, genes = genes, nc = numb.col)
@@ -68,7 +74,7 @@ clusters <- sapply(unique(moduleColors), function(x, genes, nc){
 #
 # ==============================================================================
 
-#Function to translate from probeid to entrezid
+#Function to translate from symbols to entrezid
 clustersEntrez <- sapply(clusters, function(x){
   # a <- unique(annots[annots$PROBEID %in% x,
   #                    "ENTREZID"])
@@ -98,7 +104,7 @@ clustersEntrez <- sapply(clusters, function(x){
 # dev.off()
 
 IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
-                     p.value = 0.05, ntop = 3)
+                     p.value = 0.05)
 
 imodules <- unique(unlist(IM))
 
@@ -137,11 +143,11 @@ out <- sapply(imodules, function(x) {
                 mapping = "org.Hs.eg",
                 geneSelectionFun = selFun)
 
-  save(GOdata, file = "array_BP.RData")
-  load(file = "array_BP.RData", verbose = TRUE)
-  GOdata
-  geneSelectionFun(GOdata) <- selFun
-  GOdata
+  # save(GOdata, file = "array_BP.RData")
+  # load(file = "array_BP.RData", verbose = TRUE)
+  # GOdata
+  # geneSelectionFun(GOdata) <- selFun
+  # GOdata
   description(GOdata) <- paste("Molecular function of the",
                                moduleName, "module.")
 
@@ -149,6 +155,8 @@ out <- sapply(imodules, function(x) {
                           algorithm = "classic", statistic = "fisher")
   resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
   resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+  avgResult <- combineResults(resultFisher, resultKS, resultKS.elim,
+                              method = "mean")
 
   allRes <- GenTable(GOdata, classic = resultFisher, Ks = resultKS,
                      elim = resultKS.elim, orderBy = "classic",
@@ -176,6 +184,13 @@ out <- sapply(imodules, function(x) {
     title(main = "GO analysis using KS elim algorithm")},
     error = function(e) {
       message("Couldn't calculate the KSelim")
+      message(e)
+    })
+  tryCatch({showSigOfNodes(GOdata,
+                           score(avgResult), firstSigNodes = 2, useInfo = 'all')
+    title(main = "GO analysis using average")},
+    error = function(e) {
+      message("Couldn't calculate the average GO stat")
       message(e)
     })
   dev.off()
@@ -228,6 +243,7 @@ out <- sapply(imodules, function(x) {
 
   kegg_enrich <- enrichKEGG(moduleGenesEntrez,
                             universe = universeGenesEntrez,
+                            use_internal_data = TRUE,
                             minGSSize = 2)
   if (nrow(summary(kegg_enrich)) != 0) {
     write.csv(summary(kegg_enrich),
