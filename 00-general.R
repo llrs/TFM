@@ -65,7 +65,7 @@ bio.corFnc <- FALSE
 
 
 # Study's options ####
-study <- "TNF_AH"
+study <- "comparison"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 
@@ -292,13 +292,14 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
   significant <- MTP <= p.value
   vclin.names <- colnames(MTC)
   modules.names <- rownames(MTC)
+  # Selecting all the ones that pass the threshold
   if (is.null(ntop)) {
     out <- significant & abs(MTC) >= threshold
     sapply(vclin.names, function(x, y, z) {
       a <- z[y[, x]]
       a[!sapply(a, is.na)]
     }, y = out, z = modules.names)
-  } else {
+  } else {# Selecting the top ntop modules based on highest correlation
     sapply(vclin.names, function(a, x, y, z, k) {
       cor.r <- abs(x[y[, a], a])
       a <- names(cor.r)[rank(cor.r) <= z]
@@ -451,5 +452,9 @@ MM_kWithin <- function(MM, con, col, power) {
 # Join with sep, except the last one
 name.file <- function(..., sep = "_"){
   arg <- c(...)
-  paste0(paste0(arg[-length(arg)], collapse = sep), arg[length(arg)])
+  if (length(arg) > 2) {
+    paste0(paste0(arg[-length(arg)], collapse = sep), arg[length(arg)])
+  } else {
+    paste0(arg, collapse = sep)
+  }
 }
