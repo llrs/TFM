@@ -112,7 +112,7 @@ ylabels <- paste0("ME", names(y[match(names(y), colors)]),
 
 # Display the correlation values within a heatmap plot
 labeledHeatmap.multiPage(Matrix = colors_mo,
-               xLabels = paste0(names.samples, " (", n, ")"),
+               xLabels = paste0(names.disease, " (", n, ")"),
                yLabels = ylabels,
                ySymbols = names(MEs),
                colorLabels = FALSE,
@@ -162,20 +162,20 @@ names(GSPvalue) <- paste0("p.GS.", names.disease)
 # ==============================================================================
 
 IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
-                                 p.value = 0.07, ntop = 3)
+                                 p.value = 0.05)
 IM
 if (length(IM) == 0) {
   stop("Not significant modules")
 }
 
 # Explore for all the variables of trait the selected modules
-# a <- sapply(names(IM), function(y, d){
-#   sapply(d[[y]],
-#          GGMMfun, var = y, MM = geneModuleMembership,
-#          GS = geneTraitSignificance,
-#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-#          modNames = modNames, disease = disease)
-# }, d = IM)
+a <- sapply(names(IM), function(y, d){
+  sapply(d[[y]],
+         GGMMfun, var = y, MM = geneModuleMembership,
+         GS = geneTraitSignificance,
+         GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+         modNames = modNames, disease = disease)
+}, d = IM)
 
 # ==============================================================================
 #
