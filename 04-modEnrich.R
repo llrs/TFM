@@ -44,8 +44,7 @@ exprs <- t(data.wgcna)
 # Obtain the annotation of the data
 # load(file = "annots_study.RData", verbose = TRUE)
 
-# I assume I keep the same order of genes (Which I do)
-warning("m is Manually selected")
+# I assume I keep the same order of genes (Which I do, as I don't change them)
 m <- length(unique(moduleColors))
 genes <- as.factor(moduleColors)
 numb.col <- 0:(m - 1)
@@ -114,6 +113,7 @@ universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
 out <- sapply(imodules, function(x) {
 
   moduleName <- substring(x, 3)
+  print(paste("Analyzing", moduleName, "module!"))
   selFun <- moduleSel(moduleName, numb.col)
 
   # Preparing the objects with Entrezid for the reactome and kegg analysis
