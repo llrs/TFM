@@ -525,11 +525,13 @@ react_genes <- function(comb, genes, react, id) {
   react_path <- comb_biopath(comb, genes, id, react)
 
   # Check that we have pathways info for this combination
-  if (length(react_path) != 0) {
+  if (is.null(react_path)) {
+    return(NA)
+  } else if (length(react_path) == 2) {
     if (nrow(react_path) == 0) {
       return(NA)
     }
-  } else if (is.null(react_path) | is.na(react_path)) {
+  } else if (is.na(react_path)) {
     return(NA)
   }
 
@@ -548,3 +550,9 @@ react_genes <- function(comb, genes, react, id) {
   }
   out
 }
+
+Rprof(tmp <- tempfile())
+a <- bio.cor2(c("10", "100", "1000"), all = TRUE)
+a
+Rprof()
+summaryRprof(tmp)
