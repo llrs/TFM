@@ -8,7 +8,7 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the data saved in the first part
 load(file = "Input.RData", verbose = TRUE)
-# load(file = "shared_genes.RData", verbose = TRUE)
+
 nGenes <- ncol(data.wgcna)
 nSamples <- nrow(data.wgcna)
 
@@ -37,18 +37,18 @@ if (bio.corFnc) {
 # Choose a set of soft-thresholding powers
 
 # Call the network topology analysis function
-# if (bio.corFnc) {
-#   sft <- pickSoftThreshold(data.wgcna,
-#                            powerVector = powers,
-#                            verbose = 5,
-#                            networkType = adj.opt,
-#                            corFnc = cor.all, corOptions(bio_mat = bio_mat,
-#                            w = c(0.5, 0.5)))
-# } else {
-#   sft <- pickSoftThreshold(data.wgcna,
-#                            powerVector = powers, verbose = 5,
-#                            networkType = adj.opt)
-# }
+if (bio.corFnc) {
+  sft <- pickSoftThreshold(data.wgcna,
+                           powerVector = powers,
+                           verbose = 5,
+                           networkType = adj.opt,
+                           corFnc = cor.all, corOptions(bio_mat = bio_mat,
+                           w = c(0.5, 0.5)))
+} else {
+  sft <- pickSoftThreshold(data.wgcna,
+                           powerVector = powers, verbose = 5,
+                           networkType = adj.opt)
+}
 
 
 load("sft.RData", verbose = TRUE)

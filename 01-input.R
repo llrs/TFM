@@ -8,8 +8,8 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 # Phenodata contains the information of the experiment space separated!
 # not tab separated
 
-# pheno.isa <- read.affy(pheno1)
-# pheno.silvia <- read.affy(pheno2)
+pheno.isa <- read.affy(pheno1)
+pheno.silvia <- read.affy(pheno2)
 
 # Download set ####
 # geosupp <- getGEOSuppFiles(gse_number)
@@ -24,7 +24,7 @@ disease.silvia <- read.csv("clean_variables.csv")
 disease.isa <- read.csv("samples_AH.csv")
 
 setwd(data.files.out)
-# save(pheno.isa, pheno.silvia, file = "pheno.RData")
+save(pheno.isa, pheno.silvia, file = "pheno.RData")
 load("pheno.RData", verbose = TRUE)
 
 # Adjusting intensity and making them comparable ####
@@ -55,26 +55,26 @@ save(data.wgcna, file = "shared_genes.RData")
 
 # Merging with MergeMaid ####
 
-# mergm <- mergeExprs(co.silvia, co.isa)
-# corcor <- intCor(mergm)
-# pdf("mergmaid.pdf")
-# plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
-#      main = "Integrative correlation",
-#      col = 3, pch = 4)
-# hist(corcor, main = "Integrative correlation coeficient")
-#
-# intcor <- intcorDens(mergm)
-# plot(intcor)
-# # cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
-# #                           method = "linear")
-# # plot(coeff(cox.coeff), main = "Coeficients")
-# dev.off()
-# save(intcor, corcor, file = "mergemaid.RData")
+mergm <- mergeExprs(co.silvia, co.isa)
+corcor <- intCor(mergm)
+pdf("mergmaid.pdf")
+plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+     main = "Integrative correlation of the top gene",
+     col = 3, pch = 4)
+hist(corcor, main = "Integrative correlation coeficient")
+
+intcor <- intcorDens(mergm)
+plot(intcor)
+# cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
+#                           method = "linear")
+# plot(coeff(cox.coeff), main = "Coeficients")
+dev.off()
+save(intcor, corcor, file = "mergemaid.RData")
 load("mergemaid.RData", verbose = TRUE)
 
 coef <- as.vector(corcor@pairwise.cors)
 names(coef) <- rownames(corcor@pairwise.cors)
-comp.genes <- names(coef)[coef > 0]
+comp.genes <- names(coef)[coef > 0] # Threshold of comparison
 discutibles.genes <- names(coef)[coef <= 0]
 
 # Store the procedence of the data
@@ -358,5 +358,5 @@ dimnames(traitColors) <- dimnames(v)
 plotDendroAndColors(sampleTree2, traitColors,
                     main = "Sample dendrogram and trait heatmap")
 dev.off()
-
+vclin <- cbind(vclin[, 1:2], v)
 save(data.wgcna, vclin, file = "Input.RData")
