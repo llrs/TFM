@@ -63,6 +63,9 @@ data.dir <- file.path(base.dir, "data")
 code.dir <- file.path(base.dir, "TFM")
 bio.corFnc <- FALSE
 
+if (bio.corFnc) {
+  source(file.path(code.dir, "bio_cor.R"))
+}
 
 # Study's options ####
 study <- "comparison"
@@ -81,9 +84,6 @@ run.dir <- paste(adj.opt, TOM.opt, sep = "_")
 data.files.out <- file.path(data.out, run.dir)
 dir.create(data.files.out)
 
-# Development ####
-
-source(file.path(code.dir, "bio_cor.R"))
 
 # Functions ####
 
@@ -167,13 +167,15 @@ count.p <- function(data, per){
 
 # Function to explore the module relationship with a trait
 GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
-                    disease){
+                    disease, cor.out = FALSE){
+
   module <- x
   if (is.na(module)) {
     return(NA)
   } else if (substring(module, 1, nchar("ME")) == "ME") {
     module <- substring(module, 3)
   }
+  warning(paste("Plotting", module, "in", var, "."))
   column <- match(module, modNames)
 
   moduleGenes <- moduleColors == module
@@ -188,8 +190,8 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
     return(NA)
   }
   # Calculates the weighted mean of genes correlation with the trait
-  wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
-  wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
+  # wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
+  # wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
 
   # Weights of the correlation between genes-trait and module-membership
   w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
@@ -198,10 +200,15 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   gene <- !as.logical(apply(data[,c("MM", "GS")], 1,
                             function(x){sum(is.na(x))}))
   w.cor <- corr(data[gene, c("MM", "GS")], w[gene])
+  p.value.w <- corPvalueStudent(w.cor, nrow(data[gene, ]))
+  if (cor.out) {
+    return(w.cor)
+  }
   if (length(data[gene, "MM"]) == 0) {
     return(NA)
   }
   u.cor <- cor(x = data[gene, "MM"], y = data[gene, "GS"])
+  p.value.u <- corPvalueStudent(u.cor, nrow(data[gene, ]))
   # png(file = paste("MM_GS", var, module, ".png", sep = "_"),
   #     width = 700, height = 700)
   #
@@ -223,7 +230,6 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   #                                            na.rm = TRUE), 2)))
   # dev.off()
 
-
   # With ggplot with size for the weights
   ab <- lm(data[gene, "GS"] ~ data[gene, "MM"])
   plot.g <- ggplot() +
@@ -236,8 +242,8 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                         "\nWeighted cor=", signif(w.cor, digits = 2),
                         ", unweighted cor=", signif(u.cor, digits = 2),
                         " p=",
-                        signif(corPvalueStudent(u.cor, nrow(data[gene, ])),
-                               digits = 2))) +
+                        signif(p.value.u, digits = 2), ", ",
+                        signif(p.value.w, digits = 2))) +
     xlab(paste("Module Membership in", module, "module")) +
     ylab(paste("Gene significance for", var))
   # Point of the weighted mean
@@ -298,13 +304,13 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
     sapply(vclin.names, function(x, y, z) {
       a <- z[y[, x]]
       a[!sapply(a, is.na)]
-    }, y = out, z = modules.names)
+    }, y = out, z = modules.names, simplify = FALSE)
   } else {# Selecting the top ntop modules based on highest correlation
     sapply(vclin.names, function(a, x, y, z, k) {
       cor.r <- abs(x[y[, a], a])
       a <- names(cor.r)[rank(cor.r) <= z]
       a[!sapply(a, is.na)]
-    }, x = MTC, y = significant, z = ntop)
+    }, x = MTC, y = significant, z = ntop, simplify = FALSE)
   }
 }
 
