@@ -7,7 +7,6 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the expression and trait data saved in the first part
-load(file = "../../comparison/unsigned_signed/Input.RData", verbose = TRUE)
 load(file = "Input.RData", verbose = TRUE)
 
 #The variable lnames contains the names of loaded variables.
@@ -167,16 +166,60 @@ IM
 if (length(IM) == 0) {
   stop("Not significant modules")
 }
-
+IM0 <- select.modules(moduleTraitCor, moduleTraitPvalue,
+                            p.value = 1, threshold = 0)
+# IM0
 # Explore for all the variables of trait the selected modules
-a <- sapply(names(IM), function(y, d){
+a <- sapply(names(IM0), function(y, d){
   sapply(d[[y]],
          GGMMfun, var = y, MM = geneModuleMembership,
          GS = geneTraitSignificance,
          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-         modNames = modNames, disease = disease)
-}, d = IM)
+         modNames = modNames, disease = disease, cor.out = TRUE)
+}, d = IM0)
 
+# Plot for all the variables of trait the selected modules
+# a <- sapply(names(IM0), function(y, d){
+#   sapply(d[[y]],
+#          GGMMfun, var = y, MM = geneModuleMembership,
+#          GS = geneTraitSignificance,
+#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+#          modNames = modNames, disease = disease)
+# }, d = IM0)
+t.colors <- table(moduleColors)
+n.samples <- t.colors[order(match(names(t.colors), substring(rownames(a), 3)))]
+a.p.value <- sapply(1:ncol(a), function(x) {
+  corPvalueStudent(a[,x], nSamples = as.numeric(n.samples)[x])
+  })
+
+colnames(a.p.value) <- colnames(a)
+# Will display correlations and their p-values as text
+textMatrix <- paste0(signif(a, digits = 2), "\n(",
+                     signif(a.p.value, digits = 2), ")")
+dim(textMatrix) <- dim(moduleTraitCor)
+
+
+colors_mo <- coloring(moduleTraitCor, a.p.value)
+
+# Calculate the number of samples used for the correlation
+colors <- substring(names(a), 3)
+ylabels <- paste0("(", t.colors, ") ",
+                  names(t.colors)[order(match(names(t.colors), colors))])
+
+pdf("heatmap_GS_MM.pdf")
+par(mar = c(6, 8.5, 3, 3))
+labeledHeatmap.multiPage(Matrix = a,
+                         xLabels = colnames(a),
+                         yLabels = ylabels,
+                         colors = greenWhiteRed(50),
+                         textMatrix = textMatrix,
+                         colorLabels = TRUE,
+                         setStdMargins = FALSE,
+                         cex.text = 0.5,
+                         12,
+                         addPageNumberToMain = FALSE,
+                         main = "ModuleMembership-GeneSignificance relationships")
+dev.off()
 # ==============================================================================
 #
 #  Code chunk 5b: Plots the relationship between GS and connectivity
@@ -192,10 +235,10 @@ MM_kWithin(geneModuleMembership, connect, moduleColors,
            power = sft$powerEstimate)
 
 # GS vs kWithin
-connectivity.plot(moduleColors, connect,
-                  geneTraitSignificance, "meld")
-connectivity.plot(moduleColors, connect,
-                  geneTraitSignificance, "ggt")
+# connectivity.plot(moduleColors, connect,
+#                   geneTraitSignificance, "meld")
+# connectivity.plot(moduleColors, connect,
+#                   geneTraitSignificance, "ggt")
 
 # Furhter Screening ####
 #
