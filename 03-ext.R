@@ -237,8 +237,18 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
                          main = "ModuleMembership-GeneSignificance relationships")
 dev.off()
 
-IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05)
+IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
 IM2
+# Plot the graphs of the interesting modules according to IM.
+a <- sapply(names(IM2), function(y, d){
+  sapply(d[[y]],
+         GGMMfun, var = y, MM = geneModuleMembership,
+         GS = geneTraitSignificance,
+         GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+         modNames = modNames, disease = disease)
+}, d = IM2)
+
+save(IM2, file = "selected_modules.RData")
 # ==============================================================================
 #
 #  Code chunk 5b: Plots the relationship between GS and connectivity
@@ -262,23 +272,24 @@ load(file = "sft.RData", verbose = TRUE)
 
 
 # Furhter Screening ####
+# # Automatic screening with weighted? screening not know how it works.
+# autoScreen <- apply(disease, 2, automaticNetworkScreening,
+#                     datExpr = data.wgcna,
+#                     datME = MEs,
+#                     minimumSampleSize = 4,
+#                     power = sft$powerEstimate)
 #
-autoScreen <- apply(disease, 2, automaticNetworkScreening,
-                    datExpr = data.wgcna,
-                    datME = MEs,
-                    minimumSampleSize = 4,
-                    power = sft$powerEstimate)
-
-
+# save(autoScreen, file = "autoScreen.RData")
 # ==============================================================================
 #
 #  Code chunk 6: Explore the genes top related to each clinical variable
 #
 # ==============================================================================
 
-genes.interes <- select.genes(geneTraitSignificance, GSPvalue,
-                              p.value = 0.05, ntop = 100)
-fnlist(genes.interes, "significant_genes_variables.csv")
+# genes.interes <- select.genes(geneTraitSignificance, GSPvalue,
+#                               p.value = 0.05, ntop = 100,
+#                               addMEy = FALSE)
+# fnlist(genes.interes, "significant_genes_variables.csv")
 
 # ==============================================================================
 #
