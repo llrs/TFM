@@ -6,12 +6,16 @@ setwd(data.files.out)
 # Load previously work done
 load(file = "Input.RData", verbose = TRUE)
 load(file = "modules_ME.RData", verbose = TRUE)
+load(file = "selected_modules.RData", verbose = TRUE)
 
 keepSamples <- rownames(data.wgcna) %in% vclin$files
 
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
+disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
+
+vclin <- vclin[, !disease.rm]
 
 keepSamples <- rownames(data.wgcna) %in% vclin$files # Samples
 disease <- vclin[vclin$files %in% rownames(data.wgcna), 3:ncol(vclin)]
@@ -22,21 +26,14 @@ if (sum(keepSamples) < 3) {
   names.disease <- colnames(disease)
   keepSamples <- rownames(data.wgcna) %in% vclin$Sample
   names.samples <- vclin$Samples[keepSamples]
-}
-if (sum(keepSamples) == 0) {
+} else if (sum(keepSamples) == 0) {
   stop("Subset correctly the samples with clinical data")
 }
+
 if (!all(rownames(data.wgcna[keepSamples]) == names.samples)) {
   stop("Order of samples in clinical variable and expression is not the same!")
 }
-moduleTraitCor <- cor(MEs[keepSamples, ],
-                      disease,
-                      use = "p")
 
-keep.variables <- apply(moduleTraitCor, 2, function(x){!all(is.na(x))})
-moduleTraitCor <- moduleTraitCor[, keep.variables]
-
-moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
 # Reconvert the data to the "normal" format, of each column a sample.
 exprs <- t(data.wgcna)
@@ -82,30 +79,28 @@ clustersEntrez <- sapply(clusters, function(x){
   a[!is.na(a)]
 })
 
-# pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
-# x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
-# eGO <- compareCluster(clustersEntrez, fun = "enrichGO", OrgDb = "org.Hs.eg.db")
-# save(eGO, file = "eGO.RData")
-# plot(eGO) + ggtitle("Enrich GO") + x.axis
-# cGO <- compareCluster(clustersEntrez, fun = "enrichGO", ont = "CC",
-#                       OrgDb = "org.Hs.eg.db")
-# save(cGO, file = "eGO.RData")
-# plot(cGO) + ggtitle("Enrich cc GO") + x.axis
-# gGO <- compareCluster(clustersEntrez, fun = "groupGO", OrgDb = "org.Hs.eg.db")
-# save(gGO, file = "gGO.RData")
-# plot(gGO) + ggtitle("Group GO") + x.axis
-# eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
-# save(eP, file = "eP.RData")
-# plot(eP) + ggtitle("Enrich Pathways") + x.axis
-# eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
-# save(eK, file = "eK.RData")
-# plot(eK) + ggtitle("Enrich KEGG") + x.axis
-# dev.off()
+pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
+x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
+eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
+save(eGO, file = "eGO.RData")
+plot(eGO) + ggtitle("Enrich GO") + x.axis
+cGO <- compareCluster(clustersEntrez, fun = "enrichGO", ont = "CC",
+                      OrgDb = "org.Hs.eg.db")
+save(cGO, file = "eGO.RData")
+plot(cGO) + ggtitle("Enrich cc GO") + x.axis
+gGO <- compareCluster(clustersEntrez, fun = "groupGO", OrgDb = "org.Hs.eg.db")
+save(gGO, file = "gGO.RData")
+plot(gGO) + ggtitle("Group GO") + x.axis
+eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
+save(eP, file = "eP.RData")
+plot(eP) + ggtitle("Enrich Pathways") + x.axis
+eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
+save(eK, file = "eK.RData")
+plot(eK) + ggtitle("Enrich KEGG") + x.axis
+dev.off()
 
-IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
-                     p.value = 0.05)
 
-imodules <- unique(unlist(IM))
+imodules <- unique(unlist(IM2))
 
 universeGenesEntrez <- unique(keys(org.Hs.eg.db, keytype = "ENTREZID"))
 universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
