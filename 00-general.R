@@ -167,7 +167,7 @@ count.p <- function(data, per){
 
 # Function to explore the module relationship with a trait
 GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
-                    disease, cor.out = FALSE){
+                    disease, cor.out = FALSE, p.value = FALSE){
 
   module <- x
   if (is.na(module)) {
@@ -175,9 +175,8 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   } else if (substring(module, 1, nchar("ME")) == "ME") {
     module <- substring(module, 3)
   }
-  warning(paste("Plotting", module, "in", var, "."))
-  column <- match(module, modNames)
 
+  column <- match(module, modNames)
   moduleGenes <- moduleColors == module
   varc <- match(var, colnames(disease))
 
@@ -203,6 +202,8 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   p.value.w <- corPvalueStudent(w.cor, nrow(data[gene, ]))
   if (cor.out) {
     return(w.cor)
+  } else if (p.value) {
+    return(p.value.w)
   }
   if (length(data[gene, "MM"]) == 0) {
     return(NA)
@@ -253,7 +254,7 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   # geom_point(aes(mean(data[gene, "MM"], na.rm = TRUE),
   #                mean(data[gene, "GS"]), na.rm = TRUE),
   #            col = ifelse(module == "green", "orange", "green"))
-
+  warning(paste("Plotting", module, "in", var, "."))
   ggsave(filename = name.file("MM_GS", var, module, ".png"),
          plot = plot.g)
   # dev.off()
@@ -305,12 +306,17 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
       a <- z[y[, x]]
       a[!sapply(a, is.na)]
     }, y = out, z = modules.names, simplify = FALSE)
-  } else {# Selecting the top ntop modules based on highest correlation
+
+  } else if (is.numeric(ntop)) {
+    # Selecting the top ntop modules based on highest correlation
     sapply(vclin.names, function(a, x, y, z, k) {
       cor.r <- abs(x[y[, a], a])
-      a <- names(cor.r)[rank(cor.r) <= z]
+      # Ordering by the highest correaltion
+      a <- names(cor.r)[order(cor.r, decreasing = TRUE)][1:z]
       a[!sapply(a, is.na)]
     }, x = MTC, y = significant, z = ntop, simplify = FALSE)
+  } else {
+    stop("Please select a number of modules to be selected")
   }
 }
 
@@ -436,15 +442,23 @@ connectivity.plot <- function(modules, con, GS, var){
   })
 }
 
-# Plots MM vs kWithin
-MM_kWithin <- function(MM, con, col, power) {
+# Plots MM vs kWithin on all modules or return the correlation and p.value
+MM_kWithin <- function(MM, con, col, power, cor.out = FALSE, p.value = FALSE) {
   out <- sapply(unique(col), function(x){
     if (x == "grey") {
       return(NULL)
     }
+    keepGenes <- col == x
+    cor.o <- cor(con$kWithin[keepGenes],
+                 abs(MM[keepGenes, paste0("MM", x)] ^ power))
+    if (cor.out) {
+      return(cor.o)
+    } else if (p.value) {
+      corPvalueStudent(cor.o, sum(keepGenes))
+    }
     png(name.file("MM_Kwithin", x, ".png"))
-    verboseScatterplot(con$kWithin[col == x],
-                       abs(MM[col == x, paste0("MM", x)] ^ power),
+    verboseScatterplot(con$kWithin[keepGenes],
+                       abs(MM[keepGenes, paste0("MM", x)] ^ power),
                        xlab = "Intramodular Connectivity (kWithin)",
                        ylab = paste("Module Membership ^", power),
                        main = paste("Module", x),
@@ -463,4 +477,19 @@ name.file <- function(..., sep = "_"){
   } else {
     paste0(arg, collapse = sep)
   }
+}
+
+# Helper function to order x by by/y
+orderby <- function(x, by, names.x = FALSE) {
+  # Both names.x and arrays of 2 dimensions must be provided to order a df
+  if (length(dim(x)) == 2 & names.x) {
+    out <- x[order(match(rownames(x), by)), ]
+  } else {
+    out <- x[order(match(x, by))]
+    if (names.x) {
+      out <- names(x)[order(match(x, by))]
+    }
+  }
+
+  return(out)
 }
