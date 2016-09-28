@@ -22,11 +22,11 @@ library("plyr")
 library("dplyr")
 library("MergeMaid")
 library("annotate")
-library("hgu219.db")
-library("hgu133plus2.db")
-library("Affyhgu133Plus2Expr")
-library("hgu133plus2probe")
-library("hgu133plus2cdf")
+# library("hgu219.db")
+# library("hgu133plus2.db")
+# library("Affyhgu133Plus2Expr")
+# library("hgu133plus2probe")
+# library("hgu133plus2cdf")
 library("boot")
 library("Rgraphviz")
 library("ReactomePA")
@@ -63,9 +63,12 @@ data.dir <- file.path(base.dir, "data")
 code.dir <- file.path(base.dir, "TFM")
 bio.corFnc <- FALSE
 
+if (bio.corFnc) {
+  source(file.path(code.dir, "bio_cor.R"))
+}
 
 # Study's options ####
-study <- "TNF_AH"
+study <- "miRNA"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 
@@ -81,9 +84,6 @@ run.dir <- paste(adj.opt, TOM.opt, sep = "_")
 data.files.out <- file.path(data.out, run.dir)
 dir.create(data.files.out)
 
-# Development ####
-
-source(file.path(code.dir, "bio_cor.R"))
 
 # Functions ####
 
@@ -167,15 +167,16 @@ count.p <- function(data, per){
 
 # Function to explore the module relationship with a trait
 GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
-                    disease){
+                    disease, cor.out = FALSE, p.value = FALSE){
+
   module <- x
   if (is.na(module)) {
     return(NA)
   } else if (substring(module, 1, nchar("ME")) == "ME") {
     module <- substring(module, 3)
   }
-  column <- match(module, modNames)
 
+  column <- match(module, modNames)
   moduleGenes <- moduleColors == module
   varc <- match(var, colnames(disease))
 
@@ -188,8 +189,8 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
     return(NA)
   }
   # Calculates the weighted mean of genes correlation with the trait
-  wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
-  wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
+  # wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
+  # wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
 
   # Weights of the correlation between genes-trait and module-membership
   w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
@@ -198,10 +199,18 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   gene <- !as.logical(apply(data[,c("MM", "GS")], 1,
                             function(x){sum(is.na(x))}))
   w.cor <- corr(data[gene, c("MM", "GS")], w[gene])
+  p.value.w <- corPvalueStudent(w.cor, nrow(data[gene, ]))
+  if (cor.out) {
+    return(w.cor)
+  } else if (p.value) {
+    return(p.value.w)
+  }
   if (length(data[gene, "MM"]) == 0) {
     return(NA)
   }
+  # w.m <- weighted.mean(data[gene, "GS"], w = 1 - data[gene, "GSP"])
   u.cor <- cor(x = data[gene, "MM"], y = data[gene, "GS"])
+  p.value.u <- corPvalueStudent(u.cor, nrow(data[gene, ]))
   # png(file = paste("MM_GS", var, module, ".png", sep = "_"),
   #     width = 700, height = 700)
   #
@@ -223,7 +232,6 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   #                                            na.rm = TRUE), 2)))
   # dev.off()
 
-
   # With ggplot with size for the weights
   ab <- lm(data[gene, "GS"] ~ data[gene, "MM"])
   plot.g <- ggplot() +
@@ -236,8 +244,8 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                         "\nWeighted cor=", signif(w.cor, digits = 2),
                         ", unweighted cor=", signif(u.cor, digits = 2),
                         " p=",
-                        signif(corPvalueStudent(u.cor, nrow(data[gene, ])),
-                               digits = 2))) +
+                        signif(p.value.u, digits = 2), ", ",
+                        signif(p.value.w, digits = 2))) +
     xlab(paste("Module Membership in", module, "module")) +
     ylab(paste("Gene significance for", var))
   # Point of the weighted mean
@@ -247,7 +255,7 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   # geom_point(aes(mean(data[gene, "MM"], na.rm = TRUE),
   #                mean(data[gene, "GS"]), na.rm = TRUE),
   #            col = ifelse(module == "green", "orange", "green"))
-
+  warning(paste("Plotting", module, "in", var, "."))
   ggsave(filename = name.file("MM_GS", var, module, ".png"),
          plot = plot.g)
   # dev.off()
@@ -292,18 +300,24 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
   significant <- MTP <= p.value
   vclin.names <- colnames(MTC)
   modules.names <- rownames(MTC)
+  # Selecting all the ones that pass the threshold
   if (is.null(ntop)) {
     out <- significant & abs(MTC) >= threshold
     sapply(vclin.names, function(x, y, z) {
       a <- z[y[, x]]
       a[!sapply(a, is.na)]
-    }, y = out, z = modules.names)
-  } else {
+    }, y = out, z = modules.names, simplify = FALSE)
+
+  } else if (is.numeric(ntop)) {
+    # Selecting the top ntop modules based on highest correlation
     sapply(vclin.names, function(a, x, y, z, k) {
       cor.r <- abs(x[y[, a], a])
-      a <- names(cor.r)[rank(cor.r) <= z]
+      # Ordering by the highest correaltion
+      a <- names(cor.r)[order(cor.r, decreasing = TRUE)][1:z]
       a[!sapply(a, is.na)]
-    }, x = MTC, y = significant, z = ntop)
+    }, x = MTC, y = significant, z = ntop, simplify = FALSE)
+  } else {
+    stop("Please select a number of modules to be selected")
   }
 }
 
@@ -429,15 +443,23 @@ connectivity.plot <- function(modules, con, GS, var){
   })
 }
 
-# Plots MM vs kWithin
-MM_kWithin <- function(MM, con, col, power) {
+# Plots MM vs kWithin on all modules or return the correlation and p.value
+MM_kWithin <- function(MM, con, col, power, cor.out = FALSE, p.value = FALSE) {
   out <- sapply(unique(col), function(x){
     if (x == "grey") {
       return(NULL)
     }
+    keepGenes <- col == x
+    cor.o <- cor(con$kWithin[keepGenes],
+                 abs(MM[keepGenes, paste0("MM", x)] ^ power))
+    if (cor.out) {
+      return(cor.o)
+    } else if (p.value) {
+      corPvalueStudent(cor.o, sum(keepGenes))
+    }
     png(name.file("MM_Kwithin", x, ".png"))
-    verboseScatterplot(con$kWithin[col == x],
-                       abs(MM[col == x, paste0("MM", x)] ^ power),
+    verboseScatterplot(con$kWithin[keepGenes],
+                       abs(MM[keepGenes, paste0("MM", x)] ^ power),
                        xlab = "Intramodular Connectivity (kWithin)",
                        ylab = paste("Module Membership ^", power),
                        main = paste("Module", x),
@@ -451,5 +473,24 @@ MM_kWithin <- function(MM, con, col, power) {
 # Join with sep, except the last one
 name.file <- function(..., sep = "_"){
   arg <- c(...)
-  paste0(paste0(arg[-length(arg)], collapse = sep), arg[length(arg)])
+  if (length(arg) > 2) {
+    paste0(paste0(arg[-length(arg)], collapse = sep), arg[length(arg)])
+  } else {
+    paste0(arg, collapse = sep)
+  }
+}
+
+# Helper function to order x by by/y
+orderby <- function(x, by, names.x = FALSE) {
+  # Both names.x and arrays of 2 dimensions must be provided to order a df
+  if (length(dim(x)) == 2 & names.x) {
+    out <- x[order(match(rownames(x), by)), ]
+  } else {
+    out <- x[order(match(x, by))]
+    if (names.x) {
+      out <- names(x)[order(match(x, by))]
+    }
+  }
+
+  return(out)
 }

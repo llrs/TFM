@@ -8,7 +8,7 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the data saved in the first part
 load(file = "Input.RData", verbose = TRUE)
-# load(file = "shared_genes.RData", verbose = TRUE)
+
 nGenes <- ncol(data.wgcna)
 nSamples <- nrow(data.wgcna)
 
@@ -37,21 +37,22 @@ if (bio.corFnc) {
 # Choose a set of soft-thresholding powers
 
 # Call the network topology analysis function
-# if (bio.corFnc) {
-#   sft <- pickSoftThreshold(data.wgcna,
-#                            powerVector = powers,
-#                            verbose = 5,
-#                            networkType = adj.opt,
-#                            corFnc = cor.all, corOptions(bio_mat = bio_mat,
-#                            w = c(0.5, 0.5)))
-# } else {
-#   sft <- pickSoftThreshold(data.wgcna,
-#                            powerVector = powers, verbose = 5,
-#                            networkType = adj.opt)
-# }
+if (bio.corFnc) {
+  sft <- pickSoftThreshold(data.wgcna,
+                           powerVector = powers,
+                           verbose = 5,
+                           networkType = adj.opt,
+                           corFnc = cor.all, corOptions(bio_mat = bio_mat,
+                           w = c(0.5, 0.5)))
+} else {
+  sft <- pickSoftThreshold(data.wgcna,
+                           powerVector = powers, verbose = 5,
+                           networkType = adj.opt)
+}
 
 
 load("sft.RData", verbose = TRUE)
+cex1 <- 0.9
 # Plot the results:
 pdfn(file = "Network_building.pdf")
 # Scale-free topology fit index as a function of the soft-thresholding power
@@ -71,6 +72,15 @@ text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
      col = "red")
 abline(h = c(100, 1000), col = c("green", "red"))
 
+
+print(paste("Recomended power", sft$powerEstimate))
+if (is.na(sft$powerEstimate)) {
+  stop("Estimated power, is NA\nReview the power manually!")
+} else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
+  warning("Are you sure of this power?")
+}
+save(sft, file = "sft.RData")
+
 # Calculate connectivity and plot it
 k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate)
 plot(density(k))
@@ -82,16 +92,6 @@ dev.off()
 #  Code chunk 3: Automatic blocks creation using the power calculated
 #
 # ==============================================================================
-
-print(paste("Recomended power", sft$powerEstimate))
-if (is.na(sft$powerEstimate)) {
-  stop("Estimated power, is NA\nReview the power manually!")
-} else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
-  warning("Are you sure of this power?")
-}
-save(sft, file = "sft.RData")
-
-
 net <- blockwiseModules(data.wgcna,
                         power = sft$powerEstimate,
                 TOMType = TOM.opt,
@@ -137,11 +137,11 @@ save(connect, file = "kIM.RData")
 load(file = "kIM.RData", verbose = TRUE)
 
 
-# Calculate eigengenes
-MEList <- moduleEigengenes(data.wgcna, colors = net$colors)
-MEs <- MEList$eigengenes
+# Calculate eigengenes, it is already calculated
+MEs <- net$MEs
 MEs <- orderMEs(MEs)
 
+# It is the same as MM == kME
 kME <- signedKME(data.wgcna, MEs)
 save(kME, file = "kME.RData")
 # load("kME.RData", verbose = TRUE)
