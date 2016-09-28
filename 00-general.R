@@ -69,10 +69,8 @@ if (bio.corFnc) {
 
 # Study's options ####
 study <- "miRNA"
-pheno1 <- "pheno.isa.txt"
-pheno2 <- "pheno.silvia.txt"
 
-study.dir <- file.path(data.dir, "hepatitis")
+study.dir <- file.path(data.dir, "miRNA")
 orig.dir <- setwd(study.dir)
 gse.number <- "GSE28619"
 path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))
@@ -83,7 +81,6 @@ dir.create(data.out)
 run.dir <- paste(adj.opt, TOM.opt, sep = "_")
 data.files.out <- file.path(data.out, run.dir)
 dir.create(data.files.out)
-
 
 # Functions ####
 
@@ -493,4 +490,12 @@ orderby <- function(x, by, names.x = FALSE) {
   }
 
   return(out)
+}
+
+#Remove the 0 of the second position
+convert <- function(x){
+
+  ifelse(substring(x, 2, 2) == "0", paste0(substring(x, 1, 1),
+                                           substring(x, 3, 3)),
+         x)
 }
