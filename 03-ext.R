@@ -26,6 +26,9 @@ load(file = "modules_ME.RData", verbose = TRUE)
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
 
+disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
+vclin <- vclin[, !disease.rm]
+
 keepSamples <- rownames(data.wgcna) %in% vclin$files # Samples
 disease <- vclin[vclin$files %in% rownames(data.wgcna), 3:ncol(vclin)]
 names.disease <- colnames(disease)
@@ -35,13 +38,14 @@ if (sum(keepSamples) < 3) {
   names.disease <- colnames(disease)
   keepSamples <- rownames(data.wgcna) %in% vclin$Sample
   names.samples <- vclin$Samples[keepSamples]
-}
-if (sum(keepSamples) == 0) {
+} else if (sum(keepSamples) == 0) {
   stop("Subset correctly the samples with clinical data")
 }
+
 if (!all(rownames(data.wgcna[keepSamples]) == names.samples)) {
   stop("Order of samples in clinical variable and expression is not the same!")
 }
+
 moduleTraitCor <- cor(MEs[keepSamples, ],
                       disease,
                       use = "p")
@@ -92,13 +96,10 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 #
 # ==============================================================================
 
-
-
 # Will display correlations and their p-values as text
 textMatrix <- paste0(signif(moduleTraitCor, 2), "\n(",
                      signif(moduleTraitPvalue, 2), ")")
 dim(textMatrix) <- dim(moduleTraitCor)
-
 
 colors_mo <- coloring(moduleTraitCor, moduleTraitPvalue)
 # Calculate the number of samples used for the correlation
@@ -189,13 +190,13 @@ GS.MM.p.value <- sapply(names(IM0), function(y, d){
 }, d = IM0)
 
 # Plot for all the variables of trait the selected modules
-a <- sapply(names(IM0), function(y, d){
-  sapply(d[[y]],
-         GGMMfun, var = y, MM = geneModuleMembership,
-         GS = geneTraitSignificance,
-         GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-         modNames = modNames, disease = disease)
-}, d = IM0)
+# a <- sapply(names(IM0), function(y, d){
+#   sapply(d[[y]],
+#          GGMMfun, var = y, MM = geneModuleMembership,
+#          GS = geneTraitSignificance,
+#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+#          modNames = modNames, disease = disease)
+# }, d = IM0)
 
 # # Plot the graphs of the interesting modules according to IM.
 # a <- sapply(names(IM), function(y, d){
@@ -205,7 +206,9 @@ a <- sapply(names(IM0), function(y, d){
 #          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
 #          modNames = modNames, disease = disease)
 # }, d = IM)
+
 GS.MM.cor <- orderby(GS.MM.cor, colors, names.x = TRUE)
+GS.MM.p.value <- orderby(GS.MM.p.value, colors, names.x = TRUE)
 
 
 # Will display correlations and their p-values as text
