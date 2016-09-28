@@ -72,6 +72,15 @@ text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
      col = "red")
 abline(h = c(100, 1000), col = c("green", "red"))
 
+
+print(paste("Recomended power", sft$powerEstimate))
+if (is.na(sft$powerEstimate)) {
+  stop("Estimated power, is NA\nReview the power manually!")
+} else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
+  warning("Are you sure of this power?")
+}
+save(sft, file = "sft.RData")
+
 # Calculate connectivity and plot it
 k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate)
 plot(density(k))
@@ -83,16 +92,6 @@ dev.off()
 #  Code chunk 3: Automatic blocks creation using the power calculated
 #
 # ==============================================================================
-
-print(paste("Recomended power", sft$powerEstimate))
-if (is.na(sft$powerEstimate)) {
-  stop("Estimated power, is NA\nReview the power manually!")
-} else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
-  warning("Are you sure of this power?")
-}
-save(sft, file = "sft.RData")
-
-
 net <- blockwiseModules(data.wgcna,
                         power = sft$powerEstimate,
                 TOMType = TOM.opt,
@@ -139,7 +138,8 @@ load(file = "kIM.RData", verbose = TRUE)
 
 
 # Calculate eigengenes
-MEList <- moduleEigengenes(data.wgcna, colors = net$colors)
+MEList <- moduleEigengenes(data.wgcna, colors = net$colors,
+                           softPower = sft$powerEstimate)
 MEs <- MEList$eigengenes
 MEs <- orderMEs(MEs)
 
