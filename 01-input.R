@@ -341,22 +341,27 @@ plot(sampleTree, main = "Sample clustering to detect outliers",
      cex.axis = 1.5, cex.main = 2)
 dev.off()
 
-pdf("Dendro_traits.pdf")
+
 # Re-cluster samples
 sampleTree2 <- hclust(dist(data.wgcna),
                       method = "average")
 # Convert traits to a color representation: white means low, red means high,
 # grey means missing entry
 v <- apply(vclin[, 3:ncol(vclin)], 2, as.numeric)
-no.keep <- apply(v, 2, function(x)all(is.na(x)))
+no.keep <- apply(v, 2, function(x){all(is.na(x))})
 v <- v[, !no.keep]
 rownames(v) <- vclin$Sample
 traitColors <- numbers2colors(v, signed = FALSE)
 dimnames(traitColors) <- dimnames(v)
 # Plot the sample dendrogram and the colors underneath.
-
+pdf("Dendro_traits.pdf")
 plotDendroAndColors(sampleTree2, traitColors,
                     main = "Sample dendrogram and trait heatmap")
 dev.off()
+
+# Keep those who are different to 1
+rm.i <- apply(v, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
+v <- v[, !rm.i]
+
 vclin <- cbind(vclin[, 1:2], v)
 save(data.wgcna, vclin, file = "Input.RData")
