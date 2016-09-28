@@ -137,12 +137,11 @@ save(connect, file = "kIM.RData")
 load(file = "kIM.RData", verbose = TRUE)
 
 
-# Calculate eigengenes
-MEList <- moduleEigengenes(data.wgcna, colors = net$colors,
-                           softPower = sft$powerEstimate)
-MEs <- MEList$eigengenes
+# Calculate eigengenes, it is already calculated
+MEs <- net$MEs
 MEs <- orderMEs(MEs)
 
+# It is the same as MM == kME
 kME <- signedKME(data.wgcna, MEs)
 save(kME, file = "kME.RData")
 # load("kME.RData", verbose = TRUE)
