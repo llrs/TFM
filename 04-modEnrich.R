@@ -84,11 +84,10 @@ x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
 eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
 save(eGO, file = "eGO.RData")
 plot(eGO) + ggtitle("Enrich GO") + x.axis
-cGO <- compareCluster(clustersEntrez, fun = "enrichGO", ont = "CC",
-                      OrgDb = "org.Hs.eg.db")
+cGO <- compareCluster(clustersEntrez, fun = "enrichGO", ont = "CC")
 save(cGO, file = "eGO.RData")
 plot(cGO) + ggtitle("Enrich cc GO") + x.axis
-gGO <- compareCluster(clustersEntrez, fun = "groupGO", OrgDb = "org.Hs.eg.db")
+gGO <- compareCluster(clustersEntrez, fun = "groupGO")
 save(gGO, file = "gGO.RData")
 plot(gGO) + ggtitle("Group GO") + x.axis
 eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
