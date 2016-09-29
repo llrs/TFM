@@ -68,7 +68,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "miRNA"
+study <- "miRNA_fetge"
 
 study.dir <- file.path(data.dir, "miRNA")
 orig.dir <- setwd(study.dir)
