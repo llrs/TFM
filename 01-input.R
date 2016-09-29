@@ -4,7 +4,7 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 
 pheno <- read.csv("miRNA_phenotype.csv")
 exprs <- read.csv("miRNA_normQ.csv", row.names = 1)
-exprs2 <- read.table("normalised_ASH_mirna.csv", sep = "\t")
+exprs2 <- read.table("normalised_ASH_mirna.csv", sep = "\t", dec = ",")
 vclin <- read.csv(file.path("..", "DB_MIR-Alcoholic_Hepatitis_Sept2015.csv"))
 vclin2 <- read.csv(file.path("..", "DB_integrated.CCL20-Alcoholic_Hepatitis_19_06_2013_(2)_1_.csv"))
 setwd(data.files.out)
@@ -22,12 +22,12 @@ normal <- paste0("NQ-", c(2:5))
 ids <- c(AH, normal)
 samplename <- substring(pheno$sampleid, 8)
 
-samplename <- convert(samplename)
+samplename <- paste0("P", as.numeric(substring(samplename, 2)))
 pheno2 <- cbind(pheno, "samplename" = samplename,
                "group" = as.factor(substring(pheno$GROUP, 1, 2)),
                "patientid" = ids)
 
-vclin <- merge(pheno2, vclin, by.x = "patientid", by.y = "id", all.x = TRUE)
+vclin <- merge(pheno2, vclin, by.x = "patientid", by.y = "id", all.y = TRUE)
 inter_v <- c("patientid", "sampleid", "samplename", "group", "age",
              "gender", "meld", "lille", "glucose", "status_180",
              "ast", "alt")
@@ -35,26 +35,53 @@ am <- c("status_90", "infection_hospitalization", "aki", "hvpg_corte20",
         "hvpg", "maddrey", "status_1year", "creatinine", "ap", "ggt",
         "hb_g.dl", "tp")
 vars <- c(am, inter_v)
-pheno <- vclin[, colnames(vclin) %in% vars]
+vclin.1 <- vclin[, colnames(vclin) %in% vars]
 
-pheno$status_90 <- ifelse(pheno$status_90 == "alive", 1, 0)
-pheno$status_180 <- ifelse(pheno$status_180 == "alive", 1, 0)
-pheno$status_1year <- ifelse(pheno$status_1year == "alive", 1, 0)
-pheno$gender <- fact2num(pheno$gender, "Male", 1)
-pheno$gender <- fact2num(pheno$gender, "Female", 0)
 
 ids_2 <- sub("_\\..*", "", colnames(exprs2))
 ids_2 <- sub("\\.", "", ids_2)
-vclin2 <- vclin2[vclin2$id %in% ids_2, colnames(vclin2) %in% vars]
 
-v <- rbind.fill(pheno, vclin2)
+vclin2 <- vclin2[vclin2$id %in% ids_2, ]
+vclin.2 <- vclin2[, colnames(vclin2) %in% vars]
+vclin.2 <- cbind("samplename" = vclin2$id, vclin.2)
+
+v <- rbind.fill(vclin.1, vclin.2)
+
+v$gender <- fact2num(v$gender, "Male", 1)
+v$gender <- fact2num(v$gender, "Female", 0)
+v$status_90 <- fact2num(v$status_90, "alive", 1)
+v$status_90 <- fact2num(v$status_90, "exitus", 0)
+v$status_90 <- fact2num(v$status_90, "alive", 1)
+v$status_90 <- fact2num(v$status_90, "exitus", 0)
+v$status_180 <- fact2num(v$status_180, "alive", 1)
+v$status_180 <- fact2num(v$status_180, "exitus", 0)
+v$status_1year <- fact2num(v$status_1year, "alive", 1)
+v$status_1year <- fact2num(v$status_1year, "exitus", 0)
+v$aki <- fact2num(v$aki, "yes", 1)
+v$aki <- fact2num(v$aki, "No", 0)
+v$infection_hospitalization <- fact2num(v$infection_hospitalization, "yes", 1)
+v$infection_hospitalization <- fact2num(v$infection_hospitalization, "no", 0)
+v$hvpg_corte20 <- as.numeric(v$hvpg < 20)
+
+keep.samples <- apply(v[, 5:ncol(v)], 1,
+                      function(x){all(is.na(as.numeric(x)))})
+vclin <- v[!keep.samples, 5:ncol(v)]
+vclin <- apply(vclin, 2, as.numeric)
+vclin <- cbind("samplename" = v$samplename[!keep.samples], as.data.frame(vclin))
+
+# To analyse just the miRNA from the cells not the ciruclants/exprs1
+data.wgcna <- exprs2[grep("hsa-miR-", rownames(exprs2)), ]
+colnames(data.wgcna) <- ids_2
+data.wgcna <- data.wgcna[, grep("CA", ids_2)]
+vclin <- v[v$samplename %in% colnames(data.wgcna), c(3, 5:ncol(v))]
+data.wgcna <- t(data.wgcna)
 # ==============================================================================
 #
 #  Code chunk 2: Preparing the expression data
 #
 # ==============================================================================
 
-data.wgcna <- t(exprs[, pheno$group  == "AH"])
+
 gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
 if (!gsg$allOK)
 { # Optionally, print the gene and sample names that were removed:
