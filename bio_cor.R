@@ -258,11 +258,11 @@ seq2mat <- function(x, dat) {
 # and compare them all
 comb_biopath <- function(comb, info, by, biopath){
   # react_path <- apply(comb, 2, function(y){
-  a <- unique(info[info[by] == comb[1], biopath])
+  a <- unique(info[info[[by]] == comb[1], biopath])
   a <- a[a != ""]
   a <- a[!is.na(a)]
 
-  b <- unique(info[info[by] == comb[2], biopath])
+  b <- unique(info[info[[by]] == comb[2], biopath])
   b <- b[b != ""]
   b <- b[!is.na(b)]
 
@@ -460,13 +460,13 @@ bio.cor2 <- function(x, ids = "Entrez Gene",
     gene.kegg <- unique(toTable(org.Hs.egPATH2EG))
     colnames(gene.kegg) <- c("Entrez Gene", "KEGG")
     # Merge data
-    genes <- merge(gene.symbol, gene.kegg, all = TRUE)
+    genes <- unique(merge(gene.symbol, gene.kegg, all = TRUE, sort = FALSE))
     kegg.bio <- rep(NA, choose(length(genes_id), 2))
   }
   if (react) {
     gene.reactome <- unique(toTable(reactomePATHID2EXTID))
     colnames(gene.reactome) <- c("Entrez Gene", "Reactome")
-    genes <- unique(merge(genes, gene.reactome, all = TRUE))
+    genes <- unique(merge(genes, gene.reactome, all = TRUE, sort = FALSE))
     react.bio <- rep(NA, choose(length(genes_id), 2))
   }
 
@@ -513,7 +513,7 @@ bio.cor2 <- function(x, ids = "Entrez Gene",
 # Extract which genes are from which reactome
 genes.info <- function(genes, colm, id) {
   # Genes is the df, colm is the column you want, id is the id of the pathway
-  out <- unique(genes[genes[colm] == id, "Symbol"])
+  out <- unique(genes[genes[[colm]] == id, "Symbol"])
   out[!is.na(out)]
 }
 
