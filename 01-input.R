@@ -6,7 +6,8 @@ pheno <- read.csv("miRNA_phenotype.csv")
 exprs <- read.csv("miRNA_normQ.csv", row.names = 1)
 exprs2 <- read.table("normalised_ASH_mirna.csv", sep = "\t", dec = ",")
 vclin <- read.csv(file.path("..", "DB_MIR-Alcoholic_Hepatitis_Sept2015.csv"))
-vclin2 <- read.csv(file.path("..", "DB_integrated.CCL20-Alcoholic_Hepatitis_19_06_2013_(2)_1_.csv"))
+vclin2 <- read.csv(file.path("..",
+           "DB_integrated.CCL20-Alcoholic_Hepatitis_19_06_2013_(2)_1_.csv"))
 setwd(data.files.out)
 # ==============================================================================
 #
@@ -74,6 +75,8 @@ vclin <- cbind("samplename" = v$samplename[!keep.samples], as.data.frame(vclin))
 # colnames(data.wgcna) <- ids_2
 # data.wgcna <- data.wgcna[, grep("CA", ids_2)]
 # vclin <- v[v$samplename %in% colnames(data.wgcna), c(3, 5:ncol(v))]
+# rownames(vclin) <- vclin$samplename
+# vclin <- vclin[, !colnames(vclin) %in% "samplename"]
 # data.wgcna <- t(data.wgcna)
 # colnames(data.wgcna) <- tolower(gsub("-star", "", colnames(data.wgcna)))
 
@@ -83,6 +86,7 @@ colnames(data.wgcna) <- pheno2$patientid[pheno2$group == "AH"]
 data.wgcna <- t(data.wgcna)
 vclin <- v[v$patientid %in% rownames(data.wgcna), c(1, 5:ncol(v))]
 rownames(vclin) <- vclin$patientid
+vclin <- vclin[, !colnames(vclin) %in% "patientid"]
 #Remove column from vclin
 # ==============================================================================
 #
