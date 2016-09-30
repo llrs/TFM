@@ -84,7 +84,6 @@ run.dir <- paste(adj.opt, TOM.opt, sep = "_")
 data.files.out <- file.path(data.out, run.dir)
 dir.create(data.files.out)
 
-
 # Functions ####
 
 # Normalize data and plots PCA of samples
@@ -493,4 +492,12 @@ orderby <- function(x, by, names.x = FALSE) {
   }
 
   return(out)
+}
+
+#Remove the 0 of the second position
+convert <- function(x){
+
+  ifelse(substring(x, 2, 2) == "0", paste0(substring(x, 1, 1),
+                                           substring(x, 3, 3)),
+         x)
 }

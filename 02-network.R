@@ -51,7 +51,7 @@ if (bio.corFnc) {
 }
 
 
-load("sft.RData", verbose = TRUE)
+# load("sft.RData", verbose = TRUE)
 cex1 <- 0.9
 # Plot the results:
 pdfn(file = "Network_building.pdf")
@@ -79,6 +79,8 @@ if (is.na(sft$powerEstimate)) {
 } else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
   warning("Are you sure of this power?")
 }
+# sft$powerEstimate <- 3
+print(paste("Using power", sft$powerEstimate))
 save(sft, file = "sft.RData")
 
 # Calculate connectivity and plot it
@@ -167,7 +169,7 @@ MEDissThres <- 0.25
 abline(h = MEDissThres, col = "red")
 
 labeledHeatmap(MEDiss, xLabels = colnames(corME), yLabels = colnames(corME),
-               sSymbols = colnames(corME), ySymbols = colnames(corME))
+               xSymbols = colnames(corME), ySymbols = colnames(corME))
 
 gm <- table(net$colors)
 gm

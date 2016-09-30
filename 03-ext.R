@@ -26,29 +26,17 @@ load(file = "modules_ME.RData", verbose = TRUE)
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
 
+# Remove if there isnt' any variability
 disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
-vclin <- vclin[, !disease.rm]
-
-keepSamples <- rownames(data.wgcna) %in% vclin$files # Samples
-disease <- vclin[vclin$files %in% rownames(data.wgcna), 3:ncol(vclin)]
+disease <- vclin[, !disease.rm]
 names.disease <- colnames(disease)
-names.samples <- vclin$Samples[keepSamples]
-if (sum(keepSamples) < 3) {
-  disease <- vclin[vclin$Sample %in% rownames(data.wgcna), 3:ncol(vclin)]
-  names.disease <- colnames(disease)
-  keepSamples <- rownames(data.wgcna) %in% vclin$Sample
-  names.samples <- vclin$Samples[keepSamples]
-} else if (sum(keepSamples) == 0) {
-  stop("Subset correctly the samples with clinical data")
-}
 
-if (!all(rownames(data.wgcna[keepSamples]) == names.samples)) {
-  stop("Order of samples in clinical variable and expression is not the same!")
-}
+# Use just the samples with their clinical data
+keep.samples <- rownames(data.wgcna) %in% rownames(vclin)
+data.wgcna <- data.wgcna[keep.samples, ]
+MEs <- MEs[keep.samples, ]
 
-moduleTraitCor <- cor(MEs[keepSamples, ],
-                      disease,
-                      use = "p")
+moduleTraitCor <- cor(MEs, disease, use = "p")
 
 keep.variables <- apply(moduleTraitCor, 2, function(x){!all(is.na(x))})
 moduleTraitCor <- moduleTraitCor[, keep.variables]
@@ -106,6 +94,7 @@ colors_mo <- coloring(moduleTraitCor, moduleTraitPvalue)
 n <- apply(disease, 2, function(x){sum(!is.na(x))})
 t.colors <- table(moduleColors)
 colors <- substring(names(MEs), 3)
+xlabels <- paste0(names.disease, " (", n, ")")
 ylabels <- paste0("ME", orderby(t.colors, colors, names.x = TRUE),
                   " (", orderby(t.colors, colors), ")")
 pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
@@ -113,7 +102,7 @@ pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
 par(mar = c(7, 8.5, 3, 3))
 # Display the correlation values within a heatmap plot
 labeledHeatmap.multiPage(Matrix = colors_mo,
-               xLabels = paste0(names.disease, " (", n, ")"),
+               xLabels = xlabels,
                yLabels = ylabels,
                ySymbols = names(MEs),
                colorLabels = FALSE,
@@ -136,8 +125,7 @@ save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
 modNames <- substring(names(MEs), 3)
 
-geneModuleMembership <- as.data.frame(cor(data.wgcna[keepSamples, ],
-                                         MEs[keepSamples, ], use = "p"))
+geneModuleMembership <- as.data.frame(cor(data.wgcna, MEs, use = "p"))
 
 MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership),
                                           nSamples))
@@ -145,10 +133,7 @@ MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership),
 names(geneModuleMembership) <- paste0("MM", modNames)
 names(MMPvalue) <- paste0("p.MM", modNames)
 
-geneTraitSignificance <- as.data.frame(
-  cor(data.wgcna[keepSamples, ],
-      disease,
-      use = "p"))
+geneTraitSignificance <- as.data.frame(cor(data.wgcna, disease, use = "p"))
 GSPvalue <- as.data.frame(
   corPvalueStudent(as.matrix(geneTraitSignificance), nSamples))
 
@@ -225,8 +210,9 @@ ylabels <- paste0("(", orderby(t.colors, rownames(GS.MM.cor)), ") ",
 pdf("heatmap_GS_MM.pdf")
 par(mar = c(6, 8.5, 3, 3))
 labeledHeatmap.multiPage(Matrix = colors_mo,
-                         xLabels = colnames(GS.MM.cor),
+                         xLabels = xlabels,
                          yLabels = ylabels,
+                         ySymbols = names(MEs),
                          colors = greenWhiteRed(50),
                          textMatrix = textMatrix,
                          colorLabels = FALSE,
@@ -365,7 +351,7 @@ geneInfo2 <- merge(geneInfo2, MMP, by = "genes", all.x = TRUE)
 write.csv(geneInfo2, "genes_modules.csv", row.names = FALSE, na = "")
 
 # Reading genes currently looked up in the laboratory with other experiments
-int.genes <- read.csv(file.path(study.dir, "genes_int.csv"))
+int.genes <- read.csv(file.path(data.dir, "genes_int.csv"))
 int.genes.modules <- geneInfo2[geneInfo2$genes %in% int.genes$Genes_human, ]
 matrx <- table(int.genes.modules$moduleColor, int.genes.modules$genes)
 matrx <- matrx[order(table(int.genes.modules$moduleColor), decreasing = TRUE), ]
@@ -373,7 +359,11 @@ matrx <- matrx[order(table(int.genes.modules$moduleColor), decreasing = TRUE), ]
 genes <- sapply(rownames(matrx), function(x, a){
   paste(colnames(a)[a[x, ] != 0], collapse = ", ")
 }, a = matrx)
-write.csv(as.data.frame(genes), file = "int_genes_module.csv")
+if (nrow(genes) >= 1) {
+  write.csv(as.data.frame(genes), file = "int_genes_module.csv")
+} else {
+  warning("Genes under study were not found. Maybe it is a miRNA study?")
+}
 
 # Foreach module create a table in a file with genes, GS GS-P.values
 geneInfo1 <- lapply(unique(geneInfo$moduleColor),
