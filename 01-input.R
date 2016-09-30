@@ -69,12 +69,21 @@ vclin <- v[!keep.samples, 5:ncol(v)]
 vclin <- apply(vclin, 2, as.numeric)
 vclin <- cbind("samplename" = v$samplename[!keep.samples], as.data.frame(vclin))
 
-# To analyse just the miRNA from the cells not the ciruclants/exprs1
-data.wgcna <- exprs2[grep("hsa-miR-", rownames(exprs2)), ]
-colnames(data.wgcna) <- ids_2
-data.wgcna <- data.wgcna[, grep("CA", ids_2)]
-vclin <- v[v$samplename %in% colnames(data.wgcna), c(3, 5:ncol(v))]
+# To analyse just the miRNA from the liver
+# data.wgcna <- exprs2[grep("hsa-miR-", rownames(exprs2)), ]
+# colnames(data.wgcna) <- ids_2
+# data.wgcna <- data.wgcna[, grep("CA", ids_2)]
+# vclin <- v[v$samplename %in% colnames(data.wgcna), c(3, 5:ncol(v))]
+# data.wgcna <- t(data.wgcna)
+# colnames(data.wgcna) <- tolower(gsub("-star", "", colnames(data.wgcna)))
+
+# To analyse miRNA from the circulant
+data.wgcna <- exprs[grep("hsa-mir-", rownames(exprs)), pheno2$group == "AH"]
+colnames(data.wgcna) <- pheno2$patientid[pheno2$group == "AH"]
 data.wgcna <- t(data.wgcna)
+vclin <- v[v$patientid %in% rownames(data.wgcna), c(1, 5:ncol(v))]
+rownames(vclin) <- vclin$patientid
+#Remove column from vclin
 # ==============================================================================
 #
 #  Code chunk 2: Preparing the expression data
@@ -106,4 +115,5 @@ plot(sampleTree, main = "Sample clustering to detect outliers",
      cex.axis = 1.5, cex.main = 2)
 dev.off()
 
-save(pheno, exprs, file = "Input.RData")
+vclin <- orderby(vclin, rownames(data.wgcna), names.x = TRUE)
+save(data.wgcna, vclin, file = "Input.RData")
