@@ -363,5 +363,5 @@ dev.off()
 rm.i <- apply(v, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
 v <- v[, !rm.i]
 
-vclin <- cbind(vclin[, 1:2], v)
+vclin <- v
 save(data.wgcna, vclin, file = "Input.RData")
