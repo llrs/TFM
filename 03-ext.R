@@ -34,10 +34,10 @@ disease <- vclin[vclin$files %in% rownames(data.wgcna), 3:ncol(vclin)]
 names.disease <- colnames(disease)
 names.samples <- vclin$Samples[keepSamples]
 if (sum(keepSamples) < 3) {
-  disease <- vclin[vclin$Sample %in% rownames(data.wgcna), 3:ncol(vclin)]
+  disease <- vclin[vclin$patientid %in% rownames(data.wgcna), 3:ncol(vclin)]
   names.disease <- colnames(disease)
-  keepSamples <- rownames(data.wgcna) %in% vclin$Sample
-  names.samples <- vclin$Samples[keepSamples]
+  keepSamples <- rownames(data.wgcna) %in% vclin$patientid
+  names.samples <- vclin$patientid[keepSamples]
 } else if (sum(keepSamples) == 0) {
   stop("Subset correctly the samples with clinical data")
 }
@@ -106,6 +106,7 @@ colors_mo <- coloring(moduleTraitCor, moduleTraitPvalue)
 n <- apply(disease, 2, function(x){sum(!is.na(x))})
 t.colors <- table(moduleColors)
 colors <- substring(names(MEs), 3)
+xlabels <- paste0(names.disease, " (", n, ")")
 ylabels <- paste0("ME", orderby(t.colors, colors, names.x = TRUE),
                   " (", orderby(t.colors, colors), ")")
 pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
@@ -113,7 +114,7 @@ pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
 par(mar = c(7, 8.5, 3, 3))
 # Display the correlation values within a heatmap plot
 labeledHeatmap.multiPage(Matrix = colors_mo,
-               xLabels = paste0(names.disease, " (", n, ")"),
+               xLabels = xlabels,
                yLabels = ylabels,
                ySymbols = names(MEs),
                colorLabels = FALSE,
@@ -225,8 +226,9 @@ ylabels <- paste0("(", orderby(t.colors, rownames(GS.MM.cor)), ") ",
 pdf("heatmap_GS_MM.pdf")
 par(mar = c(6, 8.5, 3, 3))
 labeledHeatmap.multiPage(Matrix = colors_mo,
-                         xLabels = colnames(GS.MM.cor),
+                         xLabels = xlabels,
                          yLabels = ylabels,
+                         ySymbols = names(MEs),
                          colors = greenWhiteRed(50),
                          textMatrix = textMatrix,
                          colorLabels = FALSE,
@@ -365,7 +367,7 @@ geneInfo2 <- merge(geneInfo2, MMP, by = "genes", all.x = TRUE)
 write.csv(geneInfo2, "genes_modules.csv", row.names = FALSE, na = "")
 
 # Reading genes currently looked up in the laboratory with other experiments
-int.genes <- read.csv(file.path(study.dir, "genes_int.csv"))
+int.genes <- read.csv(file.path(data.dir, "genes_int.csv"))
 int.genes.modules <- geneInfo2[geneInfo2$genes %in% int.genes$Genes_human, ]
 matrx <- table(int.genes.modules$moduleColor, int.genes.modules$genes)
 matrx <- matrx[order(table(int.genes.modules$moduleColor), decreasing = TRUE), ]
