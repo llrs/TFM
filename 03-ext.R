@@ -28,7 +28,10 @@ nSamples <- nrow(vclin)
 
 # Remove if there isnt' any variability
 disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
-disease <- vclin[, !disease.rm]
+n <- apply(vclin, 2, function(x){sum(!is.na(x))})
+keep <- n != 0
+disease <- vclin[, !disease.rm & keep]
+n <- apply(disease, 2, function(x){sum(!is.na(x))}) # used for labels
 names.disease <- colnames(disease)
 
 # Use just the samples with their clinical data
@@ -48,36 +51,6 @@ moduleTraitCor <- moduleTraitCor[, keep.variables]
 moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 
 
-# TODO #########################################################################
-#
-# TODO: Correct the p-values for multiple testing using the cor.test
-# TODO: Calculate the statistical power
-#
-# result <- apply(MEs, 2, function(x){
-#   apply(disease, 2, function(y){
-#     cor.test(x, y, method = "pearson")
-#   })
-# })
-#
-# extract <- function(core, value = c("statistic", "parameter", "p.value",
-#                                     "estimate", "null.value",
-#                                      "alternative", "method", "data.name")) {
-#   # Extract the value of a correlation in a list of lists.
-#   a <- sapply(core, function(x){
-#     sapply(x, function(y){
-#       y$value
-#     })
-#   })
-#   t(a)
-# }
-#
-# p.val.cor <- extract(result, "p.value")
-# adj.p.val.cor <- p.adjust(unlist(p.val.cor), "fdr")
-# dim(adj.p.val.cor) <- dim(moduleTraitCor)
-# dimnames(adj.p.val.cor) <- dimnames(moduleTraitCor)
-#
-# result4 <- extract(result, "estimate")
-
 # 3 ============================================================================
 #
 #  Code chunk 3: Display the correlations of modules and variables in a heatmap
@@ -89,12 +62,16 @@ textMatrix <- paste0(signif(moduleTraitCor, 2), "\n(",
                      signif(moduleTraitPvalue, 2), ")")
 dim(textMatrix) <- dim(moduleTraitCor)
 
+# Colors of the
 colors_mo <- coloring(moduleTraitCor, moduleTraitPvalue)
+
 # Calculate the number of samples used for the correlation
-n <- apply(disease, 2, function(x){sum(!is.na(x))})
+# X labels
+xlabels <- paste0(names.disease, " (", n, ")")
+
+# Y labels
 t.colors <- table(moduleColors)
 colors <- substring(names(MEs), 3)
-xlabels <- paste0(names.disease, " (", n, ")")
 ylabels <- paste0("ME", orderby(t.colors, colors, names.x = TRUE),
                   " (", orderby(t.colors, colors), ")")
 pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
@@ -240,8 +217,8 @@ save(IM2, file = "selected_modules.RData")
 #  Code chunk 5b: Plots the relationship between GS and connectivity
 #
 # ==============================================================================
-load(file = "kIM.RData", verbose = TRUE)
-load(file = "sft.RData", verbose = TRUE)
+# load(file = "kIM.RData", verbose = TRUE)
+# load(file = "sft.RData", verbose = TRUE)
 
 
 # Explore the connectivity of all modules for a variables
@@ -291,26 +268,6 @@ load(file = "sft.RData", verbose = TRUE)
 
 # ==============================================================================
 #
-#  Code chunk 8: Annotate the probes with a gene name
-#
-# ==============================================================================
-
-# annots <- select(hgu133plus2.db, keys = rownames(exprs),
-#                  columns = c("GO", "SYMBOL", "GENENAME", "ENTREZID"),
-#                  keytype = "PROBEID")
-# save(annots, file = "annots_study.RData")
-# load(file = "annots_study.RData", verbose = TRUE)
-# dim(annots)
-# names(annots)
-# probes <- colnames(data.wgcna)
-# probes2annot <- match(probes, annots$PROBEID)
-# # The following is the number or probes without annotation:
-# sum(is.na(probes2annot))
-# Should return 0.
-
-
-# ==============================================================================
-#
 #  Code chunk 9: Store the results of the WGCNA
 #
 # ==============================================================================
@@ -322,6 +279,7 @@ geneInfo <- data.frame(genes = colnames(data.wgcna),
 #                    unique(annots[,c("PROBEID", "SYMBOL")]),
 #                    by.x = "genes", by.y = "PROBEID",
 #                    all.x = TRUE, all.y = FALSE)
+#
 # Append all the data of MM and MMP
 geneInfo0 <- merge(geneInfo, geneModuleMembership, by.x = "genes",
                    by.y = 0, all = TRUE)
@@ -359,10 +317,10 @@ matrx <- matrx[order(table(int.genes.modules$moduleColor), decreasing = TRUE), ]
 genes <- sapply(rownames(matrx), function(x, a){
   paste(colnames(a)[a[x, ] != 0], collapse = ", ")
 }, a = matrx)
-if (nrow(genes) >= 1) {
-  write.csv(as.data.frame(genes), file = "int_genes_module.csv")
-} else {
+if (length(genes) == 0) {
   warning("Genes under study were not found. Maybe it is a miRNA study?")
+} else {
+  write.csv(as.data.frame(genes), file = "int_genes_module.csv")
 }
 
 # Foreach module create a table in a file with genes, GS GS-P.values

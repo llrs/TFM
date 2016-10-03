@@ -2,49 +2,48 @@
 #
 #
 # Packages ####
-library("GEOquery")
-library("affy")
-library("affyPLM")
-library("simpleaffy")
-library("Heatplus")
-library("corpcor")
-library("sva")
-library("data.table")
-library("ggplot2")
-library("ggbiplot")
-library("corpcor")
-library("topGO")
-library("WGCNA")
-library("edgeR")
-library("limma")
-library("RColorBrewer")
-library("plyr")
-library("dplyr")
-library("MergeMaid")
-library("annotate")
+library("GEOquery") # Accessing NCBI GEO datasets
+library("affy") # Affymetrix utilities
+library("affyPLM") # Affymetrix utilities
+library("simpleaffy") # Affymetrix utilities
+library("Heatplus") # Heatmaps
+library("corpcor") # pcas
+library("sva") # combat, batch removing
+library("data.table") # data manipulation
+library("ggplot2") # Nice plots
+library("ggbiplot") # nice PCA
+library("corpcor") #
+library("topGO") # GO analysis
+library("edgeR") # Preprocessing of microarrays
+library("limma") # Standard microarrays analysis
+library("RColorBrewer") # Colors
+library("plyr") # Data manipulation
+library("dplyr") # Data manipulation
+library("MergeMaid") # Compare two datasets by how they correlate in each
+library("annotate") # Annotate things
 # library("hgu219.db")
 # library("hgu133plus2.db")
 # library("Affyhgu133Plus2Expr")
 # library("hgu133plus2probe")
 # library("hgu133plus2cdf")
-library("boot")
-library("Rgraphviz")
-library("ReactomePA")
-library("clusterProfiler")
-library("igraph")
-library("org.Hs.eg.db")
-library("biomaRt")
-library("hgu133plus2.db")
-library("testthat")
-library("GOstats")
+library("boot") # Weighted mean, bootstrap...
+library("ReactomePA") # Enrichment analysis on reactome
+library("clusterProfiler") # Enrichment analysis
+library("igraph") # Plotting graphs
+library("biomaRt") # Accessing NCBI online data
+# library("hgu133plus2.db") # Chip information
+library("testthat") # Testing
+library("GOstats") # Calculate with GO,
 library("graphite")
-library("WGCNA")
-library("KEGGgraph")
-library("KEGG.db")
-library("RBGL")
-library("org.Hs.eg.db")
-library("graph")
-library("Rgraphviz")
+library("WGCNA") # Weighted gene correlation networks
+library("KEGGgraph") # Kegg online accessor
+library("KEGG.db") # KEGG database, old release
+library("RBGL") # Coloring
+library("org.Hs.eg.db") # Translation between id of humans
+library("graph") # Graphs representation and handling
+library("Rgraphviz") # graphic
+# library("lumi") # Analyse illumina chips
+library("reshape2")
 
 # Options and configurations ####
 
@@ -164,52 +163,113 @@ count.p <- function(data, per){
   sum(data >= per)/length(data)
 }
 
-# Function to explore the module relationship with a trait
-GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
-                    disease, cor.out = FALSE, p.value = FALSE){
+# Subset in a list for each module the data
+extract <- function(module, clinvar, MM, GS, GSP, MMP, moduleColors) {
 
-  module <- x
   if (is.na(module)) {
     return(NA)
   } else if (substring(module, 1, nchar("ME")) == "ME") {
     module <- substring(module, 3)
   }
 
-  column <- match(module, modNames)
+  column.mm <- grep(paste0("MM", module), colnames(MM))
+  column.mmp <- grep(paste0("p.MM", module), colnames(MMP))
   moduleGenes <- moduleColors == module
-  varc <- match(var, colnames(disease))
+  varc.gs <- grep(paste0("GS.", clinvar), colnames(GS))
+  varc.gsp <- grep(paste0("p.GS.", clinvar), colnames(GSP))
 
-  data <- cbind("MM" = MM[moduleGenes, column],
-                "GS" = GS[moduleGenes, varc],
-                "GSP" = GSP[moduleGenes, varc],
-                "MMP" = MMP[moduleGenes, column])
+  if (length(varc.gs) > 1 | length(column.mm) > 1) {
+    if (length(varc.gs) > 1) {
+      warning("Choose between", paste(colnames(GS)[varc.gs]))
+    } else {
+      warning("Choose between", paste(colnames(MM)[column.mm]))
+    }
+  }
+  data <- cbind(MM[moduleGenes, column.mm, drop = FALSE],
+                GS[moduleGenes, varc.gs, drop = FALSE],
+                GSP[moduleGenes, varc.gsp, drop = FALSE],
+                MMP[moduleGenes, column.mmp, drop = FALSE])
 
-  if (ncol(data) == 2 | nrow(data) == 0) {
+  colnames(data) <- c("MM", "GS", "GSP", "MMP")
+  keep <- apply(data, 1, function(x){!all(is.na(x))})
+  data <- unique(data[keep, ])
+  if (nrow(data) == 0) {
     return(NA)
   }
+  return(data)
+
+}
+
+# Given data calculates the weight, the weighte correlation and its p.value
+w.cor <- function(data) {
+  weight <- (1 - data$GSP) * (1 - data$MMP)
+  w.cor <- corr(data[, c("MM", "GS")], weight) # requires the boot package
+  p.value.w <- corPvalueStudent(w.cor, nrow(data))
+  list(weight, w.cor, p.value = p.value.w)
+}
+
+plot.GGMM <- function(data) {
+  # Weights of the correlation between genes-trait and module-membership
+  corr.res <- w.cor(data)
+  weight <- corr.res[1]
+  w.cor <- corr.res[2]
+  p.value.w <- corr.res[3]
+
+  u.cor <- cor(x = data$MM, y = data$GS)
+  p.value.u <- corPvalueStudent(u.cor, nrow(data))
+  # With ggplot with size for the weights
+  ab <- lm(data$GS ~ data$MM)
+  plot.g <- ggplot() +
+    geom_point(aes(x = data$MM, y = data$GS,
+                   size = weight),
+               col = ifelse(module %in% c("white", "floralwhite"),
+                            "black", module)) + theme_bw() +
+    geom_abline(slope = ab$coefficients[2], intercept = ab$coefficients[1]) +
+    labs(title = paste0("Module membership vs. gene significance",
+                        "\nWeighted cor=", signif(w.cor, digits = 2),
+                        ", unweighted cor=", signif(u.cor, digits = 2),
+                        " p=",
+                        signif(p.value.u, digits = 2), ", ",
+                        signif(p.value.w, digits = 2))) +
+    xlab(paste("Module Membership in", module, "module")) +
+    ylab(paste("Gene significance for", var))
+  warning(paste("Plotting", module, "in", var, "."))
+  ggsave(filename = name.file("MM_GS", var, module, ".png"),
+         plot = plot.g)
+}
+
+# Function to explore the module relationship with a trait
+GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
+                    disease, cor.out = FALSE, p.value = FALSE){
+
+  data <- extract(x, var, MM, GS, GSP, MMP, moduleColors)
+
+  if (is.na(x)) {
+    return(NA)
+  } else if (substring(x, 1, nchar("ME")) == "ME") {
+    module <- substring(x, 3)
+  }
+
   # Calculates the weighted mean of genes correlation with the trait
   # wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
   # wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
 
   # Weights of the correlation between genes-trait and module-membership
-  w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
+  weight <- (1 - data$GSP) * (1 - data$MMP)
 
-  # Taking into account if there are empty values
-  gene <- !as.logical(apply(data[,c("MM", "GS")], 1,
-                            function(x){sum(is.na(x))}))
-  w.cor <- corr(data[gene, c("MM", "GS")], w[gene])
-  p.value.w <- corPvalueStudent(w.cor, nrow(data[gene, ]))
+  w.cor <- corr(data[, c("MM", "GS")], weight)
+  p.value.w <- corPvalueStudent(w.cor, nrow(data))
   if (cor.out) {
     return(w.cor)
   } else if (p.value) {
     return(p.value.w)
   }
-  if (length(data[gene, "MM"]) == 0) {
+  if (length(data$MM) == 0) {
     return(NA)
   }
   # w.m <- weighted.mean(data[gene, "GS"], w = 1 - data[gene, "GSP"])
-  u.cor <- cor(x = data[gene, "MM"], y = data[gene, "GS"])
-  p.value.u <- corPvalueStudent(u.cor, nrow(data[gene, ]))
+  u.cor <- cor(x = data$MM, y = data$GS)
+  p.value.u <- corPvalueStudent(u.cor, nrow(data))
   # png(file = paste("MM_GS", var, module, ".png", sep = "_"),
   #     width = 700, height = 700)
   #
@@ -232,10 +292,10 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   # dev.off()
 
   # With ggplot with size for the weights
-  ab <- lm(data[gene, "GS"] ~ data[gene, "MM"])
+  ab <- lm(data$GS ~ data$MM)
   plot.g <- ggplot() +
-    geom_point(aes(x = data[gene, "MM"], y = data[gene, "GS"],
-                   size = w[gene]),
+    geom_point(aes(x = data$MM, y = data$GS,
+                   size = weight),
                col = ifelse(module %in% c("white", "floralwhite"),
                             "black", module)) + theme_bw() +
     geom_abline(slope = ab$coefficients[2], intercept = ab$coefficients[1]) +
@@ -500,4 +560,24 @@ convert <- function(x){
   ifelse(substring(x, 2, 2) == "0", paste0(substring(x, 1, 1),
                                            substring(x, 3, 3)),
          x)
+}
+
+# Check if the power is enough to avoid noise over a normal distribution
+checkPower <- function(power, nGenes) {
+  out <- 1/sqrt(nGenes) ^ power * nGenes
+  if (out >= 0.1) {
+    return(FALSE)
+  } else {
+    return(TRUE)
+  }
+}
+
+# Extract the data of each hub and represent it for each sample
+module.expr <- function(data.wgcna, modules, color) {
+  out <- data.wgcna[, modules == color]
+  out <- scale(out)
+  df <- melt(out)
+  ggplot(df, aes(Var1, value, group = factor(Var2))) +
+    geom_line(color = color) + xlab("Samples") + ylab("Expression") +
+    ggtitle(paste("Expression scaled on module", color)) + theme_bw()
 }
