@@ -2,6 +2,20 @@
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 
+
+# Download set ####
+# geosupp <- getGEOSuppFiles(gse.number)
+# geosupp
+# Unpack the CEL files
+
+# untar(path.raw, exdir = path.files)
+# cels <- list.files(path.files, pattern = "[gz]")
+# sapply(file.path(path.files, cels), gunzip)
+# annotationFile <- file.path(path.files,
+#                             "GPL8179_humanMI_V2_R0_XS0000124-MAP.txt")
+# x.lumi <- lumiR(file.path(path.files, "GSE25609_non-normalized.txt"),
+#                       lib.mapping = "lumiHumanIDMapping")
+
 pheno <- read.csv("miRNA_phenotype.csv")
 exprs <- read.csv("miRNA_normQ.csv", row.names = 1)
 exprs2 <- read.table("normalised_ASH_mirna.csv", sep = "\t", dec = ",")
@@ -9,6 +23,16 @@ vclin <- read.csv(file.path("..", "DB_MIR-Alcoholic_Hepatitis_Sept2015.csv"))
 vclin2 <- read.csv(file.path("..",
            "DB_integrated.CCL20-Alcoholic_Hepatitis_19_06_2013_(2)_1_.csv"))
 setwd(data.files.out)
+
+# New JJ miRNA data
+# summary(x.lumi, "QC")
+# pdf("density.pdf")
+# plot(x.lumi, what = 'density')
+# dev.off()
+# lumi.T <- lumiExpresso(x.lumi)
+# dataMatrix <- exprs(lumi.T)
+
+
 # ==============================================================================
 #
 #  Code chunk 1: Preparing the clinical data
@@ -71,22 +95,24 @@ vclin <- apply(vclin, 2, as.numeric)
 vclin <- cbind("samplename" = v$samplename[!keep.samples], as.data.frame(vclin))
 
 # To analyse just the miRNA from the liver
-# data.wgcna <- exprs2[grep("hsa-miR-", rownames(exprs2)), ]
-# colnames(data.wgcna) <- ids_2
-# data.wgcna <- data.wgcna[, grep("CA", ids_2)]
-# vclin <- v[v$samplename %in% colnames(data.wgcna), c(3, 5:ncol(v))]
-# rownames(vclin) <- vclin$samplename
-# vclin <- vclin[, !colnames(vclin) %in% "samplename"]
-# data.wgcna <- t(data.wgcna)
-# colnames(data.wgcna) <- tolower(gsub("-star", "", colnames(data.wgcna)))
+data.wgcna <- exprs2[grep("hsa-miR-", rownames(exprs2)), ]
+colnames(data.wgcna) <- ids_2
+data.wgcna <- data.wgcna[, grep("CA", ids_2)]
+collapsed <- collapseRows(data.wgcna, unique(rownames(data.wgcna)), rownames(data.wgcna))
+data.wgcna <- collapsed$datETcollapsed
+vclin <- v[v$samplename %in% colnames(data.wgcna), c(3, 5:ncol(v))]
+rownames(vclin) <- vclin$samplename
+vclin <- vclin[, !colnames(vclin) %in% "samplename"]
+data.wgcna <- t(data.wgcna)
+
 
 # To analyse miRNA from the circulant
-data.wgcna <- exprs[grep("hsa-mir-", rownames(exprs)), pheno2$group == "AH"]
-colnames(data.wgcna) <- pheno2$patientid[pheno2$group == "AH"]
-data.wgcna <- t(data.wgcna)
-vclin <- v[v$patientid %in% rownames(data.wgcna), c(1, 5:ncol(v))]
-rownames(vclin) <- vclin$patientid
-vclin <- vclin[, !colnames(vclin) %in% "patientid"]
+# data.wgcna <- exprs[grep("hsa-mir-", rownames(exprs)), pheno2$group == "AH"]
+# colnames(data.wgcna) <- pheno2$patientid[pheno2$group == "AH"]
+# data.wgcna <- t(data.wgcna)
+# vclin <- v[v$patientid %in% rownames(data.wgcna), c(1, 5:ncol(v))]
+# rownames(vclin) <- vclin$patientid
+# vclin <- vclin[, !colnames(vclin) %in% "patientid"]
 #Remove column from vclin
 # ==============================================================================
 #
