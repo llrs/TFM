@@ -24,26 +24,26 @@ disease.silvia <- read.csv("clean_variables.csv")
 disease.isa <- read.csv("samples_AH.csv")
 
 setwd(data.files.out)
-save(pheno.isa, pheno.silvia, file = "pheno.RData")
+# save(pheno.isa, pheno.silvia, file = "pheno.RData")
 load("pheno.RData", verbose = TRUE)
 
 # Adjusting intensity and making them comparable ####
-c.isa <- rma(pheno.isa)
-c.silvia <- rma(pheno.silvia)
-save(c.isa, c.silvia, file = "rma.pheno.RData")
-load("rma.pheno.RData")
-co.isa <- sum.e(c.isa)
-co.silvia <- sum.e(c.silvia)
-save(co.isa, co.silvia, file = "exprs.RData")
+# c.isa <- rma(pheno.isa)
+# c.silvia <- rma(pheno.silvia)
+# save(c.isa, c.silvia, file = "rma.pheno.RData")
+# load("rma.pheno.RData")
+# co.isa <- sum.e(c.isa)
+# co.silvia <- sum.e(c.silvia)
+# save(co.isa, co.silvia, file = "exprs.RData")
 load("exprs.RData", verbose = TRUE)
 
 # Merging datasets ####
 # Merge the data of each batch into a single matrix
-co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
-co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
-merged <- rbind.fill(co.silvia.df, co.isa.df)
-rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
-save(merged, file = "collapsed.micro.RData")
+# co.silvia.df <- as.data.frame(t(co.silvia), row.names = colnames(co.silvia))
+# co.isa.df <- as.data.frame(t(co.isa), row.names = colnames(co.isa))
+# merged <- rbind.fill(co.silvia.df, co.isa.df)
+# rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
+# save(merged, file = "collapsed.micro.RData")
 load("collapsed.micro.RData", verbose = TRUE)
 
 with.na <- apply(merged, 2, function(x){any(is.na(x))})
@@ -52,24 +52,25 @@ merged.pca <- t(merged)
 merged.shared.pca <- t(merged.shared)
 data.wgcna <- merged.shared[1:15, ]
 save(data.wgcna, file = "shared_genes.RData")
+load(file = "shared_genes.RData", verbose = TRUE)
 
 # Merging with MergeMaid ####
 
-mergm <- mergeExprs(co.silvia, co.isa)
-corcor <- intCor(mergm)
-pdf("mergmaid.pdf")
-plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
-     main = "Integrative correlation of the top gene",
-     col = 3, pch = 4)
-hist(corcor, main = "Integrative correlation coeficient")
-
-intcor <- intcorDens(mergm)
-plot(intcor)
-# cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
-#                           method = "linear")
-# plot(coeff(cox.coeff), main = "Coeficients")
-dev.off()
-save(intcor, corcor, file = "mergemaid.RData")
+# mergm <- mergeExprs(co.silvia, co.isa)
+# corcor <- intCor(mergm)
+# pdf("mergmaid.pdf")
+# plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+#      main = "Integrative correlation of the top gene",
+#      col = 3, pch = 4)
+# hist(corcor, main = "Integrative correlation coeficient")
+#
+# intcor <- intcorDens(mergm)
+# plot(intcor)
+# # cox.coeff <- modelOutcome(mergm, outcome = c(3, 3), # Obscure parameter
+# #                           method = "linear")
+# # plot(coeff(cox.coeff), main = "Coeficients")
+# dev.off()
+# save(intcor, corcor, file = "mergemaid.RData")
 load("mergemaid.RData", verbose = TRUE)
 
 coef <- as.vector(corcor@pairwise.cors)
@@ -364,4 +365,5 @@ rm.i <- apply(v, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
 v <- v[, !rm.i]
 
 vclin <- v
+vclin <- orderby(vclin, rownames(data.wgcna), names.x = TRUE)
 save(data.wgcna, vclin, file = "Input.RData")
