@@ -170,17 +170,19 @@ extract <- function(module, clinvar, MM, GS, GSP, MMP, moduleColors) {
     module <- substring(module, 3)
   }
 
-  column.mm <- grep(paste0("MM", module), colnames(MM))
-  column.mmp <- grep(paste0("p.MM", module), colnames(MMP))
+  column.mm <- match(paste0("MM", module), colnames(MM))
+  column.mmp <- match(paste0("p.MM", module), colnames(MMP))
   moduleGenes <- moduleColors == module
-  varc.gs <- grep(paste0("GS.", clinvar), colnames(GS))
-  varc.gsp <- grep(paste0("p.GS.", clinvar), colnames(GSP))
+  varc.gs <- match(paste0("GS.", clinvar), colnames(GS))
+  varc.gsp <- match(paste0("p.GS.", clinvar), colnames(GSP))
 
   if (length(varc.gs) > 1 | length(column.mm) > 1) {
     if (length(varc.gs) > 1) {
-      warning("Choose between", paste(colnames(GS)[varc.gs]))
+      warning("Choose between ", paste(colnames(GS)[varc.gs],
+                                       collapse = " "))
     } else {
-      warning("Choose between", paste(colnames(MM)[column.mm]))
+      warning("Choose between ", paste(colnames(MM)[column.mm],
+                                      collapse = " "))
     }
   }
   data <- cbind(MM[moduleGenes, column.mm, drop = FALSE],
@@ -246,6 +248,8 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
     return(NA)
   } else if (substring(x, 1, nchar("ME")) == "ME") {
     module <- substring(x, 3)
+  } else {
+    module <- x
   }
 
   # Calculates the weighted mean of genes correlation with the trait
@@ -254,7 +258,6 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
 
   # Weights of the correlation between genes-trait and module-membership
   weight <- (1 - data$GSP) * (1 - data$MMP)
-
   w.cor <- corr(data[, c("MM", "GS")], weight)
   p.value.w <- corPvalueStudent(w.cor, nrow(data))
   if (cor.out) {
@@ -543,9 +546,9 @@ orderby <- function(x, by, names.x = FALSE) {
   if (length(dim(x)) == 2 & names.x) {
     out <- x[order(match(rownames(x), by)), ]
   } else {
-    out <- x[order(match(x, by))]
+    out <- x[order(match(names(x), by))]
     if (names.x) {
-      out <- names(x)[order(match(x, by))]
+      out <- names(x)[order(match(names(x), by))]
     }
   }
 
