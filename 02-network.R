@@ -79,14 +79,15 @@ if (is.na(sft$powerEstimate)) {
 } else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
   warning("Are you sure of this power?")
 }
-# sft$powerEstimate <- 3
+sft$powerEstimate <- 3
 print(paste("Using power", sft$powerEstimate))
 save(sft, file = "sft.RData")
 
 # Calculate connectivity and plot it
 k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate)
 plot(density(k))
-scaleFreePlot(k, main = "Check scale free topology\n")
+scaleFreePlot(k, main = paste0("Check scale free topology, power",
+                               sft$powerEstimate))
 dev.off()
 
 # 3 ============================================================================
@@ -184,6 +185,12 @@ plot(cbind(gm[order(perc)], perc[order(perc)]), type = "o",
      col = names(gm[order(perc)]))
 
 dev.off()
+
+a <- sapply(unique(moduleColors), function(x){
+  p <- module.expr(data.wgcna, moduleColors, x)
+  ggsave(filename = name.file("module", x, ".png"),
+         plot = p)
+})
 
 # 6 ============================================================================
 #
