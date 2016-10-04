@@ -95,24 +95,24 @@ vclin <- apply(vclin, 2, as.numeric)
 vclin <- cbind("samplename" = v$samplename[!keep.samples], as.data.frame(vclin))
 
 # To analyse just the miRNA from the liver
-data.wgcna <- exprs2[grep("hsa-miR-", rownames(exprs2)), ]
-colnames(data.wgcna) <- ids_2
-data.wgcna <- data.wgcna[, grep("CA", ids_2)]
-collapsed <- collapseRows(data.wgcna, unique(rownames(data.wgcna)), rownames(data.wgcna))
-data.wgcna <- collapsed$datETcollapsed
-vclin <- v[v$samplename %in% colnames(data.wgcna), c(3, 5:ncol(v))]
-rownames(vclin) <- vclin$samplename
-vclin <- vclin[, !colnames(vclin) %in% "samplename"]
-data.wgcna <- t(data.wgcna)
+# data.wgcna <- exprs2[grep("hsa-miR-", rownames(exprs2)), ]
+# colnames(data.wgcna) <- ids_2
+# data.wgcna <- data.wgcna[, grep("CA", ids_2)]
+# collapsed <- collapseRows(data.wgcna, unique(rownames(data.wgcna)), rownames(data.wgcna))
+# data.wgcna <- collapsed$datETcollapsed
+# vclin <- v[v$samplename %in% colnames(data.wgcna), c(3, 5:ncol(v))]
+# rownames(vclin) <- vclin$samplename
+# vclin <- vclin[, !colnames(vclin) %in% "samplename"]
+# data.wgcna <- t(data.wgcna)
 
 
 # To analyse miRNA from the circulant
-# data.wgcna <- exprs[grep("hsa-mir-", rownames(exprs)), pheno2$group == "AH"]
-# colnames(data.wgcna) <- pheno2$patientid[pheno2$group == "AH"]
-# data.wgcna <- t(data.wgcna)
-# vclin <- v[v$patientid %in% rownames(data.wgcna), c(1, 5:ncol(v))]
-# rownames(vclin) <- vclin$patientid
-# vclin <- vclin[, !colnames(vclin) %in% "patientid"]
+data.wgcna <- exprs[grep("hsa-mir-", rownames(exprs)), pheno2$group == "AH"]
+colnames(data.wgcna) <- pheno2$patientid[pheno2$group == "AH"]
+data.wgcna <- t(data.wgcna)
+vclin <- v[v$patientid %in% rownames(data.wgcna), c(1, 5:ncol(v))]
+rownames(vclin) <- vclin$patientid
+vclin <- vclin[, !colnames(vclin) %in% "patientid"]
 #Remove column from vclin
 # ==============================================================================
 #
