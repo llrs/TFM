@@ -445,6 +445,10 @@ trim <- function(x) {
 # Print all the elements of a list in columns in the file fil
 fnlist <- function(x, fil) {
   nams <- names(x)
+  if (file.exists(fil)) {
+    warning("Removing existing file ", fil)
+    file.remove(fil)
+  }
   for (i in seq_along(x)) {
     cat(nams[i], "\t",  x[[i]], "\n",
         file = fil, append = TRUE)
