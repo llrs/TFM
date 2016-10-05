@@ -1,12 +1,14 @@
 #  Analyse the modules ####
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
+library("STRINGdb")
 setwd(data.files.out)
 
 topGO <- FALSE
 Reactome <- FALSE
 Kegg <- FALSE
 GSEA <- FALSE
+STRING <- TRUE
 
 # Load previously work done ####
 load(file = "Input.RData", verbose = TRUE)
@@ -91,10 +93,12 @@ clustersEntrez <- sapply(clusters, function(x){
 # plot(eK) + ggtitle("Enrich KEGG") + x.axis
 # dev.off()
 
+string_db <- STRINGdb$new(version = "10", species = 9606,
+                           score_threshold = 0, input_directory = "" )
 
 imodules <- unique(unlist(IM2))
 
-universeGenesEntrez <- unique(keys(org.Hs.eg.db, keytype = "ENTREZID"))
+universeGenesEntrez <- unique(AnnotationDbi::keys(org.Hs.eg.db))
 universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
 
 # Study each module ####
@@ -111,7 +115,7 @@ out <- sapply(imodules, function(x) {
 
   # Preparing the objects with Entrezid for the reactome and kegg analysis
   moduleGenes <- clusters[moduleName][[1]]
-  moduleGenesEntrez <- unique(select(org.Hs.eg.db, keys = moduleGenes,
+  moduleGenesEntrez <- unique(AnnotationDbi::select(org.Hs.eg.db, keys = moduleGenes,
                                      keytype = "SYMBOL",
                                      columns = "ENTREZID"))
   moduleGenesEntrez <- moduleGenesEntrez[!is.na(moduleGenesEntrez)]
@@ -273,7 +277,7 @@ out <- sapply(imodules, function(x) {
                       pAdjustMethod = "BH", verbose = TRUE)
 
     # General plotting
-    if (!is.null(gse)){
+    if (!is.null(gse)) {
       summary(gse)
       message(paste("Plotting GSE for module", moduleName))
       pdfn(paste0("gsea_", moduleName, ".pdf"), onefile = TRUE)
@@ -283,4 +287,25 @@ out <- sapply(imodules, function(x) {
     # # Individual gene plot
     # gseaplot(gse, geneSetID = moduleGenesEntrez[1])
   }
-})
+
+  # STRING =====================================================================
+  if (STRING) {
+    string_id <- string_db$map(data.frame(gene = moduleGenes), "gene",
+                               takeFirst = FALSE)
+    # For each variable it could paint the GS of each gene
+    # payload <- string_db$post_payload(string_id$STRING_id, )
+    png(name.file("STRING_module", moduleName, ".png"))
+    string_db$plot_network(string_id$STRING_id, # payload_id = payload,
+                           add_link = FALSE)
+    dev.off()
+    png(name.file("STRING_enrichment", moduleName, ".png"))
+    tryCatch({string_db$plot_ppi_enrichment(string_id$STRING_id,
+                      title = paste("Interaction enrichment of", moduleName))},
+             error = function(e) {
+               message("Couldn't map the enrichment of STRING")
+               sessionInfo()
+               message(e)
+             })
+    dev.off()
+  }
+  })
