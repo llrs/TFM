@@ -1,5 +1,5 @@
 language: R
-r: bioc-release
+
 cache: packages
 r_packages:
   - covr
@@ -9,9 +9,7 @@ after_success:
 
 os:
 - linux
-- osx
 
 r:
 - release
-- oldrelease
-- devel
+- bioc-release
