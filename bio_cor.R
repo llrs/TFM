@@ -464,6 +464,9 @@ bio.cor2 <- function(x, ids = "Entrez Gene",
     kegg.bio <- rep(NA, choose(length(genes_id), 2))
   }
   if (react) {
+    if (!kegg) {
+      genes <- gene.symbol
+    }
     gene.reactome <- unique(toTable(reactomePATHID2EXTID))
     colnames(gene.reactome) <- c("Entrez Gene", "Reactome")
     genes <- unique(merge(genes, gene.reactome, all = TRUE, sort = FALSE))
@@ -506,6 +509,12 @@ bio.cor2 <- function(x, ids = "Entrez Gene",
     cor_mat <- list(kegg = kegg_mat, go = go_mat)
   } else  if (go & react) {
     cor_mat <- list(reactome = react_mat, go = go_mat)
+  } else if (go) {
+    cor_mat <- list(go = go_mat)
+  } else if (react) {
+    cor_mat <- list(react = react_mat)
+  } else if (kegg) {
+    cor_mat <- list(kegg = kegg_mat)
   }
   return(cor_mat)
 }
@@ -552,7 +561,7 @@ react_genes <- function(comb, genes, react, id) {
 }
 
 Rprof(tmp <- tempfile())
-a <- bio.cor2(c("10", "100", "1000"), all = TRUE)
+a <- bio.cor2(as.character(1:50), kegg = TRUE)
 a
 Rprof()
 summaryRprof(tmp)
