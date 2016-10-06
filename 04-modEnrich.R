@@ -299,13 +299,21 @@ out <- sapply(imodules, function(x) {
                            add_link = FALSE)
     dev.off()
     png(name.file("STRING_enrichment", moduleName, ".png"))
-    tryCatch({string_db$plot_ppi_enrichment(string_id$STRING_id,
-                      title = paste("Interaction enrichment of", moduleName))},
-             error = function(e) {
-               message("Couldn't map the enrichment of STRING")
-               sessionInfo()
-               message(e)
-             })
+    tryCatch({
+      tryCatch({string_db$plot_ppi_enrichment(string_id$STRING_id,
+                                              title = paste("Interaction enrichment of", moduleName))},
+               error = function(e) {
+                 dput(string_id$STRING_id)
+                 message("Couldn't map the enrichment of STRING")
+                 # sessionInfo()
+                 # message(e)
+               })
+    }, error = function(e) {
+      message(length(string_id$STRING_id))
+      message("Another error")
+      # message(e)
+      }
+    )
     dev.off()
   }
-  })
+})
