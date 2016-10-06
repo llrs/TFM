@@ -79,7 +79,7 @@ if (is.na(sft$powerEstimate)) {
 } else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
   warning("Are you sure of this power?")
 }
-sft$powerEstimate <- 3
+sft$powerEstimate <- 8
 print(paste("Using power", sft$powerEstimate))
 save(sft, file = "sft.RData")
 
@@ -186,18 +186,17 @@ plot(cbind(gm[order(perc)], perc[order(perc)]), type = "o",
 
 dev.off()
 
-a <- sapply(unique(moduleColors), function(x){
-  p <- module.expr(data.wgcna, moduleColors, x)
-  ggsave(filename = name.file("module", x, ".png"),
-         plot = p)
-})
+moduleColors <- net$colors
+# a <- sapply(unique(moduleColors), function(x){
+#   p <- module.expr(data.wgcna, moduleColors, x)
+#   ggsave(filename = name.file("module", x, ".png"),
+#          plot = p)
+# })
 
 # 6 ============================================================================
 #
 #  Code chunk 6: Save the data for the next process
 #
 # ==============================================================================
-
-moduleColors <- net$colors
 
 save(MEs, moduleColors, file = "modules_ME.RData")
