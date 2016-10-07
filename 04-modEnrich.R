@@ -290,30 +290,35 @@ out <- sapply(imodules, function(x) {
 
   # STRING =====================================================================
   if (STRING) {
-    string_id <- string_db$map(data.frame(gene = moduleGenes), "gene",
-                               takeFirst = FALSE)
-    # For each variable it could paint the GS of each gene
-    # payload <- string_db$post_payload(string_id$STRING_id, )
-    png(name.file("STRING_module", moduleName, ".png"))
-    string_db$plot_network(string_id$STRING_id, # payload_id = payload,
-                           add_link = FALSE)
-    dev.off()
-    png(name.file("STRING_enrichment", moduleName, ".png"))
-    tryCatch({
-      tryCatch({string_db$plot_ppi_enrichment(string_id$STRING_id,
-                                              title = paste("Interaction enrichment of", moduleName))},
-               error = function(e) {
-                 dput(string_id$STRING_id)
-                 message("Couldn't map the enrichment of STRING")
-                 # sessionInfo()
-                 # message(e)
-               })
-    }, error = function(e) {
-      message(length(string_id$STRING_id))
-      message("Another error")
-      # message(e)
-      }
-    )
-    dev.off()
+    if (length(moduleGenes) < 375) {
+      string_id <- string_db$map(data.frame(gene = moduleGenes), "gene",
+                                 takeFirst = FALSE)
+      # For each variable it could paint the GS of each gene
+      # payload <- string_db$post_payload(string_id$STRING_id, )
+      png(name.file("STRING_module", moduleName, ".png"),
+          width = 2000, height = 2000, bg = "transparent")
+      string_db$plot_network(string_id$STRING_id, # payload_id = payload,
+                             add_link = FALSE)
+      dev.off()
+      # png(name.file("STRING_enrichment", moduleName, ".png"))
+      # tryCatch({
+      #   tryCatch({string_db$plot_ppi_enrichment(string_id$STRING_id,
+      #                                           title = paste("Interaction enrichment of", moduleName))},
+      #            error = function(e) {
+      #              dput(string_id$STRING_id)
+      #              message("Couldn't map the enrichment of STRING")
+      #              # sessionInfo()
+      #              # message(e)
+      #            })
+      # }, error = function(e) {
+      #   message(length(string_id$STRING_id))
+      #   message("Another error")
+      #   # message(e)
+      # })
+      # dev.off()
+    } else {
+      warning(paste("Moduel", moduleName, "is bigger!"))
+    }
   }
 })
+
