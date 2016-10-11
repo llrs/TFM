@@ -110,9 +110,42 @@ vclin <- cbind("samplename" = v$samplename[!keep.samples], as.data.frame(vclin))
 data.wgcna <- exprs[grep("hsa-mir-", rownames(exprs)), pheno2$group == "AH"]
 colnames(data.wgcna) <- pheno2$patientid[pheno2$group == "AH"]
 data.wgcna <- t(data.wgcna)
+
+# for DE analysis ####
+expi <- exprs[grep("hsa-mir-", rownames(exprs)), ]
+indx <- match(colnames(expi), pheno2$samplename)
+colnames(expi) <- pheno2$patientid[indx]
+pheno2$GROUP <- relevel(pheno2$GROUP, "Normal")
+rownames(pheno2) <- pheno2$patientid
+design1 <- model.matrix(~GROUP, data = pheno2)
+design2 <- cbind(1, AHvsNormal = ifelse(pheno2$GROUP == "Normal", 0, 1))
+
+fit <- lmFit(expi, design2)
+fit <- eBayes(fit)
+res <- decideTests(fit)
+summary(res)
+DE <- topTable(fit,  number = Inf, coef = "AHvsNormal")
+save(DE, file = "DE.RData")
+
 vclin <- v[v$patientid %in% rownames(data.wgcna), c(1, 5:ncol(v))]
+vclin <- merge(vclin, pheno2[, c("patientid", "GROUP")], by.x = "patientid", by.y = "patientid",
+      all.x = TRUE, all.y = FALSE)
 rownames(vclin) <- vclin$patientid
 vclin <- vclin[, !colnames(vclin) %in% "patientid"]
+# colnames(vclin) <- c(colnames(vclin), c("AH.R", "AH.NR", "AH.m"))
+vclin$AH.R <- 0
+vclin$AH.R[vclin$GROUP == "AH.R"] <- 1
+
+vclin$AH.NR <- 0
+vclin$AH.NR[vclin$GROUP == "AH.NR"] <- 1
+
+vclin$AH.m <- 0
+vclin$AH.m[vclin$GROUP == "AH.m"] <- 1
+vclin$GROUP <- fact2num(vclin$GROUP, "Normal", 0)
+vclin$GROUP <- fact2num(vclin$GROUP, "AH.m", 1)
+vclin$GROUP <- fact2num(vclin$GROUP, "AH.R", 2)
+vclin$GROUP <- fact2num(vclin$GROUP, "AH.NR", 3)
+
 #Remove column from vclin
 # ==============================================================================
 #
