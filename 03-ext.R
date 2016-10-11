@@ -5,7 +5,8 @@
 
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
-setwd(data.files.out)
+setwd("/home/lrevilla/Documents/miRNA_circulant/unsigned_signed/power_8")
+# setwd(data.files.out)
 # Load the expression and trait data saved in the first part
 load(file = "Input.RData", verbose = TRUE)
 
@@ -323,6 +324,7 @@ if (length(genes) == 0) {
   write.csv(as.data.frame(genes), file = "int_genes_module.csv")
 }
 
+load("DE.RData", verbose = TRUE)
 # Foreach module create a table in a file with genes, GS GS-P.values
 geneInfo1 <- lapply(unique(geneInfo$moduleColor),
                     function(x, gI, GS, GSP, d, ...){
@@ -334,5 +336,7 @@ geneInfo1 <- lapply(unique(geneInfo$moduleColor),
   gT <- gT[, ord]
   keep.Trait <- apply(gT, 2, function(x){all(is.na(x))})
   gT <- gT[, !keep.Trait]
+  gT <- merge(gT, DE[, c("logFC", "adj.P.Val")], by.x = "genes", by.y = 0,
+              all.x = TRUE, all.y = FALSE)
   write.csv(gT, name.file(x, "trait.csv"), row.names = FALSE, na = "")
 }, gI = geneInfo, GS = geneTraitSignificance, GSP = GSPvalue, d = disease)
