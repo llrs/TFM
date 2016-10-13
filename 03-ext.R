@@ -219,7 +219,7 @@ a <- sapply(names(IM2), function(y, d){
 save(IM2, file = "selected_modules.RData")
 # mean GS ===================================================================
 
-a <- sapply(names(IM0), function(y, d) {
+w.mean <- sapply(names(IM0), function(y, d) {
   sapply(d[[y]], function(x, var){
     data <- extract(x, var, geneModuleMembership,
                     geneTraitSignificance, GSPvalue,
@@ -227,14 +227,15 @@ a <- sapply(names(IM0), function(y, d) {
     weighted.mean(abs(data$GS), w = (1 - data$GSP))
   }, var = y)
 }, d = IM0)
-
+text.mean <- paste(sprintf("%.2f", w.mean))
+dim(text.mean) <- dim(w.mean)
 pdf("heatmap_GS_mean.pdf")
 par(mar = c(6, 8.5, 3, 3))
-labeledHeatmap.multiPage(Matrix = a,
-                         xLabels = colnames(a),
-                         yLabels = rownames(a),
+labeledHeatmap.multiPage(Matrix = w.mean,
+                         xLabels = colnames(w.mean),
+                         yLabels = rownames(w.mean),
                          colors = greenWhiteRed(50),
-                         textMatrix = paste(sprintf("%.2f", a)),
+                         textMatrix = text.mean,
                          colorLabels = FALSE,
                          setStdMargins = FALSE,
                          cex.text = 0.5,
