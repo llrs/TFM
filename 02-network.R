@@ -42,7 +42,7 @@ if (bio.corFnc) {
                            powerVector = powers,
                            verbose = 5,
                            networkType = adj.opt,
-                           corFnc = cor.all, corOptions(bio_mat = bio_mat,
+                           corFnc = cor.all, corOptions = list(bio_mat = bio_mat,
                            w = c(0.5, 0.5)))
 } else {
   sft <- pickSoftThreshold(data.wgcna,
