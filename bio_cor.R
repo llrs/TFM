@@ -559,9 +559,9 @@ react_genes <- function(comb, genes, react, id) {
   }
   out
 }
-
-Rprof(tmp <- tempfile())
-a <- bio.cor2(as.character(1:50), kegg = TRUE)
-a
-Rprof()
-summaryRprof(tmp)
+#
+# Rprof(tmp <- tempfile())
+# a <- bio.cor2(as.character(1:50), kegg = TRUE)
+# a
+# Rprof()
+# summaryRprof(tmp)
