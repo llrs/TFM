@@ -185,18 +185,17 @@ plot(cbind(gm[order(perc)], perc[order(perc)]), type = "o",
 
 dev.off()
 
-a <- sapply(unique(moduleColors), function(x){
-  p <- module.expr(data.wgcna, moduleColors, x)
-  ggsave(filename = name.file("module", x, ".png"),
-         plot = p)
-})
+moduleColors <- net$colors
+# a <- sapply(unique(moduleColors), function(x){
+#   p <- module.expr(data.wgcna, moduleColors, x)
+#   ggsave(filename = name.file("module", x, ".png"),
+#          plot = p)
+# })
 
 # 6 ============================================================================
 #
 #  Code chunk 6: Save the data for the next process
 #
 # ==============================================================================
-
-moduleColors <- net$colors
 
 save(MEs, moduleColors, file = "modules_ME.RData")
