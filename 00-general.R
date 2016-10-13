@@ -387,12 +387,13 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
 # Coloring taking into account both the correlation value and the p-value
 coloring <- function(MTC, MTP) {
   colors <- sapply(colnames(MTC), function(x){
-    MTC[, x]/(1 + MTP[, x])})
-  colors.value <- sapply(colnames(colors), function(x){
-    y <- colors[,x]
-    2*(y - min(y))/(max(y) - min(y)) - 1
-  })
-  colors.value
+    MTC[, x]*(1 - MTP[, x])})
+  # colors.value <- sapply(colnames(colors), function(x){
+  #   y <- colors[,x]
+  #   2*(y - min(y))/(max(y) - min(y)) - 1
+  # })
+  # colors.value
+  colors
 }
 
 # Function to generate function to select the module
