@@ -127,9 +127,32 @@ out <- sapply(imodules, function(x) {
 
   # topGOdata object ####
   if (topGO) {
-    GOdata <- new("topGOdata",
+    GOdata.bp <- new("topGOdata",
                   ontology = "BP",
-                  description = paste("Molecular function of the",
+                  description = paste("Biological process of the",
+                                      moduleName, "module."),
+                  allGenes = genes,
+                  # annot = annFUN.gene2GO, ## the new annotation function
+                  # affyLib = "org.Hs.eg.db",
+                  annot = annFUN.org,
+                  ID = "alias",
+                  mapping = "org.Hs.eg",
+                  geneSelectionFun = selFun)
+
+    GOdata.mp <- new("topGOdata",
+                  ontology = "MP",
+                  description = paste("Molecular process of the",
+                                      moduleName, "module."),
+                  allGenes = genes,
+                  # annot = annFUN.gene2GO, ## the new annotation function
+                  # affyLib = "org.Hs.eg.db",
+                  annot = annFUN.org,
+                  ID = "alias",
+                  mapping = "org.Hs.eg",
+                  geneSelectionFun = selFun)
+    GOdata.cc <- new("topGOdata",
+                  ontology = "CC",
+                  description = paste("Cellular component of the",
                                       moduleName, "module."),
                   allGenes = genes,
                   # annot = annFUN.gene2GO, ## the new annotation function
@@ -144,53 +167,12 @@ out <- sapply(imodules, function(x) {
     # GOdata
     # geneSelectionFun(GOdata) <- selFun
     # GOdata
-    description(GOdata) <- paste("Molecular function of the",
-                                 moduleName, "module.")
+    # description(GOdata) <- paste("Molecular function of the",
+    #                              moduleName, "module.")
     # topGO tests ####
-    resultFisher <- runTest(GOdata,
-                            algorithm = "classic", statistic = "fisher")
-    resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
-    resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
-    avgResult <- combineResults(resultFisher, resultKS, resultKS.elim,
-                                method = "mean")
-
-    allRes <- GenTable(GOdata, classic = resultFisher, Ks = resultKS,
-                       elim = resultKS.elim, orderBy = "classic",
-                       ranksOf = "classic", topNodes = 50, numChar = 100)
-    write.csv(allRes, file = paste0("table_GO_", moduleName, ".csv"),
-              row.names = FALSE)
-
-    # Plotting topGO ####
-    pdf(paste0("BP_GO_", moduleName, ".pdf"), onefile = TRUE)
-    tryCatch({showSigOfNodes(GOdata,
-                             score(resultFisher), firstSigNodes = 2, useInfo = 'all')
-      title(main = "GO analysis using Fisher algorithm")},
-      error = function(e) {
-        message("Couldn't calculate the Fisher")
-        message(e)
-      })
-    tryCatch({showSigOfNodes(GOdata,
-                             score(resultKS), firstSigNodes = 2, useInfo = 'all')
-      title(main = "GO analysis using KS algorithm")},
-      error = function(e) {
-        message("Couldn't calculate the KS")
-        message(e)
-      })
-    tryCatch({showSigOfNodes(GOdata,
-                             score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')
-      title(main = "GO analysis using KS elim algorithm")},
-      error = function(e) {
-        message("Couldn't calculate the KSelim")
-        message(e)
-      })
-    tryCatch({showSigOfNodes(GOdata,
-                             score(avgResult), firstSigNodes = 2, useInfo = 'all')
-      title(main = "GO analysis using average")},
-      error = function(e) {
-        message("Couldn't calculate the average GO stat")
-        message(e)
-      })
-    dev.off()
+    go.enrich(GOdata.cc, moduleName, "CC")
+    go.enrich(GOdata.bp, moduleName, "BP")
+    go.enrich(GOdata.mp, moduleName, "MP")
   }
   # Reactome ===================================================================
   #
