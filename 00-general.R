@@ -22,7 +22,6 @@ library("dplyr") # Data manipulation
 library("MergeMaid") # Compare two datasets by how they correlate in each
 library("annotate") # Annotate things
 # library("hgu219.db")
-# library("hgu133plus2.db")
 # library("Affyhgu133Plus2Expr")
 # library("hgu133plus2probe")
 # library("hgu133plus2cdf")
@@ -44,6 +43,9 @@ library("graph") # Graphs representation and handling
 library("Rgraphviz") # graphic
 # library("lumi") # Analyse illumina chips
 library("reshape2")
+# library("biomaRt")
+library("reactome.db")
+library("AnnotationDbi")
 
 # Options and configurations ####
 
