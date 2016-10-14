@@ -1,16 +1,4 @@
-library("biomaRt")
-library("hgu133plus2.db")
-library("testthat")
-library("GOstats")
-library("graphite")
-library("WGCNA")
-library("KEGGgraph")
-library("KEGG.db")
-library("RBGL")
-library("org.Hs.eg.db")
-library("graph")
-library("Rgraphviz")
-library("reactome.db")
+# Functions required for the bio.cor or bio.cor2 computation.
 
 ".combinadic" <- function(n, r, i) {
 
@@ -66,9 +54,10 @@ compare_graphs <- function(g1, g2){
   score
 }
 
-
+# Why just BP and note CC and MF ??
 # Calculates the degree of overlap of the GO BP ontologies of entrez ids.
-go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL, ...){
+go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
+                   Ontology = "BP", ...) {
   # https://support.bioconductor.org/p/85702/#85732
 
   if (is.na(e_a) | is.na(e_b)) {
@@ -79,25 +68,6 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL, ...){
   e_a <- as.character(e_a)
   e_b <- as.character(e_b)
 
-  if (mapfun) {
-    mapfunc <- function(x) mget(x, revmap(org.Hs.egGO2EG), ifnotfound = NA)
-
-    LP <- simLL(e_a, e_b, "BP", measure = "LP", mapfun = mapfunc, ...)
-    UI <- simLL(e_a, e_b, "BP", measure = "UI", mapfun = mapfunc, ...)
-  } else {
-    LP <- simLL(e_a, e_b, "BP", measure = "LP", chip = chip, ...)
-    UI <- simLL(e_a, e_b, "BP", measure = "UI", chip = chip, ...)
-  }
-
-
-  if (length(LP) > 1 | length(UI) > 1) {
-    if (is.na(LP["sim"]) | is.na(UI["sim"])) {
-      return(NA)
-    }
-  } else if (is.na(LP) | is.na(UI)) {
-    return(NA)
-  }
-
   s.path <- function(ig){
     # The longest of the shortest path of a graph
     lfi <- leaves(ig, "in")
@@ -107,13 +77,33 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL, ...){
     plens <- subListExtract(paths, "length", simplify = TRUE)
     max(plens)
   }
-  # Calculates the score taking into account the size and the middle path
-  # Taking advantage of the fact that in GO there is a root and leaves
-  # UI: Union intersect, is the size of the intersection of the node
-  #        sets divided by the size of the union of the node sets
-  # LP: longest path, is the longest path in the intersection graph of
-  #                the two supplied graph.
-  (UI$sim/LP$sim)*max(s.path(LP$g1), s.path(LP$g2))
+
+  if (mapfun) {
+    mapfunc <- function(x) mget(x, revmap(org.Hs.egGO2EG), ifnotfound = NA)
+
+    LP <- simLL(e_a, e_b, Ontology, measure = "LP", mapfun = mapfunc, ...)
+    UI <- simLL(e_a, e_b, Ontology, measure = "UI", mapfun = mapfunc, ...)
+  } else {
+    LP <- simLL(e_a, e_b, Ontology, measure = "LP", chip = chip, ...)
+    UI <- simLL(e_a, e_b, Ontology, measure = "UI", chip = chip, ...)
+  }
+
+
+  if (length(LP) > 1 | length(UI) > 1) {
+    if (is.na(LP["sim"]) | is.na(UI["sim"])) {
+      return(NA)
+    } else {
+      # Calculates the score taking into account the size and the middle path
+      # Taking advantage of the fact that in GO there is a root and leaves
+      # UI: Union intersect, is the size of the intersection of the node
+      #        sets divided by the size of the union of the node sets
+      # LP: longest path, is the longest path in the intersection graph of
+      #                the two supplied graph.
+      return((UI$sim/LP$sim)*max(s.path(LP$g1), s.path(LP$g2)))
+    }
+  } else if (is.na(LP) | is.na(UI)) {
+    return(NA)
+  }
 }
 
 # function that given two kegg pathways calculates the similarity
@@ -227,7 +217,7 @@ comb2mat <- function(input, func, ...){
     cobs[[i]] <- .combinadic(input, 2, i)
   }
   # cobs <- combn(input, 2)
-
+  func <- match.fun(func)
   N <- sapply(cobs, function(x){func(x[1], x[2], ...)})
   # Function that performs the calculus
   # N <- seq_len(ncol(combs))
@@ -399,9 +389,10 @@ weighted <- function(x, w){
 
 # Function that used the previously calculated biological correlation to
 # calculate the total correlation
-cor.all <- function(datExpr, bio_mat, w = c(0.5, 0.18, 0.10, 0.22), ...){
+# x is the datExpresssion
+cor.all <- function(x, y = NULL, bio_mat, w = c(0.5, 0.18, 0.10, 0.22), ...){
   # exp, reactome, kegg, go
-  cor_mat <- cor(datExpr, use = "p")
+  cor_mat <- cor(x, use = "p", nThreads = 6)
   cors <- c(list(exp = cor_mat), bio_mat)
   apply(simplify2array(cors), c(1,2), weighted, w = w)
 }
@@ -435,12 +426,12 @@ kegg_build <- function(entrez_id){
 }
 
 # Using data correlates biologically two genes
-bio.cor2 <- function(x, ids = "Entrez Gene",
+bio.cor2 <- function(genes_id, ids = "Entrez Gene",
                      go = FALSE, react = TRUE, kegg = FALSE, all = FALSE) {
   # Using data correlates biologically two genes or probes
   # From the graphite package
   # x should be entrez id
-  # or change the internals from "Entrez Gene" to "Symbols"
+  # or change the internals from "Entrez Gene" to "Symbol"
   if (!ids %in% c("Entrez Gene", "Symbol")) {
     stop("Please check the input of genes in Symbol or Entrez Gene format")
   }
@@ -448,12 +439,10 @@ bio.cor2 <- function(x, ids = "Entrez Gene",
     go <- kegg <- react <- all
   }
 
-  genes_id <- x
-
   # Obtain data from the annotation packages
   gene.symbol <- unique(toTable(org.Hs.egSYMBOL2EG))
-  gene.symbol <- gene.symbol[gene.symbol$gene_id %in% genes_id, ]
   colnames(gene.symbol) <- c("Entrez Gene", "Symbol")
+  gene.symbol <- gene.symbol[gene.symbol[[ids]] %in% genes_id, ]
 
   if (kegg) {
     # Obtain data
@@ -476,7 +465,10 @@ bio.cor2 <- function(x, ids = "Entrez Gene",
   ## Calculate for each combination the values
   # Calculate the GO correlation
   if (go) {
-    go_mat <- comb2mat(genes_id, go_cor, mapfun = TRUE)
+    go_mat <- comb2mat(gene.symbol$`Entrez Gene`, go_cor, mapfun = TRUE,
+                       Ontology = "BP")
+    # go_mat.mf <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "MF")
+    # go_mat.cc <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "CC")
   }
   if (kegg | react) {
     # Calculate the pathways correlation
@@ -559,6 +551,7 @@ react_genes <- function(comb, genes, react, id) {
   }
   out
 }
+
 #
 # Rprof(tmp <- tempfile())
 # a <- bio.cor2(as.character(1:50), kegg = TRUE)
