@@ -9,7 +9,7 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 # not tab separated
 
 pheno.isa <- read.affy(pheno1)
-pheno.silvia <- read.affy(pheno2)
+# pheno.silvia <- read.affy(pheno2)
 
 # Download set ####
 # geosupp <- getGEOSuppFiles(gse_number)
@@ -20,22 +20,22 @@ pheno.silvia <- read.affy(pheno2)
 # sapply(cels, gunzip)
 # cels  <-  list.files(study.dir, pattern = "CEL")
 
-disease.silvia <- read.csv("clean_variables.csv")
+# disease.silvia <- read.csv("clean_variables.csv")
 disease.isa <- read.csv("samples_AH.csv")
 
 setwd(data.files.out)
 # save(pheno.isa, pheno.silvia, file = "pheno.RData")
-load("pheno.RData", verbose = TRUE)
+# load("pheno.RData", verbose = TRUE)
 
 # Adjusting intensity and making them comparable ####
-# c.isa <- rma(pheno.isa)
+c.isa <- rma(pheno.isa)
 # c.silvia <- rma(pheno.silvia)
 # save(c.isa, c.silvia, file = "rma.pheno.RData")
 # load("rma.pheno.RData")
-# co.isa <- sum.e(c.isa)
+co.isa <- sum.e(c.isa)
 # co.silvia <- sum.e(c.silvia)
 # save(co.isa, co.silvia, file = "exprs.RData")
-load("exprs.RData", verbose = TRUE)
+# load("exprs.RData", verbose = TRUE)
 
 # Merging datasets ####
 # Merge the data of each batch into a single matrix
@@ -44,15 +44,15 @@ load("exprs.RData", verbose = TRUE)
 # merged <- rbind.fill(co.silvia.df, co.isa.df)
 # rownames(merged) <- c(colnames(co.silvia), colnames(co.isa))
 # save(merged, file = "collapsed.micro.RData")
-load("collapsed.micro.RData", verbose = TRUE)
+# load("collapsed.micro.RData", verbose = TRUE)
 
-with.na <- apply(merged, 2, function(x){any(is.na(x))})
-merged.shared <- merged[, !with.na] # Keep the shared genes
-merged.pca <- t(merged)
-merged.shared.pca <- t(merged.shared)
-data.wgcna <- merged.shared[1:15, ]
-save(data.wgcna, file = "shared_genes.RData")
-load(file = "shared_genes.RData", verbose = TRUE)
+# with.na <- apply(merged, 2, function(x){any(is.na(x))})
+# merged.shared <- merged[, !with.na] # Keep the shared genes
+# merged.pca <- t(merged)
+# merged.shared.pca <- t(merged.shared)
+# data.wgcna <- merged.shared[1:15, ]
+# save(data.wgcna, file = "shared_genes.RData")
+# load(file = "shared_genes.RData", verbose = TRUE)
 
 # Merging with MergeMaid ####
 
@@ -71,17 +71,17 @@ load(file = "shared_genes.RData", verbose = TRUE)
 # # plot(coeff(cox.coeff), main = "Coeficients")
 # dev.off()
 # save(intcor, corcor, file = "mergemaid.RData")
-load("mergemaid.RData", verbose = TRUE)
+# load("mergemaid.RData", verbose = TRUE)
 
-coef <- as.vector(corcor@pairwise.cors)
-names(coef) <- rownames(corcor@pairwise.cors)
-comp.genes <- names(coef)[coef > 0] # Threshold of comparison
-discutibles.genes <- names(coef)[coef <= 0]
+# coef <- as.vector(corcor@pairwise.cors)
+# names(coef) <- rownames(corcor@pairwise.cors)
+# comp.genes <- names(coef)[coef > 0] # Threshold of comparison
+# discutibles.genes <- names(coef)[coef <= 0]
 
 # Store the procedence of the data
-orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
-                         rep("Isa", ncol(co.isa))))
-new.subset <- merged.shared.pca[rownames(merged.shared.pca) %in% comp.genes, ]
+# orig.data <- as.factor(c(rep("Silvia", ncol(co.silvia)),
+#                          rep("Isa", ncol(co.isa))))
+# new.subset <- merged.shared.pca[rownames(merged.shared.pca) %in% comp.genes, ]
 
 # pca.graph(data = new.subset, file = "merged.shared_filtered.pca.pdf",
 #           col = as.numeric(orig.data),
@@ -208,7 +208,7 @@ new.subset <- merged.shared.pca[rownames(merged.shared.pca) %in% comp.genes, ]
 
 # ComBat ####
 
-combat.exp <- ComBat(merged.shared.pca, orig.data)
+# combat.exp <- ComBat(merged.shared.pca, orig.data)
 
 # pca.graph(data = combat.exp, file = "merged.shared.pca.combat.pdf",
 #           col = as.numeric(orig.data),
@@ -258,8 +258,8 @@ combat.exp <- ComBat(merged.shared.pca, orig.data)
 colnames(disease.isa) <- tolower(colnames(disease.isa))
 clin.isa <- cbind("files" = rownames(pData(pheno.isa)),
                   pData(pheno.isa))
-clin.silvia <- cbind("files" = rownames(pData(pheno.silvia)),
-                     pData(pheno.silvia))
+# clin.silvia <- cbind("files" = rownames(pData(pheno.silvia)),
+#                      pData(pheno.silvia))
 disease.isa <- rename.col(disease.isa, "codi_pacient", "id")
 disease.isa <- rename.col(disease.isa, 'creat', 'creatinine')
 disease.isa <- rename.col(disease.isa, 'leuc', 'leucos')
@@ -273,10 +273,12 @@ disease.isa$status_90 <- fact2num(disease.isa$status_90, "no", "exitus")
 disease.isa$plaq <- disease.isa$plaq*1000
 disease.isa <- rename.col(disease.isa, 'plaq', 'platelets')
 disease.isa$hb <- disease.isa$hb/10
-disease.isa <- rename.col(disease.isa, 'hb', 'hb_g.dl')
+# disease.isa <- rename.col(disease.isa, 'hb', 'hb_g.dl')
 
-clin <- rbind.fill(clin.isa, clin.silvia)
-disease <- rbind.fill(disease.silvia, disease.isa)
+# clin <- rbind.fill(clin.isa, clin.silvia)
+# disease <- rbind.fill(disease.silvia, disease.isa)
+disease <- disease.isa
+clin <- clin.isa
 disease <- as.data.frame(apply(disease, 2, trim))
 
 disease$aki <- fact2num(disease$aki, "(yes)|(si)", 1)
@@ -300,13 +302,17 @@ int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
              "infection_hospitalization")
 vclin <- vclin[, colnames(vclin) %in% int.Var]
 # 1 above, 0 below
-vclin$hvpg_corte20 <- as.numeric(as.numeric(vclin$hvpg) > 20)
+if ("hvpg" %in% colnames(vclin)) {
+  vclin$hvpg_corte20 <- as.numeric(as.numeric(vclin$hvpg) > 20)
+}
 # 1 below, 0 above
-vclin$lille_corte <- as.numeric(as.numeric(vclin$lille) < 0.45)
+if ("lille" %in% colnames(vclin)) {
+  vclin$lille_corte <- as.numeric(as.numeric(vclin$lille) < 0.45)
+}
 
-data.wgcna <- t(combat.exp)
+data.wgcna <- t(co.isa)
 # Filtering those with low correlation between studies
-data.wgcna <- data.wgcna[ , colnames(data.wgcna) %in% comp.genes]
+# data.wgcna <- data.wgcna[ , colnames(data.wgcna) %in% comp.genes]
 # Changing the name of the files by the samples name
 rownames(data.wgcna) <- vclin$Sample[match(rownames(data.wgcna), vclin$files)]
 gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
@@ -329,16 +335,16 @@ if (!gsg$allOK) {
   data.wgcna <- data.wgcna[gsg$goodSamples, gsg$goodGenes]
 }
 
-samples.pre <- t(merged.shared.pca)
-rownames(samples.pre) <- vclin$Sample[match(rownames(samples.pre), vclin$files)]
+# samples.pre <- t(merged.shared.pca)
+# rownames(samples.pre) <- vclin$Sample[match(rownames(samples.pre), vclin$files)]
 pdf("Samples.pdf")
-sampleTree <- hclust(dist(samples.pre), method = "average")
-plot(sampleTree, main = "Sample clustering to detect outliers",
-     sub = "Before ComBat correction", xlab = "", cex.lab = 1.5,
-     cex.axis = 1.5, cex.main = 2)
+# sampleTree <- hclust(dist(samples.pre), method = "average")
+# plot(sampleTree, main = "Sample clustering to detect outliers",
+#      sub = "Before ComBat correction", xlab = "", cex.lab = 1.5,
+#      cex.axis = 1.5, cex.main = 2)
 sampleTree <- hclust(dist(data.wgcna), method = "average")
 plot(sampleTree, main = "Sample clustering to detect outliers",
-     sub = "After ComBat correction", xlab = "", cex.lab = 1.5,
+     sub = "After corrections", xlab = "", cex.lab = 1.5,
      cex.axis = 1.5, cex.main = 2)
 dev.off()
 

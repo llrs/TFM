@@ -8,7 +8,9 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the data saved in the first part
 load(file = "Input.RData", verbose = TRUE)
-
+# load(file = "modules_ME_orig.RData", verbose = TRUE)
+# data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+#                                                "plum1", "tan")]
 nGenes <- ncol(data.wgcna)
 nSamples <- nrow(data.wgcna)
 

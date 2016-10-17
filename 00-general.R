@@ -69,7 +69,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "comparison_HA"
+study <- "isa_HA"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 
