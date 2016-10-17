@@ -1,6 +1,6 @@
 # Input files should be modified to address:
-#  - more studies combined
-#  - more clinical information
+#  - more studies combined (Normalizations)
+#  - more clinical information (This should be unified before)
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 

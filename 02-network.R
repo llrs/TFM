@@ -19,11 +19,12 @@ nSamples <- nrow(data.wgcna)
 # ==============================================================================
 
 if (bio.corFnc) {
-  tryCatch({load("bio_correlation.RData")},
-           error = function(x){
+  bio_mat <- tryCatch({load("bio_correlation.RData")},
+           warning = function(x){
              bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
                                  react = TRUE)
              save(bio_mat, file = "bio_correlation.RData")
+             return(bio_mat)
            })
 }
 
@@ -42,11 +43,14 @@ if (bio.corFnc) {
                            powerVector = powers,
                            verbose = 5,
                            networkType = adj.opt,
-                           corFnc = cor.all, corOptions = list(bio_mat = bio_mat,
-                           w = c(0.5, 0.5)))
+                           corFnc = cor.all,
+                           corOptions = list(bio_mat = bio_mat,
+                                             w = c(0.5, 0.5)))
 } else {
   sft <- pickSoftThreshold(data.wgcna,
                            powerVector = powers, verbose = 5,
+                           # corFnc = bicor,
+                           corOptions = list(nThreads = 6), #, maxPOutliers = 0.05),
                            networkType = adj.opt)
 }
 
@@ -73,17 +77,19 @@ text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
 abline(h = c(100, 1000), col = c("green", "red"))
 
 
-print(paste("Recomended power", sft$powerEstimate))
+message(paste("Recomended power", sft$powerEstimate))
 if (is.na(sft$powerEstimate)) {
   stop("Estimated power, is NA\nReview the power manually!")
 } else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
   warning("Are you sure of this power?")
 }
-print(paste("Using power", sft$powerEstimate))
+message(paste("Using power", sft$powerEstimate))
 save(sft, file = "sft.RData")
 
 # Calculate connectivity and plot it
-k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate)
+k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate,
+                      # corFnc = "bicor",
+                      )
 plot(density(k))
 scaleFreePlot(k, main = paste0("Check scale free topology, power",
                                sft$powerEstimate))
@@ -98,6 +104,8 @@ net <- blockwiseModules(data.wgcna,
                         power = sft$powerEstimate,
                 TOMType = TOM.opt,
                 networkType = adj.opt,
+                # corType = "bicor",
+                # maxPOutliers = 0.05
                 minModuleSize = 30,
                 maxBlockSize = 8000,
                 pamRespectsDendro = FALSE,
