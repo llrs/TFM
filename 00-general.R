@@ -643,22 +643,22 @@ go.enrich <- function(GOdata, moduleName, ont) {
   dev.off()
 
 }
-#Given many datasets for WGCNA it create a multiExpr data set
+# Given many datasets for WGCNA it create a multiExpr data set
+# Works either with traits and expression data
 multiSet <- function(...) {
   sets <- list(...)
   multiExpr <- vector(mode = "list", length = length(sets))
-  keep.genes <- Reduce(intersect, lapply(multiExpr, function(x){colnames(x)}))
-  message("Keeping ", length(keep.genes), " genes of the sets.")
+  keep.columns <- Reduce(intersect, lapply(multiExpr, function(x){colnames(x)}))
+  message("Keeping ", length(keep.columns), " columns of the sets.")
   for (i in 1:length(sets)) {
     setExpr <- sets[[i]]
     multiExpr[[i]] <- list(data = as.data.frame(
-      setExpr[, colnames(setExpr) %in% keep.genes]))
+      setExpr[, colnames(setExpr) %in% keep.columns]))
   }
   out <- checkSets(multiExpr, checkStructure = TRUE)
-  if (out$structureOK & nGenes == length(keep.genes)) {
+  if (out$structureOK & nGenes == length(keep.columns)) {
     return(multiExpr)
   } else {
-
+    error("Unable to create a multiSet/multiExpr, with the sets given.")
   }
-
 }
