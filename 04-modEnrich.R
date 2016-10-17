@@ -278,7 +278,7 @@ out <- sapply(imodules, function(x) {
       # For each variable it could paint the GS of each gene
       # payload <- string_db$post_payload(string_id$STRING_id, )
       png(name.file("STRING_module", moduleName, ".png"),
-          width = 2000, height = 2000, bg = "transparent")
+          width = 2000, height = 2000)
       string_db$plot_network(string_id$STRING_id, # payload_id = payload,
                              add_link = FALSE)
       dev.off()
