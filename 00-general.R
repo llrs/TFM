@@ -2,38 +2,50 @@
 #
 #
 # Packages ####
-library("GEOquery")
-library("affy")
-library("affyPLM")
-library("simpleaffy")
-library("Heatplus")
-library("corpcor")
-library("sva")
-library("data.table")
-library("ggplot2")
-library("ggbiplot")
-library("corpcor")
-library("WGCNA")
-library("edgeR")
-library("limma")
-library("gcrma")
-library("RColorBrewer")
-library("plyr")
-library("dplyr")
-library("MergeMaid")
-library("annotate")
+library("GEOquery") # Accessing NCBI GEO datasets
+library("affy") # Affymetrix utilities
+library("affyPLM") # Affymetrix utilities
+library("simpleaffy") # Affymetrix utilities
+library("Heatplus") # Heatmaps
+library("corpcor") # pcas
+library("sva") # combat, batch removing
+library("data.table") # data manipulation
+library("ggplot2") # Nice plots
+library("ggbiplot") # nice PCA
+library("corpcor") #
+library("topGO") # GO analysis
+library("edgeR") # Preprocessing of microarrays
+library("limma") # Standard microarrays analysis
+library("RColorBrewer") # Colors
+library("plyr") # Data manipulation
+library("dplyr") # Data manipulation
+library("MergeMaid") # Compare two datasets by how they correlate in each
+library("annotate") # Annotate things
 library("hgu219.db")
-library("hgu133plus2.db")
 library("Affyhgu133Plus2Expr")
 library("hgu133plus2probe")
 library("hgu133plus2cdf")
-library("boot")
-library("topGO")
-library("Rgraphviz")
-library("ReactomePA")
-library("clusterProfiler")
-library("igraph")
-library("org.Hs.eg.db")
+library("boot") # Weighted mean, bootstrap...
+library("ReactomePA") # Enrichment analysis on reactome
+library("clusterProfiler") # Enrichment analysis
+library("igraph") # Plotting graphs
+library("biomaRt") # Accessing NCBI online data
+library("hgu133plus2.db") # Chip information
+library("testthat") # Testing
+library("GOstats") # Calculate with GO,
+library("graphite")
+library("WGCNA") # Weighted gene correlation networks
+library("KEGGgraph") # Kegg online accessor
+library("KEGG.db") # KEGG database, old release
+library("RBGL") # Coloring
+library("org.Hs.eg.db") # Translation between id of humans
+library("graph") # Graphs representation and handling
+library("Rgraphviz") # graphic
+# library("lumi") # Analyse illumina chips
+library("reshape2")
+# library("biomaRt")
+library("reactome.db")
+library("AnnotationDbi")
 
 # Options and configurations ####
 
@@ -41,16 +53,44 @@ enableWGCNAThreads(6) # Speeding up certain calculations with multi-threading.
 # The following setting is important, do not omit.
 options(stringsAsFactors = FALSE)
 
-# Development ####
+# Negative correlations are as much valued as positive cor.
+adj.opt <- "unsigned"
+# Reduce the impact in genes when correlations are both positive and negative
+TOM.opt <- "signed"
+# Powers to test with
+powers <- c(1:30)
+base.dir <- "/home/lrevilla/Documents"
+data.dir <- file.path(base.dir, "data")
+code.dir <- file.path(base.dir, "TFM")
+bio.corFnc <- FALSE
 
-source("bio_cor0.R")
+if (bio.corFnc) {
+  source(file.path(code.dir, "bio_cor.R"))
+}
+
+# Study's options ####
+study <- "isa_HA"
+pheno1 <- "pheno.isa.txt"
+pheno2 <- "pheno.silvia.txt"
+
+study.dir <- file.path(data.dir, "hepatitis")
+orig.dir <- setwd(study.dir)
+gse.number <- "GSE28619"
+path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))
+raw.tar <- paste0(gse.number, "_RAW.tar")
+path.raw <- file.path(data.dir, raw.tar)
+data.out <- file.path(base.dir, study)
+dir.create(data.out)
+subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
+# subdirectory <- "bicor"
+data.files.out <- file.path(data.out, subdirectory)
+dir.create(data.files.out)
 
 # Functions ####
 
-
+# Normalize data and plots PCA of samples
 pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
                       col = NULL, ...){
-  # Normalize data and plots PCA of samples
   # Data is the normalized, celfiles are the raw files
   if (is.null(data)) {
     if (!is.null(celfiles)) {
@@ -92,8 +132,9 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
   invisible(data)
 }
 
+# Given a expression set transforms it to the gene symbols and averages the expr
 sum.e <- function(eset){
-  # Given a expression set transforms it to the gene symbols
+
   ann <- annotation(eset)
   pkg <- paste0(ann, ".db")
   pkg.ann <- eval(parse(text = pkg))
@@ -111,85 +152,81 @@ sum.e <- function(eset){
   return(corr.sy)
 }
 
+# Close any device and open a pdf. Allow the same options as pdf
 pdfn <- function(...){
-  # Close any device and open a pdf. Allow the same options as pdf
+
   if (length(dev.list()) > 1) {
     dev.off()
   }
   pdf(...)
 }
 
+# Calculate the percentatge above per of data
 count.p <- function(data, per){
-  # Calculate the percentatge above per of data
   sum(data >= per)/length(data)
 }
 
-GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
-                    disease){
-  # Function to explore the module relationship with a trait
-  module <- x
+# Subset in a list for each module the data
+extract <- function(module, clinvar, MM, GS, GSP, MMP, moduleColors) {
+
   if (is.na(module)) {
     return(NA)
   } else if (substring(module, 1, nchar("ME")) == "ME") {
     module <- substring(module, 3)
   }
-  column <- match(module, modNames)
 
+  column.mm <- match(paste0("MM", module), colnames(MM))
+  column.mmp <- match(paste0("p.MM", module), colnames(MMP))
   moduleGenes <- moduleColors == module
-  varc <- match(var, colnames(disease))
+  varc.gs <- match(paste0("GS.", clinvar), colnames(GS))
+  varc.gsp <- match(paste0("p.GS.", clinvar), colnames(GSP))
 
-  data <- cbind("MM" = MM[moduleGenes, column],
-                "GS" = GS[moduleGenes, varc],
-                "GSP" = GSP[moduleGenes, varc],
-                "MMP" = MMP[moduleGenes, column])
+  if (length(varc.gs) > 1 | length(column.mm) > 1) {
+    if (length(varc.gs) > 1) {
+      warning("Choose between ", paste(colnames(GS)[varc.gs],
+                                       collapse = " "))
+    } else {
+      warning("Choose between ", paste(colnames(MM)[column.mm],
+                                      collapse = " "))
+    }
+  }
+  data <- cbind(MM[moduleGenes, column.mm, drop = FALSE],
+                GS[moduleGenes, varc.gs, drop = FALSE],
+                GSP[moduleGenes, varc.gsp, drop = FALSE],
+                MMP[moduleGenes, column.mmp, drop = FALSE])
 
-  if (ncol(data) == 2 | nrow(data) == 0) {
+  colnames(data) <- c("MM", "GS", "GSP", "MMP")
+  keep <- apply(data, 1, function(x){!all(is.na(x))})
+  data <- unique(data[keep, ])
+  if (nrow(data) == 0) {
     return(NA)
   }
-  # Calculates the weighted mean of genes correlation with the trait
-  wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
-  wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
+  return(data)
 
+}
+
+# Given data calculates the weight, the weighte correlation and its p.value
+w.cor <- function(data) {
+  weight <- (1 - data$GSP) * (1 - data$MMP)
+  w.cor <- corr(data[, c("MM", "GS")], weight) # requires the boot package
+  p.value.w <- corPvalueStudent(w.cor, nrow(data))
+  list(weight, w.cor, p.value = p.value.w)
+}
+
+plot.GGMM <- function(data) {
   # Weights of the correlation between genes-trait and module-membership
-  w <- (1 - data[,"GSP"]) * (1 - data[,"MMP"])
+  corr.res <- w.cor(data)
+  weight <- corr.res[1]
+  w.cor <- corr.res[2]
+  p.value.w <- corr.res[3]
 
-  # Taking into account if there are empty values
-  gene <- !as.logical(apply(data[,c("MM", "GS")], 1,
-                            function(x){sum(is.na(x))}))
-  w.cor <- corr(data[gene, c("MM", "GS")], w[gene])
-  if (length(data[gene, "MM"]) == 0) {
-    return(NA)
-  }
-  u.cor <- cor(x = data[gene, "MM"], y = data[gene, "GS"])
-  png(file = paste("MM_GS", var, module, ".png", sep = "_"),
-      width = 700, height = 700)
-
-  verboseScatterplot(data[gene, "MM"],
-                     data[gene, "GS"],
-                     xlab = paste("Module Membership in", module, "module"),
-                     ylab = paste("Gene significance for", var),
-                     main = paste0("Module membership vs. gene ",
-                                   "significance\nWeighted cor=",
-                                   signif(w.cor, digits = 2), ", unweighted"),
-                     abline = 1,
-                     cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
-                     col = ifelse(module %in% c("white", "floralwhite"),
-                                  "black", module),
-                     sub = paste("Correlation of genes with trait:",
-                                 "Weighted mean",
-                                 signif(wgenecor, 2), "normal",
-                                 signif(mean(data[, "GS"],
-                                             na.rm = TRUE), 2)))
-  dev.off()
-
-
-  png(file = paste("MM_GS_ggplot", var, module, ".png", sep = "_"),
-      width = 700, height = 700)
+  u.cor <- cor(x = data$MM, y = data$GS)
+  p.value.u <- corPvalueStudent(u.cor, nrow(data))
   # With ggplot with size for the weights
-  ab <- lm(data[gene, "GS"] ~ data[gene, "MM"])
+  ab <- lm(data$GS ~ data$MM)
   plot.g <- ggplot() +
-    geom_point(aes(x = data[gene, "MM"], y = data[gene, "GS"],
-                   size = w[gene]),
+    geom_point(aes(x = data$MM, y = data$GS,
+                   size = weight),
                col = ifelse(module %in% c("white", "floralwhite"),
                             "black", module)) + theme_bw() +
     geom_abline(slope = ab$coefficients[2], intercept = ab$coefficients[1]) +
@@ -197,8 +234,84 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                         "\nWeighted cor=", signif(w.cor, digits = 2),
                         ", unweighted cor=", signif(u.cor, digits = 2),
                         " p=",
-                        signif(corPvalueStudent(u.cor, nrow(data[gene, ])),
-                               digits = 2))) +
+                        signif(p.value.u, digits = 2), ", ",
+                        signif(p.value.w, digits = 2))) +
+    xlab(paste("Module Membership in", module, "module")) +
+    ylab(paste("Gene significance for", var))
+  warning(paste("Plotting", module, "in", var, "."))
+  ggsave(filename = name.file("MM_GS", var, module, ".png"),
+         plot = plot.g)
+}
+
+# Function to explore the module relationship with a trait
+GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
+                    disease, cor.out = FALSE, p.value = FALSE){
+
+  data <- extract(x, var, MM, GS, GSP, MMP, moduleColors)
+
+  if (is.na(x)) {
+    return(NA)
+  } else if (substring(x, 1, nchar("ME")) == "ME") {
+    module <- substring(x, 3)
+  } else {
+    module <- x
+  }
+
+  # Calculates the weighted mean of genes correlation with the trait
+  # wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
+  # wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
+
+  # Weights of the correlation between genes-trait and module-membership
+  weight <- (1 - data$GSP) * (1 - data$MMP)
+  w.cor <- corr(data[, c("MM", "GS")], weight)
+  p.value.w <- corPvalueStudent(w.cor, nrow(data))
+  if (cor.out) {
+    return(w.cor)
+  } else if (p.value) {
+    return(p.value.w)
+  }
+  if (length(data$MM) == 0) {
+    return(NA)
+  }
+  # browser()
+  # w.m <- weighted.mean(data[gene, "GS"], w = 1 - data[gene, "GSP"])
+  u.cor <- cor(x = data$MM, y = data$GS)
+  p.value.u <- corPvalueStudent(u.cor, nrow(data))
+  # png(file = paste("MM_GS", var, module, ".png", sep = "_"),
+  #     width = 700, height = 700)
+  #
+  # verboseScatterplot(data[gene, "MM"],
+  #                    data[gene, "GS"],
+  #                    xlab = paste("Module Membership in", module, "module"),
+  #                    ylab = paste("Gene significance for", var),
+  #                    main = paste0("Module membership vs. gene ",
+  #                                  "significance\nWeighted cor=",
+  #                                  signif(w.cor, digits = 2), ", unweighted"),
+  #                    abline = 1,
+  #                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
+  #                    col = ifelse(module %in% c("white", "floralwhite"),
+  #                                 "black", module),
+  #                    sub = paste("Correlation of genes with trait:",
+  #                                "Weighted mean",
+  #                                signif(wgenecor, 2), "normal",
+  #                                signif(mean(data[, "GS"],
+  #                                            na.rm = TRUE), 2)))
+  # dev.off()
+
+  # With ggplot with size for the weights
+  ab <- lm(data$GS ~ data$MM)
+  plot.g <- ggplot() +
+    geom_point(aes(x = data$MM, y = data$GS,
+                   size = weight),
+               col = ifelse(module %in% c("white", "floralwhite"),
+                            "black", module)) + theme_bw() +
+    geom_abline(slope = ab$coefficients[2], intercept = ab$coefficients[1]) +
+    labs(title = paste0("Module membership vs. gene significance",
+                        "\nWeighted cor=", signif(w.cor, digits = 2),
+                        ", unweighted cor=", signif(u.cor, digits = 2),
+                        " p=",
+                        signif(p.value.u, digits = 2), ", ",
+                        signif(p.value.w, digits = 2))) +
     xlab(paste("Module Membership in", module, "module")) +
     ylab(paste("Gene significance for", var))
   # Point of the weighted mean
@@ -208,15 +321,15 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   # geom_point(aes(mean(data[gene, "MM"], na.rm = TRUE),
   #                mean(data[gene, "GS"]), na.rm = TRUE),
   #            col = ifelse(module == "green", "orange", "green"))
-
-  ggsave(filename = paste("MM_GS", var, module, "ggplot.png", sep = "_"),
+  warning(paste("Plotting", module, "in", var, "."))
+  ggsave(filename = name.file("MM_GS", var, module, ".png"),
          plot = plot.g)
-  dev.off()
+  # dev.off()
 }
 
+# Select genes above a threshold of correlation or the top ntop
 select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3,
                          ntop = NULL) {
-  # Select genes above a threshold of correlation or the top ntop
   # GTS is the geneTraitSignificance
   # GSP is the p-values
   #
@@ -242,6 +355,7 @@ select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3,
   }
 }
 
+# Select modules by ME above a threshold of correlation or the top ntop
 select.modules <- function(MTC, MTP, p.value = 0.07,
                            threshold = 0.3, ntop = NULL) {
   #MTC module trait correlation
@@ -249,6 +363,115 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
   #threshold is the correlation threshold
   # Check that the p.value is minor and that the absolute value of the
   # correlation is >= threshold or that ntop modules are get.
+  significant <- MTP <= p.value
+  vclin.names <- colnames(MTC)
+  modules.names <- rownames(MTC)
+  # Selecting all the ones that pass the threshold
+  if (is.null(ntop)) {
+    out <- significant & abs(MTC) >= threshold
+    sapply(vclin.names, function(x, y, z) {
+      a <- z[y[, x]]
+      a[!sapply(a, is.na)]
+    }, y = out, z = modules.names, simplify = FALSE)
+
+  } else if (is.numeric(ntop)) {
+    # Selecting the top ntop modules based on highest correlation
+    sapply(vclin.names, function(a, x, y, z, k) {
+      cor.r <- abs(x[y[, a], a])
+      # Ordering by the highest correaltion
+      a <- names(cor.r)[order(cor.r, decreasing = TRUE)][1:z]
+      a[!sapply(a, is.na)]
+    }, x = MTC, y = significant, z = ntop, simplify = FALSE)
+  } else {
+    stop("Please select a number of modules to be selected")
+  }
+}
+
+# Coloring taking into account both the correlation value and the p-value
+coloring <- function(MTC, MTP) {
+  colors <- sapply(colnames(MTC), function(x){
+    MTC[, x]*(1 - MTP[, x])})
+  # colors.value <- sapply(colnames(colors), function(x){
+  #   y <- colors[,x]
+  #   2*(y - min(y))/(max(y) - min(y)) - 1
+  # })
+  # colors.value
+  colors
+}
+
+# Function to generate function to select the module
+moduleSel <- function(modul, a){
+  selFun <- function(genes){
+    # Function to select those genees of the same group
+    # return(a[x])
+    return(genes == a[modul])
+  }
+  return(selFun)
+}
+
+# Change the name of the column
+rename.col <- function(df, colname, new.colname) {
+  colnames(df)[colnames(df) == colname] <- new.colname
+  df
+}
+
+# Convert factors using eq level names as factor and eq values as number
+fact2num <- function(vec, level, new.level){
+  vec <- as.factor(vec)
+  levels(vec) <- c(levels(vec), new.level)
+  vec[grep(level, vec, ignore.case = TRUE)] <- new.level
+  vec <- droplevels(vec)
+  vec
+}
+
+# If any level which is a number is left, then is converted to NA
+level.na <- function(vec){
+  vec <- as.factor(vec)
+  levels(vec) <- as.numeric(levels(vec))
+  vec
+}
+
+# returns string w/o leading whitespace
+trim.leading <- function(x) {
+  sub("^\\s+", "", x)
+}
+
+# returns string w/o trailing whitespace
+trim.trailing <- function(x) {
+  sub("\\s+$", "", x)
+}
+
+# returns string w/o leading or trailing whitespace
+trim <- function(x) {
+  gsub("^\\s+|\\s+$", "", x)
+}
+
+# Print all the elements of a list in columns in the file fil
+fnlist <- function(x, fil) {
+  nams <- names(x)
+  if (file.exists(fil)) {
+    warning("Removing existing file ", fil)
+    file.remove(fil)
+  }
+  for (i in seq_along(x)) {
+    cat(nams[i], "\t",  x[[i]], "\n",
+        file = fil, append = TRUE)
+  }
+}
+
+select.interesting.modules <- function(MTC, MTP, p.value = 0.07,
+                                       threshold = 0.3, ntop = NULL,
+                                       var = c("meld", "ggt", "bilirubin"),
+                                       var.sign = c(1, 1, -1)) {
+  #MTC module trait correlation
+  #MTP module trait p.value
+  #threshold is the correlation threshold
+  # Check that the p.value is minor and that the absolute value of the
+  # correlation is >= threshold or that ntop modules are get.
+  # TODO: implement this
+  # var indicates the clinical variables of interest.
+  # var.sign indicate the sign of correlation each module should have with the
+  #    clinical variable
   significant <- MTP <= p.value
   vclin.names <- colnames(MTC)
   modules.names <- rownames(MTC)
@@ -267,24 +490,175 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
   }
 }
 
-coloring <- function(MTC, MTP) {
-  # Coloring taking into account both the correlation value and the p-value
-  colors <- sapply(colnames(MTC), function(x){
-    MTC[, x]/(1 + MTP[, x])})
-  colors.value <- sapply(colnames(colors), function(x){
-    y <- coloring[,x]
-    2*(y - min(y))/(max(y) - min(y)) - 1
-  })
-  colors.value
-}
-
-moduleSel <- function(modul, a){
-  # Function to generate function to select the module
-  selFun <- function(genes){
-    # Function to select those genees of the same group
-    # return(a[x])
-    return(genes == a[modul])
+# Plots GS vs kWithin
+connectivity.plot <- function(modules, con, GS, var){
+  colorlevels <- unique(modules)
+  colorh1 <- modules
+  column <- grep(var, colnames(GS))
+  if (length(column) >= 2) {
+    stop("Variable matches with two columns")
   }
-  return(selFun)
+  a <- lapply(colorlevels, function(x){
+    if (x == "grey") {
+      return(NULL)
+    }
+    png(name.file("K", var, x, ".png"))
+    restrict1 <- (colorh1 == x)
+    verboseScatterplot(con$kWithin[restrict1],
+         abs(GS[restrict1, column]),
+         col = colorh1[restrict1],
+         main = x,
+         xlab = "Intramodular connectivity (kWithin)",
+         ylab = paste("abs(Gene Significance) with", var))
+    dev.off()
+  })
 }
 
+# Plots MM vs kWithin on all modules or return the correlation and p.value
+MM_kWithin <- function(MM, con, col, power, cor.out = FALSE, p.value = FALSE) {
+  out <- sapply(unique(col), function(x){
+    if (x == "grey") {
+      return(NULL)
+    }
+    keepGenes <- col == x
+    cor.o <- cor(con$kWithin[keepGenes],
+                 abs(MM[keepGenes, paste0("MM", x)] ^ power))
+    if (cor.out) {
+      return(cor.o)
+    } else if (p.value) {
+      corPvalueStudent(cor.o, sum(keepGenes))
+    }
+    png(name.file("MM_Kwithin", x, ".png"))
+    verboseScatterplot(con$kWithin[keepGenes],
+                       abs(MM[keepGenes, paste0("MM", x)] ^ power),
+                       xlab = "Intramodular Connectivity (kWithin)",
+                       ylab = paste("Module Membership ^", power),
+                       main = paste("Module", x),
+                       col = x,
+                       abline = TRUE)
+    dev.off()
+
+  })
+}
+
+# Join with sep, except the last one
+name.file <- function(..., sep = "_"){
+  arg <- c(...)
+  if (length(arg) > 2) {
+    paste0(paste0(arg[-length(arg)], collapse = sep), arg[length(arg)])
+  } else {
+    paste0(arg, collapse = sep)
+  }
+}
+
+# Helper function to order x by by/y
+orderby <- function(x, by, names.x = FALSE) {
+  # Both names.x and arrays of 2 dimensions must be provided to order a df
+  if (length(dim(x)) == 2 & names.x) {
+    out <- x[order(match(rownames(x), by)), ]
+  } else {
+    out <- x[order(match(names(x), by))]
+    if (names.x) {
+      out <- names(x)[order(match(names(x), by))]
+    }
+  }
+
+  return(out)
+}
+
+#Remove the 0 of the second position
+convert <- function(x){
+
+  ifelse(substring(x, 2, 2) == "0", paste0(substring(x, 1, 1),
+                                           substring(x, 3, 3)),
+         x)
+}
+
+# Check if the power is enough to avoid noise over a normal distribution
+checkPower <- function(power, nGenes) {
+  out <- 1/sqrt(nGenes) ^ power * nGenes
+  if (out >= 0.1) {
+    return(FALSE)
+  } else {
+    return(TRUE)
+  }
+}
+
+# Extract the data of each hub and represent it for each sample
+module.expr <- function(data.wgcna, modules, color) {
+  out <- data.wgcna[, modules == color]
+  out <- scale(out)
+  df <- melt(out)
+  ggplot(df, aes(Var1, value, group = factor(Var2))) +
+    geom_line(color = color) + xlab("Samples") + ylab("Expression") +
+    ggtitle(paste("Expression scaled on module", color)) + theme_bw()
+}
+
+# Function which computes the enrichement in GOdata objects and plot them
+go.enrich <- function(GOdata, moduleName, ont) {
+  resultFisher <- runTest(GOdata,
+                          algorithm = "classic", statistic = "fisher")
+  resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+  resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+  avgResult <- combineResults(resultFisher, resultKS, resultKS.elim,
+                              method = "mean")
+
+  allRes <- GenTable(GOdata, classic = resultFisher, Ks = resultKS,
+                     elim = resultKS.elim, orderBy = "classic",
+                     ranksOf = "classic", topNodes = 50, numChar = 100)
+  write.csv(allRes, file = name.file("GO_table", ont, moduleName, ".csv"),
+            row.names = FALSE)
+
+  # Plotting topGO ####
+  pdf(name.file("GO", ont, moduleName, ".pdf"), onefile = TRUE)
+
+  tryCatch({showSigOfNodes(GOdata,
+                           score(resultFisher), firstSigNodes = 2, useInfo = 'all')
+    title(main = "GO analysis using Fisher algorithm")},
+    error = function(e) {
+      message("Couldn't calculate the Fisher")
+      message(e)
+    })
+  tryCatch({showSigOfNodes(GOdata,
+                           score(resultKS), firstSigNodes = 2, useInfo = 'all')
+    title(main = "GO analysis using KS algorithm")},
+    error = function(e) {
+      message("Couldn't calculate the KS")
+      message(e)
+    })
+  tryCatch({showSigOfNodes(GOdata,
+                           score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')
+    title(main = "GO analysis using KS elim algorithm")},
+    error = function(e) {
+      message("Couldn't calculate the KSelim")
+      message(e)
+    })
+  tryCatch({showSigOfNodes(GOdata,
+                           score(avgResult), firstSigNodes = 2, useInfo = 'all')
+    title(main = "GO analysis using average")},
+    error = function(e) {
+      message("Couldn't calculate the average GO stat")
+      message(e)
+    })
+  dev.off()
+
+}
+# Given many datasets for WGCNA it create a multiExpr data set
+# Works either with traits and expression data
+multiSet <- function(...) {
+  sets <- list(...)
+  multiExpr <- vector(mode = "list", length = length(sets))
+  keep.columns <- Reduce(intersect, lapply(multiExpr, function(x){colnames(x)}))
+  message("Keeping ", length(keep.columns), " columns of the sets.")
+  for (i in 1:length(sets)) {
+    setExpr <- sets[[i]]
+    multiExpr[[i]] <- list(data = as.data.frame(
+      setExpr[, colnames(setExpr) %in% keep.columns]))
+  }
+  out <- checkSets(multiExpr, checkStructure = TRUE)
+  if (out$structureOK & nGenes == length(keep.columns)) {
+    return(multiExpr)
+  } else {
+    error("Unable to create a multiSet/multiExpr, with the sets given.")
+  }
+}
