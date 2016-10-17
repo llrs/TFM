@@ -21,16 +21,16 @@ library("plyr") # Data manipulation
 library("dplyr") # Data manipulation
 library("MergeMaid") # Compare two datasets by how they correlate in each
 library("annotate") # Annotate things
-# library("hgu219.db")
-# library("Affyhgu133Plus2Expr")
-# library("hgu133plus2probe")
-# library("hgu133plus2cdf")
+library("hgu219.db")
+library("Affyhgu133Plus2Expr")
+library("hgu133plus2probe")
+library("hgu133plus2cdf")
 library("boot") # Weighted mean, bootstrap...
 library("ReactomePA") # Enrichment analysis on reactome
 library("clusterProfiler") # Enrichment analysis
 library("igraph") # Plotting graphs
 library("biomaRt") # Accessing NCBI online data
-# library("hgu133plus2.db") # Chip information
+library("hgu133plus2.db") # Chip information
 library("testthat") # Testing
 library("GOstats") # Calculate with GO,
 library("graphite")
@@ -81,8 +81,9 @@ raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
-run.dir <- paste(adj.opt, TOM.opt, sep = "_")
-data.files.out <- file.path(data.out, run.dir)
+subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
+# subdirectory <- "bicor"
+data.files.out <- file.path(data.out, subdirectory)
 dir.create(data.files.out)
 
 # Functions ####
@@ -610,6 +611,7 @@ go.enrich <- function(GOdata, moduleName, ont) {
 
   # Plotting topGO ####
   pdf(name.file("GO", ont, moduleName, ".pdf"), onefile = TRUE)
+
   tryCatch({showSigOfNodes(GOdata,
                            score(resultFisher), firstSigNodes = 2, useInfo = 'all')
     title(main = "GO analysis using Fisher algorithm")},
@@ -639,5 +641,24 @@ go.enrich <- function(GOdata, moduleName, ont) {
       message(e)
     })
   dev.off()
+
+}
+#Given many datasets for WGCNA it create a multiExpr data set
+multiSet <- function(...) {
+  sets <- list(...)
+  multiExpr <- vector(mode = "list", length = length(sets))
+  keep.genes <- Reduce(intersect, lapply(multiExpr, function(x){colnames(x)}))
+  message("Keeping ", length(keep.genes), " genes of the sets.")
+  for (i in 1:length(sets)) {
+    setExpr <- sets[[i]]
+    multiExpr[[i]] <- list(data = as.data.frame(
+      setExpr[, colnames(setExpr) %in% keep.genes]))
+  }
+  out <- checkSets(multiExpr, checkStructure = TRUE)
+  if (out$structureOK & nGenes == length(keep.genes)) {
+    return(multiExpr)
+  } else {
+
+  }
 
 }
