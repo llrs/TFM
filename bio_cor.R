@@ -391,7 +391,7 @@ weighted <- function(x, w){
 # x is the datExpresssion
 cor.all <- function(x, y = NULL, bio_mat, w = c(0.5, 0.18, 0.10, 0.22), ...){
   # exp, reactome, kegg, go
-  cor_mat <- cor(x, use = "p", nThreads = 6)
+  cor_mat <- cor(x, use = "p")
   cors <- c(list(exp = cor_mat), bio_mat)
   apply(simplify2array(cors), c(1,2), weighted, w = w)
 }
@@ -446,7 +446,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   if (kegg) {
     # Obtain data
     gene.kegg <- unique(toTable(org.Hs.egPATH2EG))
-    colnames(gene.kegg) <- c("Entrez Gene", "KEGG")
+    colnames(gene.kegg) <- c("Entrez Gene", "KEGG") # Always check it!
     # Merge data
     genes <- unique(merge(gene.symbol, gene.kegg, all = TRUE, sort = FALSE))
     kegg.bio <- rep(NA, n.combin)
@@ -456,7 +456,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
       genes <- gene.symbol
     }
     gene.reactome <- unique(toTable(reactomePATHID2EXTID))
-    colnames(gene.reactome) <- c("Entrez Gene", "Reactome")
+    colnames(gene.reactome) <- c("Reactome", "Entrez Gene")
     genes <- unique(merge(genes, gene.reactome, all = TRUE, sort = FALSE))
     react.bio <- rep(NA, n.combin)
   }
@@ -468,7 +468,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
                        Ontology = "BP")
     # go_mat.mf <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "MF")
     # go_mat.cc <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "CC")
-    if ((sum(is.na(go_mat)) + length(genes_id)) == n.combin) {
+    if (sum(!is.na(go_mat))  == length(genes_id)) {
       warning("GO didn't found relevant information!")
     }
   }
@@ -489,13 +489,13 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   }
 
   if (react) {
-    if ((sum(is.na(react.bio)) + length(genes_id)) == n.combin) {
+    if (sum(!is.na(react.bio)) == length(genes_id)) {
       warning("React didn't found relevant information")
     }
     react_mat <- seq2mat(genes_id, react.bio)
   }
   if (kegg) {
-    if ((sum(is.na(kegg.bio)) + length(genes_id)) == n.combin) {
+    if (sum(!is.na(kegg.bio)) == length(genes_id)) {
       warning("KEGG didn't found relevant information")
     }
     kegg_mat <- seq2mat(genes_id, kegg.bio)
