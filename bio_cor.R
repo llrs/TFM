@@ -282,12 +282,11 @@ check_na <- function(x){
 
 # Using data correlates biologically two genes
 # not used in bio.cor2
-bio.cor <- function(x, ... ){
+bio.cor <- function(names_probes, ... ){
   # Using data correlates biologically two genes or probes
   # From the graphite package
   # x should be entrez id
   # or change the internals from "Entrez Gene" to "Symbols"
-  names_probes <- x
   humanReactome <- pathways("hsapiens", "reactome")
   # humanKegg <- pathways("hsapiens", "kegg")
 
@@ -438,7 +437,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   if (all) {
     go <- kegg <- react <- all
   }
-
+  n.combin <- choose(length(genes_id), 2)
   # Obtain data from the annotation packages
   gene.symbol <- unique(toTable(org.Hs.egSYMBOL2EG))
   colnames(gene.symbol) <- c("Entrez Gene", "Symbol")
@@ -450,7 +449,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     colnames(gene.kegg) <- c("Entrez Gene", "KEGG")
     # Merge data
     genes <- unique(merge(gene.symbol, gene.kegg, all = TRUE, sort = FALSE))
-    kegg.bio <- rep(NA, choose(length(genes_id), 2))
+    kegg.bio <- rep(NA, n.combin)
   }
   if (react) {
     if (!kegg) {
@@ -459,7 +458,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     gene.reactome <- unique(toTable(reactomePATHID2EXTID))
     colnames(gene.reactome) <- c("Entrez Gene", "Reactome")
     genes <- unique(merge(genes, gene.reactome, all = TRUE, sort = FALSE))
-    react.bio <- rep(NA, choose(length(genes_id), 2))
+    react.bio <- rep(NA, n.combin)
   }
 
   ## Calculate for each combination the values
@@ -469,10 +468,13 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
                        Ontology = "BP")
     # go_mat.mf <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "MF")
     # go_mat.cc <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "CC")
+    if ((sum(is.na(go_mat)) + length(genes_id)) == n.combin) {
+      warning("GO didn't found relevant information!")
+    }
   }
   if (kegg | react) {
     # Calculate the pathways correlation
-    for (i in 1:choose(length(genes_id), 2)) {
+    for (i in 1:n.combin) {
       comb <- .combinadic(genes_id, 2, i)
 
       # Kegg calculus
@@ -487,9 +489,15 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   }
 
   if (react) {
+    if ((sum(is.na(react.bio)) + length(genes_id)) == n.combin) {
+      warning("React didn't found relevant information")
+    }
     react_mat <- seq2mat(genes_id, react.bio)
   }
   if (kegg) {
+    if ((sum(is.na(kegg.bio)) + length(genes_id)) == n.combin) {
+      warning("KEGG didn't found relevant information")
+    }
     kegg_mat <- seq2mat(genes_id, kegg.bio)
   }
 
