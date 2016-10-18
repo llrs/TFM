@@ -8,9 +8,13 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 # Phenodata contains the information of the experiment space separated!
 # not tab separated
 
-pheno.isa <- read.affy(pheno1)
+# pheno.rd <- read.csv(rd, stringsAsFactors = FALSE)
+# pheno.isa <- read.affy(pheno1)
 # pheno.silvia <- read.affy(pheno2)
-
+# symbols <- pheno.rd$hgnc_symbol
+# rownames(pheno.rd) <- pheno.rd$refseq_mrna
+# removing "refseq_mrna" and symbol columns
+# pheno.rd <- pheno.rd[, -c(1, 2)]
 # Download set ####
 # geosupp <- getGEOSuppFiles(gse_number)
 # geosupp
@@ -21,18 +25,20 @@ pheno.isa <- read.affy(pheno1)
 # cels  <-  list.files(study.dir, pattern = "CEL")
 
 # disease.silvia <- read.csv("clean_variables.csv")
-disease.isa <- read.csv("samples_AH.csv")
+# disease.isa <- read.csv("samples_AH.csv")
 
 setwd(data.files.out)
 # save(pheno.isa, pheno.silvia, file = "pheno.RData")
 # load("pheno.RData", verbose = TRUE)
 
 # Adjusting intensity and making them comparable ####
-c.isa <- rma(pheno.isa)
+# c.rd <- rma(pheno.rd)
+# c.isa <- rma(pheno.isa)
 # c.silvia <- rma(pheno.silvia)
 # save(c.isa, c.silvia, file = "rma.pheno.RData")
 # load("rma.pheno.RData")
-co.isa <- sum.e(c.isa)
+# co.rd <- sum.e(pheno.rd)
+# co.isa <- sum.e(c.isa)
 # co.silvia <- sum.e(c.silvia)
 # save(co.isa, co.silvia, file = "exprs.RData")
 # load("exprs.RData", verbose = TRUE)

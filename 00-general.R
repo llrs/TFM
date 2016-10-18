@@ -69,11 +69,12 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "isa_HA"
+study <- "RD"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
-
-study.dir <- file.path(data.dir, "hepatitis")
+rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
+data.folder <- "ductular_reaction"
+study.dir <- file.path(data.dir, data.folder)
 orig.dir <- setwd(study.dir)
 gse.number <- "GSE28619"
 path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))

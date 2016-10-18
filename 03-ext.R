@@ -207,7 +207,8 @@ dev.off()
 IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
 # IM2
 fnlist(IM2, "modules_variables.csv")
-# Plot the graphs of the interesting modules according to IM2.
+
+# Plot the graphs GS_MM of the interesting modules according to IM2.
 a <- sapply(names(IM2), function(y, d){
   sapply(d[[y]],
          GGMMfun, var = y, MM = geneModuleMembership,
