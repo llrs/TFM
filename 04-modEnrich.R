@@ -1,20 +1,23 @@
 #  Analyse the modules ####
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
-library("STRINGdb")
 setwd(data.files.out)
 
-topGO <- FALSE
+compare <- TRUE
+topGO <- TRUE
 Reactome <- FALSE
 Kegg <- FALSE
 GSEA <- FALSE
-STRING <- TRUE
-keytype <- "REFSEQ"
+STRING <- FALSE
+keytype <- "REFSEQ" # "Symbol"
+GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
+                  # "genename", "unigene")
 
 # Load previously work done ####
 load(file = "Input.RData", verbose = TRUE)
 load(file = "modules_ME.RData", verbose = TRUE)
 load(file = "selected_modules.RData", verbose = TRUE)
+load(file = "RD_interesting.RData", verbose = TRUE)
 
 keepSamples <- rownames(data.wgcna) %in% rownames(vclin)
 
@@ -51,57 +54,62 @@ for (x in names(numb.col)) {
   levels(genes)[lg == x] <- numb.col[x]
 }
 genes <- as.numeric(levels(genes))[genes]
-names(genes) <- rownames(exprs)
 
 # Grup all genes of the same group
 clusters <- sapply(unique(moduleColors), function(x, genes, nc){
   names(genes[genes == nc[x]])
 }, genes = genes, nc = numb.col)
 
+names(genes) <- unique(AnnotationDbi::select(org.Hs.eg.db,
+                                             keys = rownames(exprs),
+                                             keytype = "REFSEQ",
+                                             columns = "ENTREZID"))
 
 # Compare modules ==============================================================
 #
 #  Code chunk 0: , general overview of the functions
 #
+ if (compare) {
+   #Function to translate from symbols to entrezid
+   # clustersEntrez <- sapply(clusters, function(x){
+   #   # a <- unique(annots[annots$PROBEID %in% x,
+   #   #                    "ENTREZID"])
+   #   a <- select(org.Hs.eg.db, keys = x, columns = "ENTREZID", keytype = keytype)
+   #   a <- unique(a)
+   #   a[!is.na(a)]
+   # })
 
+   # Compare clusters on a single plot ####
+   # pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
+   # x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
+   # eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
+   # save(eGO, file = "eGO.RData")
+   # plot(eGO) + ggtitle("Enrich GO") + x.axis
+   # cGO <- compareCluster(clustersEntrez, fun = "enrichGO", ont = "CC")
+   # save(cGO, file = "eGO.RData")
+   # plot(cGO) + ggtitle("Enrich cc GO") + x.axis
+   # # gGO <- compareCluster(clustersEntrez, fun = "groupGO")
+   # # save(gGO, file = "gGO.RData")
+   # # plot(gGO) + ggtitle("Group GO") + x.axis
+   # eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
+   # save(eP, file = "eP.RData")
+   # plot(eP) + ggtitle("Enrich Pathways") + x.axis
+   # eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
+   # save(eK, file = "eK.RData")
+   # plot(eK) + ggtitle("Enrich KEGG") + x.axis
+   # dev.off()
 
-#Function to translate from symbols to entrezid
-clustersEntrez <- sapply(clusters, function(x){
-  # a <- unique(annots[annots$PROBEID %in% x,
-  #                    "ENTREZID"])
-  a <- select(org.Hs.eg.db, keys = x, columns = "ENTREZID", keytype = keytype)
-  a <- unique(a)
-  a[!is.na(a)]
-})
-
-# Compare clusters on a single plot ####
-# pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
-# x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
-# eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
-# save(eGO, file = "eGO.RData")
-# plot(eGO) + ggtitle("Enrich GO") + x.axis
-# cGO <- compareCluster(clustersEntrez, fun = "enrichGO", ont = "CC")
-# save(cGO, file = "eGO.RData")
-# plot(cGO) + ggtitle("Enrich cc GO") + x.axis
-# # gGO <- compareCluster(clustersEntrez, fun = "groupGO")
-# # save(gGO, file = "gGO.RData")
-# # plot(gGO) + ggtitle("Group GO") + x.axis
-# eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
-# save(eP, file = "eP.RData")
-# plot(eP) + ggtitle("Enrich Pathways") + x.axis
-# eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
-# save(eK, file = "eK.RData")
-# plot(eK) + ggtitle("Enrich KEGG") + x.axis
-# dev.off()
+ }
 
 string_db <- STRINGdb$new(version = "10", species = 9606,
                            score_threshold = 0, input_directory = "" )
 
-imodules <- unique(unlist(IM2))
+imodules <- unique(unlist(IM))
 
-universeGenesEntrez <- unique(AnnotationDbi::keys(org.Hs.eg.db))
-universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
-
+ if (Reactome | Kegg) {
+   universeGenesEntrez <- unique(AnnotationDbi::keys(org.Hs.eg.db))
+   universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
+}
 # Study each module ####
 out <- sapply(imodules, function(x) {
 
@@ -121,14 +129,10 @@ out <- sapply(imodules, function(x) {
                                      columns = "ENTREZID"))
   moduleGenesEntrez <- moduleGenesEntrez[!is.na(moduleGenesEntrez)]
 
+  # topGO ######
 
-  # topGO ======================================================================
-  #
-  #  Code chunk 1: topGO analysis of each module
-
-  # topGOdata object ####
   if (topGO) {
-    GOdata.bp <- new("topGOdata",
+    tryCatch({GOdata.bp <- new("topGOdata",
                   ontology = "BP",
                   description = paste("Biological process of the",
                                       moduleName, "module."),
@@ -136,11 +140,15 @@ out <- sapply(imodules, function(x) {
                   # annot = annFUN.gene2GO, ## the new annotation function
                   # affyLib = "org.Hs.eg.db",
                   annot = annFUN.org,
-                  ID = "alias",
+                  ID = GO.ID,
                   mapping = "org.Hs.eg",
                   geneSelectionFun = selFun)
+    go.enrich(GOdata.bp, moduleName, "BP")}, error = function(x){
+      message("\nUnable to calculate BP.\n")
+      message(x)
+    })
 
-    GOdata.mp <- new("topGOdata",
+    tryCatch({GOdata.mp <- new("topGOdata",
                   ontology = "MP",
                   description = paste("Molecular process of the",
                                       moduleName, "module."),
@@ -148,10 +156,14 @@ out <- sapply(imodules, function(x) {
                   # annot = annFUN.gene2GO, ## the new annotation function
                   # affyLib = "org.Hs.eg.db",
                   annot = annFUN.org,
-                  ID = "alias",
+                  ID = GO.ID,
                   mapping = "org.Hs.eg",
                   geneSelectionFun = selFun)
-    GOdata.cc <- new("topGOdata",
+    go.enrich(GOdata.mp, moduleName, "MP")}, error = function(x){
+      message("\nUnable to calculate MP.\n")
+      message(x)
+    })
+    tryCatch({GOdata.cc <- new("topGOdata",
                   ontology = "CC",
                   description = paste("Cellular component of the",
                                       moduleName, "module."),
@@ -159,26 +171,15 @@ out <- sapply(imodules, function(x) {
                   # annot = annFUN.gene2GO, ## the new annotation function
                   # affyLib = "org.Hs.eg.db",
                   annot = annFUN.org,
-                  ID = "alias",
+                  ID = GO.ID,
                   mapping = "org.Hs.eg",
                   geneSelectionFun = selFun)
-
-    # save(GOdata, file = "array_BP.RData")
-    # load(file = "array_BP.RData", verbose = TRUE)
-    # GOdata
-    # geneSelectionFun(GOdata) <- selFun
-    # GOdata
-    # description(GOdata) <- paste("Molecular function of the",
-    #                              moduleName, "module.")
-    # topGO tests ####
-    go.enrich(GOdata.cc, moduleName, "CC")
-    go.enrich(GOdata.bp, moduleName, "BP")
-    go.enrich(GOdata.mp, moduleName, "MP")
+    go.enrich(GOdata.cc, moduleName, "CC")}, error = function(x){
+      message("\nUnable to calculate CC.\n")
+      message(x)
+    })
   }
-  # Reactome ===================================================================
-  #
-  #  Code chunk 2: Reactome analysis of the module
-  #
+  # Reactome ####
   if (Reactome) {
     reactome_enrich <- enrichPathway(gene = moduleGenesEntrez,
                                      universe = universeGenesEntrez,
