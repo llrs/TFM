@@ -33,14 +33,14 @@ consModules = labels2colors(as.numeric(consModuleLabels))
 nFemMods = length(femModules)
 nConsMods = length(consModules)
 # Initialize tables of p-values and of the corresponding counts
-pTable = matrix(0, nrow = nFemMods, ncol = nConsMods);
-CountTbl = matrix(0, nrow = nFemMods, ncol = nConsMods);
+pTable = matrix(0, nrow = nFemMods, ncol = nConsMods)
+CountTbl = matrix(0, nrow = nFemMods, ncol = nConsMods)
 # Execute all pairwaise comparisons
 for (fmod in 1:nFemMods) {
   for (cmod in 1:nConsMods){
     femMembers <- femaleColors == femModules[fmod]
     consMembers <- moduleColors == consModules[cmod]
-    pTable[fmod, cmod] = -log10(fisher.test(femMembers, consMembers, alternative = "greater")$p.value);
+    pTable[fmod, cmod] = -log10(fisher.test(femMembers, consMembers, alternative = "greater")$p.value)
     CountTbl[fmod, cmod] = sum(femaleColors == femModules[fmod] & moduleColors ==
                                  consModules[cmod])
   }
@@ -54,17 +54,17 @@ for (fmod in 1:nFemMods) {
 
 
 # Truncate p values smaller than 10^{-50} to 10^{-50}
-pTable[is.infinite(pTable)] = 1.3*max(pTable[is.finite(pTable)]);
-pTable[pTable>50 ] = 50 ;
+pTable[is.infinite(pTable)] = 1.3*max(pTable[is.finite(pTable)])
+pTable[pTable>50 ] = 50 
 # Marginal counts (really module sizes)
 femModTotals = apply(CountTbl, 1, sum)
 consModTotals = apply(CountTbl, 2, sum)
 # Actual plotting
-sizeGrWindow(10,7 );
-pdf(file = "Plots/ConsensusVsFemaleModules.pdf", wi = 10, he = 7);
-par(mfrow=c(1,1));
-par(cex = 1.0);
-par(mar=c(8, 10.4, 2.7, 1)+0.3);
+sizeGrWindow(10,7 )
+pdf(file = "Plots/ConsensusVsFemaleModules.pdf", wi = 10, he = 7)
+par(mfrow=c(1,1))
+par(cex = 1.0)
+par(mar=c(8, 10.4, 2.7, 1)+0.3)
 # Use function labeledHeatmap to produce the color-coded table with all the trimmings
 labeledHeatmap(Matrix = pTable,
                xLabels = paste(" ", consModules),
@@ -75,7 +75,7 @@ labeledHeatmap(Matrix = pTable,
                textMatrix = CountTbl,
                colors = greenWhiteRed(100)[50:100],
                main = "Correspondence of Female set-specific and Female-Male consensus modules",
-               cex.text = 1.0, cex.lab = 1.0, setStdMargins = FALSE);
-dev.off();
+               cex.text = 1.0, cex.lab = 1.0, setStdMargins = FALSE)
+dev.off()
 
 
