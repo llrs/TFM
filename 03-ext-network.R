@@ -6,76 +6,62 @@ setwd(data.files.out)
 # Or any other expression one want to check if it holds.
 load("../..../modules_MEs.RData", verbose = TRUE)
 # Rename variables to avoid conflicts
-femaleLabels = moduleLabels
-femaleColors = moduleColors
-femaleTree = geneTree
-femaleMEs = orderMEs(MEs, greyName = "ME0")
+singLabels = moduleLabels
+singColors = moduleColors
+singTree = geneTree
+singMEs = orderMEs(MEs, greyName = "ME0")
 
 #Load the Consensus data
 load("Consensus-NetworkConstruction-auto.RData", verbose = TRUE)
 
-
-
-#=====================================================================================
-#
-#  Code chunk 4
-#
-#=====================================================================================
-
-
-# Isolate the module labels in the order they appear in ordered module eigengenes
-femModuleLabels = substring(names(femaleMEs), 3)
+# comparing modules ####
+# Isolate the module labels in the order they appear in
+# ordered module eigengenes
+singModuleLabels = substring(names(singMEs), 3)
 consModuleLabels = substring(names(consMEs[[1]]$data), 3)
 # Convert the numeric module labels to color labels
-femModules = labels2colors(as.numeric(femModuleLabels))
+singModules = labels2colors(as.numeric(singModuleLabels))
 consModules = labels2colors(as.numeric(consModuleLabels))
-# Numbers of female and consensus modules
-nFemMods = length(femModules)
+# Numbers of single and consensus modules
+nSingMods = length(singModules)
 nConsMods = length(consModules)
 # Initialize tables of p-values and of the corresponding counts
-pTable = matrix(0, nrow = nFemMods, ncol = nConsMods)
-CountTbl = matrix(0, nrow = nFemMods, ncol = nConsMods)
+pTable <- matrix(0, nrow = nSingMods, ncol = nConsMods)
+CountTbl <- matrix(0, nrow = nSingMods, ncol = nConsMods)
 # Execute all pairwaise comparisons
-for (fmod in 1:nFemMods) {
-  for (cmod in 1:nConsMods){
-    femMembers <- femaleColors == femModules[fmod]
+for (smod in 1:nSingMods) {
+  for (cmod in 1:nConsMods) {
+    singMembers <- singColors == singModules[fsod]
     consMembers <- moduleColors == consModules[cmod]
-    pTable[fmod, cmod] = -log10(fisher.test(femMembers, consMembers, alternative = "greater")$p.value)
-    CountTbl[fmod, cmod] = sum(femaleColors == femModules[fmod] & moduleColors ==
-                                 consModules[cmod])
+    pTable[smod, cmod] <- -log10(fisher.test(singMembers, consMembers,
+                                             alternative = "greater")$p.value)
+    CountTbl[smod, cmod] <- sum(singColors == singModules[smod] &
+                                  moduleColors == consModules[cmod])
   }
 }
 
-#=====================================================================================
-#
-#  Code chunk 5
-#
-#=====================================================================================
-
+# heatmap ####
 
 # Truncate p values smaller than 10^{-50} to 10^{-50}
-pTable[is.infinite(pTable)] = 1.3*max(pTable[is.finite(pTable)])
-pTable[pTable>50 ] = 50 
+pTable[is.infinite(pTable)] <- 1.3*max(pTable[is.finite(pTable)])
+pTable[pTable > 50 ] <- 50
 # Marginal counts (really module sizes)
-femModTotals = apply(CountTbl, 1, sum)
-consModTotals = apply(CountTbl, 2, sum)
+singModTotals <- apply(CountTbl, 1, sum)
+consModTotals <- apply(CountTbl, 2, sum)
+
 # Actual plotting
-sizeGrWindow(10,7 )
-pdf(file = "Plots/ConsensusVsFemaleModules.pdf", wi = 10, he = 7)
-par(mfrow=c(1,1))
-par(cex = 1.0)
-par(mar=c(8, 10.4, 2.7, 1)+0.3)
-# Use function labeledHeatmap to produce the color-coded table with all the trimmings
+pdf(file = "heatmap_ConsensusVsSingleModules.pdf", width = 10, height = 7)
+par(mfrow = c(1,1), cex = 1.0, mar = c(8, 10.4, 2.7, 1) + 0.3)
+# Use function labeledHeatmap to produce the color-coded table with all the
+# trimmings
 labeledHeatmap(Matrix = pTable,
                xLabels = paste(" ", consModules),
-               yLabels = paste(" ", femModules),
+               yLabels = paste(" ", singModules),
                colorLabels = TRUE,
-               xSymbols = paste("Cons ", consModules, ": ", consModTotals, sep=""),
-               ySymbols = paste("Fem ", femModules, ": ", femModTotals, sep=""),
+               xSymbols = paste0("Cons ", consModules, ": ", consModTotals),
+               ySymbols = paste0("Sing ", singModules, ": ", singModTotals),
                textMatrix = CountTbl,
                colors = greenWhiteRed(100)[50:100],
-               main = "Correspondence of Female set-specific and Female-Male consensus modules",
+               main = "Correspondence of set-specific and consensus modules",
                cex.text = 1.0, cex.lab = 1.0, setStdMargins = FALSE)
 dev.off()
-
-
