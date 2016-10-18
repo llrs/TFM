@@ -46,6 +46,7 @@ library("reshape2")
 # library("biomaRt")
 library("reactome.db")
 library("AnnotationDbi")
+library("STRINGdb")
 
 # Options and configurations ####
 
@@ -599,12 +600,12 @@ module.expr <- function(data.wgcna, modules, color) {
 go.enrich <- function(GOdata, moduleName, ont) {
   resultFisher <- runTest(GOdata,
                           algorithm = "classic", statistic = "fisher")
-  resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+  resultKS <- runTest(GOdata, algorithm='weight01', statistic = "ks")
   resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
   avgResult <- combineResults(resultFisher, resultKS, resultKS.elim,
                               method = "mean")
 
-  allRes <- GenTable(GOdata, classic = resultFisher, Ks = resultKS,
+  allRes <- GenTable(GOdata, classic = resultFisher, weight01 = resultKS,
                      elim = resultKS.elim, orderBy = "classic",
                      ranksOf = "classic", topNodes = 50, numChar = 100)
   write.csv(allRes, file = name.file("GO_table", ont, moduleName, ".csv"),
@@ -643,23 +644,4 @@ go.enrich <- function(GOdata, moduleName, ont) {
     })
   dev.off()
 
-}
-# Given many datasets for WGCNA it create a multiExpr data set
-# Works either with traits and expression data
-multiSet <- function(...) {
-  sets <- list(...)
-  multiExpr <- vector(mode = "list", length = length(sets))
-  keep.columns <- Reduce(intersect, lapply(multiExpr, function(x){colnames(x)}))
-  message("Keeping ", length(keep.columns), " columns of the sets.")
-  for (i in 1:length(sets)) {
-    setExpr <- sets[[i]]
-    multiExpr[[i]] <- list(data = as.data.frame(
-      setExpr[, colnames(setExpr) %in% keep.columns]))
-  }
-  out <- checkSets(multiExpr, checkStructure = TRUE)
-  if (out$structureOK & nGenes == length(keep.columns)) {
-    return(multiExpr)
-  } else {
-    error("Unable to create a multiSet/multiExpr, with the sets given.")
-  }
 }
