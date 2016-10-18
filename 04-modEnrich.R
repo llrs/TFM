@@ -9,6 +9,7 @@ Reactome <- FALSE
 Kegg <- FALSE
 GSEA <- FALSE
 STRING <- TRUE
+keytype <- "REFSEQ"
 
 # Load previously work done ####
 load(file = "Input.RData", verbose = TRUE)
@@ -68,7 +69,7 @@ clusters <- sapply(unique(moduleColors), function(x, genes, nc){
 clustersEntrez <- sapply(clusters, function(x){
   # a <- unique(annots[annots$PROBEID %in% x,
   #                    "ENTREZID"])
-  a <- select(org.Hs.eg.db, keys = x, columns = "ENTREZID", keytype = "SYMBOL")
+  a <- select(org.Hs.eg.db, keys = x, columns = "ENTREZID", keytype = keytype)
   a <- unique(a)
   a[!is.na(a)]
 })
@@ -116,7 +117,7 @@ out <- sapply(imodules, function(x) {
   # Preparing the objects with Entrezid for the reactome and kegg analysis
   moduleGenes <- clusters[moduleName][[1]]
   moduleGenesEntrez <- unique(AnnotationDbi::select(org.Hs.eg.db, keys = moduleGenes,
-                                     keytype = "SYMBOL",
+                                     keytype = keytype,
                                      columns = "ENTREZID"))
   moduleGenesEntrez <- moduleGenesEntrez[!is.na(moduleGenesEntrez)]
 
