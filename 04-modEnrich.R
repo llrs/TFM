@@ -4,12 +4,12 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 compare <- TRUE
-topGO <- TRUE
+topGO <- FALSE
 Reactome <- FALSE
 Kegg <- FALSE
 GSEA <- FALSE
 STRING <- FALSE
-keytype <- "REFSEQ" # "Symbol"
+keytype <- "REFSEQ" # Initial format of input all will be converted to entrez
 GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
                   # "genename", "unigene")
 
@@ -32,7 +32,6 @@ if (!all(rownames(data.wgcna) == rownames(vclin))) {
   stop("Order of samples in clinical variable and expression is not the same!")
 }
 
-
 # Reconvert the data to the "normal" format, of each column a sample.
 exprs <- t(data.wgcna)
 
@@ -54,51 +53,39 @@ for (x in names(numb.col)) {
   levels(genes)[lg == x] <- numb.col[x]
 }
 genes <- as.numeric(levels(genes))[genes]
+# Convert all into Entrezid.
+names(genes) <- unique(AnnotationDbi::select(org.Hs.eg.db,
+                                             keys = rownames(exprs),
+                                             keytype = keytype,
+                                             columns = "ENTREZID")[, "ENTREZID"])
 
 # Grup all genes of the same group
 clusters <- sapply(unique(moduleColors), function(x, genes, nc){
-  names(genes[genes == nc[x]])
+  ng <- names(genes[genes == nc[x]])
+  ng[!is.na(ng)]
 }, genes = genes, nc = numb.col)
 
-names(genes) <- unique(AnnotationDbi::select(org.Hs.eg.db,
-                                             keys = rownames(exprs),
-                                             keytype = "REFSEQ",
-                                             columns = "ENTREZID"))
+# Compare modules ####
 
-# Compare modules ==============================================================
-#
-#  Code chunk 0: , general overview of the functions
-#
  if (compare) {
-   #Function to translate from symbols to entrezid
-   # clustersEntrez <- sapply(clusters, function(x){
-   #   # a <- unique(annots[annots$PROBEID %in% x,
-   #   #                    "ENTREZID"])
-   #   a <- select(org.Hs.eg.db, keys = x, columns = "ENTREZID", keytype = keytype)
-   #   a <- unique(a)
-   #   a[!is.na(a)]
-   # })
-
-   # Compare clusters on a single plot ####
-   # pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
-   # x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
-   # eGO <- compareCluster(clustersEntrez, fun = "enrichGO")
-   # save(eGO, file = "eGO.RData")
-   # plot(eGO) + ggtitle("Enrich GO") + x.axis
-   # cGO <- compareCluster(clustersEntrez, fun = "enrichGO", ont = "CC")
-   # save(cGO, file = "eGO.RData")
-   # plot(cGO) + ggtitle("Enrich cc GO") + x.axis
-   # # gGO <- compareCluster(clustersEntrez, fun = "groupGO")
-   # # save(gGO, file = "gGO.RData")
-   # # plot(gGO) + ggtitle("Group GO") + x.axis
-   # eP <- compareCluster(clustersEntrez, fun = "enrichPathway")
-   # save(eP, file = "eP.RData")
-   # plot(eP) + ggtitle("Enrich Pathways") + x.axis
-   # eK <- compareCluster(clustersEntrez, fun = "enrichKEGG")
-   # save(eK, file = "eK.RData")
-   # plot(eK) + ggtitle("Enrich KEGG") + x.axis
-   # dev.off()
-
+   pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
+   x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
+   eGO <- compareCluster(clusters, fun = "enrichGO")
+   save(eGO, file = "eGO.RData")
+   plot(eGO) + ggtitle("Enrich GO") + x.axis
+   cGO <- compareCluster(clusters, fun = "enrichGO", ont = "CC")
+   save(cGO, file = "cGO.RData")
+   plot(cGO) + ggtitle("Enrich cc GO") + x.axis
+   # gGO <- compareCluster(clusters, fun = "groupGO")
+   # save(gGO, file = "gGO.RData")
+   # plot(gGO) + ggtitle("Group GO") + x.axis
+   eP <- compareCluster(clusters, fun = "enrichPathway")
+   save(eP, file = "eP.RData")
+   plot(eP) + ggtitle("Enrich Pathways") + x.axis
+   eK <- compareCluster(clusters, fun = "enrichKEGG")
+   save(eK, file = "eK.RData")
+   plot(eK) + ggtitle("Enrich KEGG") + x.axis
+   dev.off()
  }
 
 string_db <- STRINGdb$new(version = "10", species = 9606,
@@ -124,13 +111,8 @@ out <- sapply(imodules, function(x) {
 
   # Preparing the objects with Entrezid for the reactome and kegg analysis
   moduleGenes <- clusters[moduleName][[1]]
-  moduleGenesEntrez <- unique(AnnotationDbi::select(org.Hs.eg.db, keys = moduleGenes,
-                                     keytype = keytype,
-                                     columns = "ENTREZID"))
-  moduleGenesEntrez <- moduleGenesEntrez[!is.na(moduleGenesEntrez)]
 
   # topGO ######
-
   if (topGO) {
     tryCatch({GOdata.bp <- new("topGOdata",
                   ontology = "BP",
@@ -181,7 +163,7 @@ out <- sapply(imodules, function(x) {
   }
   # Reactome ####
   if (Reactome) {
-    reactome_enrich <- enrichPathway(gene = moduleGenesEntrez,
+    reactome_enrich <- enrichPathway(gene = moduleGenes,
                                      universe = universeGenesEntrez,
                                      pvalueCutoff = 0.05, readable = TRUE,
                                      minGSSize = 2)
@@ -214,6 +196,8 @@ out <- sapply(imodules, function(x) {
                  message(e)
                })
       dev.off()
+    } else {
+      message("Not enough data in reactome for module ", moduleName)
     }
   }
 
@@ -222,7 +206,7 @@ out <- sapply(imodules, function(x) {
   #  Code chunk 3: Kegg analysis of each module
   #
   if (Kegg) {
-    kegg_enrich <- enrichKEGG(moduleGenesEntrez,
+    kegg_enrich <- enrichKEGG(moduleGenes,
                               universe = universeGenesEntrez,
                               use_internal_data = TRUE,
                               minGSSize = 2)
@@ -248,14 +232,13 @@ out <- sapply(imodules, function(x) {
                  message(e)
                })
       dev.off()
+    } else {
+      message("Not enough data in KEGG for module ", moduleName)
     }
   }
-  # GSEA =======================================================================
-  #
-  #  Code chunk 4: GSEA
-  #
+  # GSEA ####
   if (GSEA) {
-    gse <- gsePathway(as.vector(moduleGenesEntrez)[order(moduleGenesEntrez,
+    gse <- gsePathway(as.vector(moduleGenes)[order(moduleGenes,
                                                          decreasing = TRUE)],
                       nPerm = 1000, pvalueCutoff = 0.2,
                       pAdjustMethod = "BH", verbose = TRUE)
@@ -269,7 +252,7 @@ out <- sapply(imodules, function(x) {
       dev.off()
     }
     # # Individual gene plot
-    # gseaplot(gse, geneSetID = moduleGenesEntrez[1])
+    # gseaplot(gse, geneSetID = moduleGenes[1])
   }
 
   # STRING =====================================================================
