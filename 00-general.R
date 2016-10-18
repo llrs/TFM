@@ -69,7 +69,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "isa_HA"
+study <- "consensus_HA"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 
@@ -648,17 +648,24 @@ go.enrich <- function(GOdata, moduleName, ont) {
 multiSet <- function(...) {
   sets <- list(...)
   multiExpr <- vector(mode = "list", length = length(sets))
-  keep.columns <- Reduce(intersect, lapply(multiExpr, function(x){colnames(x)}))
+  names(multiExpr) <- names(sets)
+  for (i in 1:length(sets)) {
+    setExpr <- sets[[i]]
+    multiExpr[[i]] <- list(data = as.data.frame(setExpr))
+  }
+
+  keep.columns <- Reduce(intersect, lapply(multiExpr,
+                                           function(x){colnames(x$data)}))
   message("Keeping ", length(keep.columns), " columns of the sets.")
   for (i in 1:length(sets)) {
     setExpr <- sets[[i]]
-    multiExpr[[i]] <- list(data = as.data.frame(
-      setExpr[, colnames(setExpr) %in% keep.columns]))
+    multiExpr[[i]]$data <- multiExpr[[i]]$data[, colnames(setExpr) %in% keep.columns]
   }
+  multiExpr
   out <- checkSets(multiExpr, checkStructure = TRUE)
-  if (out$structureOK & nGenes == length(keep.columns)) {
+  if (out$structureOK & out$nGenes == length(keep.columns)) {
     return(multiExpr)
   } else {
-    error("Unable to create a multiSet/multiExpr, with the sets given.")
+    stop("Unable to create a multiSet/multiExpr, with the sets given.")
   }
 }
