@@ -90,6 +90,7 @@ for (set in 1:nSets) {
 }
 collectGarbage()
 save(powerTables, file = "powers_multiSet.RData")
+load(file = "powers_multiSet.RData", verbose = TRUE)
 power <- multiple.softThreshold(powerTables)
 pdf("Network_building.pdf")
 # Plot the results:
@@ -146,14 +147,15 @@ if (is.na(power)) {
 }
 message(paste("Using power", power))
 
+# Not able to calculate on the multSet object
 # Calculate connectivity and plot it
-k <- softConnectivity(data.wgcna, type = adj.opt, power = power,
-                      # corFnc = "bicor",
-                      )
-plot(density(k))
-scaleFreePlot(k, main = paste0("Check scale free topology, power",
-                               power))
-dev.off()
+# k <- softConnectivity(data.wgcna, type = adj.opt, power = power,
+#                       # corFnc = "bicor",
+#                       )
+# plot(density(k))
+# scaleFreePlot(k, main = paste0("Check scale free topology, power",
+#                                power))
+
 
 # Network construction ####
 net <- blockwiseConsensusModules(data.wgcna,
@@ -174,45 +176,48 @@ load("net.RData", verbose = TRUE)
 
 # Dendro ####
 
-pdf(file = "dendro.pdf", width = 12, height = 9)
-# Convert labels to colors for plotting
-mergedColors <- net$colors
-# Plot the dendrogram and the module colors underneath
-plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
-                    "Module colors of first dendrogram",
-                    dendroLabels = FALSE, hang = 0.03,
-                    addGuide = TRUE, guideHang = 0.05)
-dev.off()
+# pdf(file = "dendro.pdf", width = 12, height = 9)
+# # Convert labels to colors for plotting
+# mergedColors <- net$colors
+# # Plot the dendrogram and the module colors underneath
+# plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
+#                     "Module colors of first dendrogram",
+#                     dendroLabels = FALSE, hang = 0.03,
+#                     addGuide = TRUE, guideHang = 0.05)
+# dev.off()
 
-# Connectivity ####
-connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
-                                             networkType = adj.opt,
-                                             power = power,
-                                             scaleByMax = TRUE)
-save(connect, file = "kIM.RData")
-load(file = "kIM.RData", verbose = TRUE)
+# # Connectivity ####
+# connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
+#                                              networkType = adj.opt,
+#                                              power = power,
+#                                              scaleByMax = TRUE)
+# save(connect, file = "kIM.RData")
+# load(file = "kIM.RData", verbose = TRUE)
 
 
 # Calculate eigengenes, it is already calculated
-MEs <- orderMEs(net$mkultiMEs)
+MEs <- consensusOrderMEs(net$multiMEs)
 
 # Module exploring ####
 
 # Calculate dissimilarity of module eigengenes
-corME <- cor(MEs)
-MEDiss <- 1 - corME
+MEDiss <- consensusMEDissimilarity(MEs)
 # Cluster module eigengenes
 METree <- hclust(as.dist(MEDiss), method = "average")
 # Plot the result
+sizeGrWindow(8,10)
 pdf("Modules_relationship.pdf")
+
+plotEigengeneNetworks(MEs, names(data.wgcna))
+par(pars)
 plot(METree, main = "Clustering of module eigengenes",
      xlab = "", sub = "")
 MEDissThres <- 0.25
 # Plot the cut line into the dendrogram
 abline(h = MEDissThres, col = "red")
 
-labeledHeatmap(MEDiss, xLabels = colnames(corME), yLabels = colnames(corME),
-               xSymbols = colnames(corME), ySymbols = colnames(corME))
+labeledHeatmap(MEDiss, xLabels = colnames(MEs), yLabels = colnames(MEs),
+               xSymbols = colnames(MEs), ySymbols = colnames(MEs))
 
 gm <- table(net$colors)
 gm
@@ -235,10 +240,5 @@ moduleColors <- net$colors
 #          plot = p)
 # })
 
-# 6 ============================================================================
-#
-#  Code chunk 6: Save the data for the next process
-#
-# ==============================================================================
-
+# save data ####
 save(MEs, moduleColors, file = "Consensus-module_MEs.RData")
