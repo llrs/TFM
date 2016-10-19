@@ -1,19 +1,23 @@
-# 1 ============================================================================
-#
-#  Code chunk 1: Starting from the previously saved data
-#
-# ==============================================================================
-
+# Sarting ####
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 # Input can be from those individual projects
-load(...., verbose = TRUE)
-load(...., verbose = TRUE)
-
+load("../../isa_HA/unsigned_signed/Input.RData", verbose = TRUE)
+isa.exprs <- data.wgcna
+isa.disease <- vclin
+load("../../silvia_HA/unsigned_signed/Input.RData", verbose = TRUE)
+silvia.exprs <- data.wgcna
+silvia.disease <- vclin
 # Creating the multiData/multiExprs/... object
-data.wgcna <- multiSet() # Should list2multiData be used?
+data.wgcna <- multiSet(isa = isa.exprs, silvia = silvia.exprs) # Should list2multiData be used?
                          # No, it doesn't check or do anything else than messing
+
+gsg <- goodSamplesGenesMS(data.wgcna)
+if (!gsg$allOK) {
+  stop("check your data")
+}
+
 chSet <- checkSets(data.wgcna)
 nGenes <- chSet$nGenes
 nSamples <- chSet$nSamples
@@ -57,7 +61,8 @@ for (set in 1:nSets) {
   powerTables[[set]] <- list(data = sft[[2]])
 }
 collectGarbage()
-
+save(powerTables, file = "powers_multiSet.RData")
+power <- multiple.softThreshold(powerTables)
 pdf("Network_building.pdf")
 # Plot the results:
 colors = c("black", "red")
@@ -97,35 +102,34 @@ for (col in 1:length(plotCols)) {
       text(powerTables[[set]]$data[,1], powerTables[[set]]$data[,plotCols[col]],
            labels = powers,cex=cex1,col=colors[set]);
     if (col == 1) {
-      legend("bottomright", legend = setLabels, col = colors, pch = 20)
+      legend("bottomright", legend = names(data.wgcna), col = colors, pch = 20)
     } else {
-      legend("topright", legend = setLabels, col = colors, pch = 20)
+      legend("topright", legend = names(data.wgcna), col = colors, pch = 20)
     }
   }
 }
 dev.off()
 
-message(paste("Recomended power", sft$powerEstimate))
-if (is.na(sft$powerEstimate)) {
+message(paste("Recomended power", power))
+if (is.na(power)) {
   stop("Estimated power, is NA\nReview the power manually!")
-} else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
+} else if (1/sqrt(nGenes) ^ power * nGenes >= 0.1) {
   warning("Are you sure of this power?")
 }
-message(paste("Using power", sft$powerEstimate))
-save(sft, file = "sft.RData")
+message(paste("Using power", power))
 
 # Calculate connectivity and plot it
-k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate,
+k <- softConnectivity(data.wgcna, type = adj.opt, power = power,
                       # corFnc = "bicor",
                       )
 plot(density(k))
 scaleFreePlot(k, main = paste0("Check scale free topology, power",
-                               sft$powerEstimate))
+                               power))
 dev.off()
 
 # Network construction ####
 net <- blockwiseConsensusModules(data.wgcna,
-                        power = sft$powerEstimate,
+                        power = power,
                 TOMType = TOM.opt,
                 networkType = adj.opt,
                 # corType = "bicor",
@@ -155,7 +159,7 @@ dev.off()
 # Connectivity ####
 connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
                                              networkType = adj.opt,
-                                             power = sft$powerEstimate,
+                                             power = power,
                                              scaleByMax = TRUE)
 save(connect, file = "kIM.RData")
 load(file = "kIM.RData", verbose = TRUE)
@@ -172,7 +176,7 @@ MEDiss <- 1 - corME
 # Cluster module eigengenes
 METree <- hclust(as.dist(MEDiss), method = "average")
 # Plot the result
-pdfn("Modules_relationship.pdf")
+pdf("Modules_relationship.pdf")
 plot(METree, main = "Clustering of module eigengenes",
      xlab = "", sub = "")
 MEDissThres <- 0.25
@@ -209,4 +213,4 @@ moduleColors <- net$colors
 #
 # ==============================================================================
 
-save(MEs, moduleColors, file = "modules_ME.RData")
+save(MEs, moduleColors, file = "Consensus-module_MEs.RData")
