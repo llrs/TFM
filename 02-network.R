@@ -13,10 +13,38 @@ silvia.disease <- vclin
 data.wgcna <- multiSet(isa = isa.exprs, silvia = silvia.exprs) # Should list2multiData be used?
                          # No, it doesn't check or do anything else than messing
 
+# Check if the genes are comparable according to WGCNA
 gsg <- goodSamplesGenesMS(data.wgcna)
 if (!gsg$allOK) {
   stop("check your data")
 }
+
+# MergeMaid ####
+# Check if the genes follow the same correlations / remove unwanted noise
+# data.merge <- sapply(data.wgcna, function(x){t(x$data)})
+# isa <- data.merge$isa
+# silvia <- data.merge$silvia
+# mergm <- mergeExprs(isa, silvia)
+# corcor <- intCor(mergm)
+# pdf("mergmaid.pdf")
+# plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+#      main = "Integrative correlation of the top gene",
+#      col = 3, pch = 4)
+# hist(corcor, main = "Integrative correlation coeficient")
+#
+# intcor <- intcorDens(mergm)
+# plot(intcor)
+# dev.off()
+# save(intcor, corcor, file = "mergemaid.RData")
+load("mergemaid.RData", verbose = TRUE)
+coef <- as.vector(corcor@pairwise.cors)
+names(coef) <- rownames(corcor@pairwise.cors)
+comp.genes <- names(coef)[coef > 0] # Threshold of comparison
+discutibles.genes <- names(coef)[coef <= 0]
+
+data.wgcna <- sapply(data.wgcna, function(x, keep) {
+  x$data[, keep %in% colnames(x$data)]
+}, keep = comp.genes)
 
 chSet <- checkSets(data.wgcna)
 nGenes <- chSet$nGenes
