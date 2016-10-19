@@ -661,11 +661,18 @@ multiSet <- function(...) {
     setExpr <- sets[[i]]
     multiExpr[[i]]$data <- multiExpr[[i]]$data[, colnames(setExpr) %in% keep.columns]
   }
-  multiExpr
   out <- checkSets(multiExpr, checkStructure = TRUE)
   if (out$structureOK & out$nGenes == length(keep.columns)) {
     return(multiExpr)
   } else {
     stop("Unable to create a multiSet/multiExpr, with the sets given.")
   }
+}
+
+# Given a powerTable calculates the higher power to reach the
+# min value of threshold
+multiple.softThreshold <- function(multiPower, min = 0.85){
+  mean(unlist(lapply(multiPower, function(x){
+    y <- x$data[x$data$SFT.R.sq > 0.85, "Power"]
+    return(y[1])})))
 }
