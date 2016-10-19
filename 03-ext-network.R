@@ -6,32 +6,37 @@ setwd(data.files.out)
 # Or any other expression one want to check if it holds.
 load("../..../modules_MEs.RData", verbose = TRUE)
 # Rename variables to avoid conflicts
-singLabels = moduleLabels
-singColors = moduleColors
-singTree = geneTree
-singMEs = orderMEs(MEs, greyName = "ME0")
+singLabels <- moduleColors
+singColors <- moduleColors
+singTree <- geneTree # The tree
+singMEs <- orderMEs(MEs)
 
 #Load the Consensus data
-load("Consensus-NetworkConstruction-auto.RData", verbose = TRUE)
+load(file = "Consensus-module_MEs.RData", verbose = TRUE)
+consLabels <- moduleColors
+consMEs <- MEs
+
+# This code assumes that the identifiers are in both datasets common
+# and that are of the same size between them
 
 # comparing modules ####
 # Isolate the module labels in the order they appear in
 # ordered module eigengenes
-singModuleLabels = substring(names(singMEs), 3)
-consModuleLabels = substring(names(consMEs[[1]]$data), 3)
-# Convert the numeric module labels to color labels
-singModules = labels2colors(as.numeric(singModuleLabels))
-consModules = labels2colors(as.numeric(consModuleLabels))
+singModules <- substring(colnames(singMEs), 3)
+# Compares just against the first set of data not the consensus¿?
+consModules <- substring(colnames(consMEs[[1]]$data), 3)
+
 # Numbers of single and consensus modules
-nSingMods = length(singModules)
-nConsMods = length(consModules)
+nSingMods <- length(singModules)
+nConsMods <- length(consModules)
+
 # Initialize tables of p-values and of the corresponding counts
 pTable <- matrix(0, nrow = nSingMods, ncol = nConsMods)
 CountTbl <- matrix(0, nrow = nSingMods, ncol = nConsMods)
 # Execute all pairwaise comparisons
 for (smod in 1:nSingMods) {
   for (cmod in 1:nConsMods) {
-    singMembers <- singColors == singModules[fsod]
+    singMembers <- singLabels == singModules[fsod]
     consMembers <- moduleColors == consModules[cmod]
     pTable[smod, cmod] <- -log10(fisher.test(singMembers, consMembers,
                                              alternative = "greater")$p.value)
