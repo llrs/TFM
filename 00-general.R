@@ -645,3 +645,36 @@ go.enrich <- function(GOdata, moduleName, ont) {
   dev.off()
 
 }
+# Given many datasets for WGCNA it create a multiExpr data set
+# Works either with traits and expression data
+multiSet <- function(...) {
+  sets <- list(...)
+  multiExpr <- vector(mode = "list", length = length(sets))
+  names(multiExpr) <- names(sets)
+  for (i in 1:length(sets)) {
+    setExpr <- sets[[i]]
+    multiExpr[[i]] <- list(data = as.data.frame(setExpr))
+  }
+
+  keep.columns <- Reduce(intersect, lapply(multiExpr,
+                                           function(x){colnames(x$data)}))
+  message("Keeping ", length(keep.columns), " columns of the sets.")
+  for (i in 1:length(sets)) {
+    setExpr <- sets[[i]]
+    multiExpr[[i]]$data <- multiExpr[[i]]$data[, colnames(setExpr) %in% keep.columns]
+  }
+  out <- checkSets(multiExpr, checkStructure = TRUE)
+  if (out$structureOK & out$nGenes == length(keep.columns)) {
+    return(multiExpr)
+  } else {
+    stop("Unable to create a multiSet/multiExpr, with the sets given.")
+  }
+}
+
+# Given a powerTable finds the minimum power to reach the
+# min value of threshold for SFT.R.sq fitting.
+multiple.softThreshold <- function(multiPower, min = 0.85){
+  unlist(lapply(multiPower, function(x){
+    y <- x$data[x$data$SFT.R.sq > 0.85, "Power"]
+    return(y[1])}))
+}
