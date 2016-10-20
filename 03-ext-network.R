@@ -2,20 +2,32 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
+# Options to get the files
+singFolder <- "../../isa_HA/unsigned_signed/"
+consFolder <- "../unsigned_signed/"
+
 # input single expr ####
 # Or any other expression one want to check if it holds.
-load("../..../modules_MEs.RData", verbose = TRUE)
+load(file.path(singFolder, "modules_ME.RData"), verbose = TRUE)
 # Rename variables to avoid conflicts
 singLabels <- moduleColors
 singColors <- moduleColors
-singTree <- geneTree # The tree
 singMEs <- orderMEs(MEs)
-
+load(file.path(singFolder, "Input.RData"), verbose = TRUE)
+singNames <- colnames(data.wgcna)
 #Load the Consensus data
-load(file = "Consensus-module_MEs.RData", verbose = TRUE)
-consLabels <- moduleColors
+load(file = file.path(consFolder, "Consensus-module_MEs.RData"), verbose = TRUE)
+load(file = file.path(consFolder, "Input.RData"), verbose = TRUE)
+consNames <- colnames(data.wgcna[[1]]$data)
 consMEs <- MEs
-
+if (length(singNames) > length(consNames)) {
+  keep <- singNames %in% consNames
+  singLabels <- singLabels[keep]
+  singColors <- singColors[keep]
+}
+if (length(singLabels) != length(moduleColors)){
+  stop("Match correclty the name of the genes")
+}
 # This code assumes that the identifiers are in both datasets common
 # and that are of the same size between them
 
@@ -23,6 +35,7 @@ consMEs <- MEs
 # Isolate the module labels in the order they appear in
 # ordered module eigengenes
 singModules <- substring(colnames(singMEs), 3)
+singModules <- singModules[singModules %in% unique(singLabels)]
 # Compares just against the first set of data not the consensus¿?
 consModules <- substring(colnames(consMEs[[1]]$data), 3)
 
@@ -36,7 +49,7 @@ CountTbl <- matrix(0, nrow = nSingMods, ncol = nConsMods)
 # Execute all pairwaise comparisons
 for (smod in 1:nSingMods) {
   for (cmod in 1:nConsMods) {
-    singMembers <- singLabels == singModules[fsod]
+    singMembers <- singLabels == singModules[smod]
     consMembers <- moduleColors == consModules[cmod]
     pTable[smod, cmod] <- -log10(fisher.test(singMembers, consMembers,
                                              alternative = "greater")$p.value)
