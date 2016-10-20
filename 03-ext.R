@@ -1,7 +1,4 @@
-# Load =========================================================================
-#
-#  Code chunk 1: Read the saved data from previous steps
-#
+# Load ####
 
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
@@ -15,13 +12,7 @@ load(file = "modules_ME.RData", verbose = TRUE)
 # rfiles <- list.files(pattern = ".RData")
 # sapply(rfiles, load, verbose = TRUE)
 
-# ME var =======================================================================
-#
-#  Code chunk 2: Correlate eigenvalues of modules with Variables
-#
-
-
-
+# ME var ####
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
@@ -52,10 +43,7 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 moduleTraitPvalue <- orderby(moduleTraitPvalue, rownames(moduleTraitCor),
                              names.x = TRUE)
 
-# Modules variables ============================================================
-#
-#  Code chunk 3: Display the correlations of modules and variables in a heatmap
-#
+# Modules variables ####
 
 # Will display correlations and their p-values as text
 textMatrix <- paste0(sprintf("%.2f", moduleTraitCor), "\n(",
@@ -95,11 +83,7 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
 dev.off()
 save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
-# calculate GS MM ========================================================================
-#
-#  Code chunk 4: Calculates the correlation between gene significance of a
-#                variable and the module membership
-#
+# calculate GS MM ####
 
 modNames <- substring(names(MEs), 3)
 
@@ -119,10 +103,7 @@ names(geneTraitSignificance) <- paste0("GS.", names.disease)
 names(GSPvalue) <- paste0("p.GS.", names.disease)
 
 
-# Heatmap GS MM ================================================================
-#
-#  Code chunk 5: Study the relationship between GS and MM of all modules
-#
+# Heatmap GS MM ####
 
 # IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
 #                                  p.value = 0.05)
@@ -218,7 +199,7 @@ a <- sapply(names(IM2), function(y, d){
 }, d = IM2)
 
 save(IM2, file = "selected_modules.RData")
-# mean GS ===================================================================
+# mean GS ####
 
 w.mean <- sapply(names(IM0), function(y, d) {
   sapply(d[[y]], function(x, var){
@@ -245,10 +226,7 @@ labeledHeatmap.multiPage(Matrix = w.mean,
                          addPageNumberToMain = FALSE,
                          main = "Weighted mean gene significance of modules")
 dev.off()
-# GS connectivity ==============================================================
-#
-#  Code chunk 5b: Plots the relationship between GS and connectivity
-#
+# GS connectivity ####
 # load(file = "kIM.RData", verbose = TRUE)
 # load(file = "sft.RData", verbose = TRUE)
 
@@ -275,7 +253,7 @@ dev.off()
 #                     power = sft$powerEstimate)
 #
 # save(autoScreen, file = "autoScreen.RData")
-# Tops related genes ===========================================================
+# Tops related genes ####
 #
 #  Code chunk 6: Explore the genes top related to each clinical variable
 #
@@ -285,10 +263,7 @@ dev.off()
 #                               addMEy = FALSE)
 # fnlist(genes.interes, "significant_genes_variables.csv")
 
-# Top related genes per module =================================================
-#
-#  Code chunk 7: Explore the top genes related to each module in a clinical var
-#
+# Top related genes per module ####
 
 # genes.modules <- function(disease, GTS, modules, threshold = 0.3) {
 #   genes <- GTS[, match(disease, colnames(GTS))]
@@ -297,10 +272,7 @@ dev.off()
 # }
 
 
-# Store results ================================================================
-#
-#  Code chunk 9: Store the results of the WGCNA
-#
+# Store results ####
 
 # Create a dataframe with gene symbol, modul, MM and MMPvalue
 geneInfo <- data.frame(genes = colnames(data.wgcna),
