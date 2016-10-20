@@ -8,13 +8,13 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 # Phenodata contains the information of the experiment space separated!
 # not tab separated
 
-# pheno.rd <- read.csv(rd, stringsAsFactors = FALSE)
+pheno.rd <- read.csv(rd, stringsAsFactors = FALSE)
 # pheno.isa <- read.affy(pheno1)
 # pheno.silvia <- read.affy(pheno2)
-# symbols <- pheno.rd$hgnc_symbol
-# rownames(pheno.rd) <- pheno.rd$refseq_mrna
+symbols <- pheno.rd$hgnc_symbol
+rownames(pheno.rd) <- pheno.rd$refseq_mrna
 # removing "refseq_mrna" and symbol columns
-# pheno.rd <- pheno.rd[, -c(1, 2)]
+pheno.rd <- pheno.rd[, -c(1, 2)]
 # Download set ####
 # geosupp <- getGEOSuppFiles(gse_number)
 # geosupp
@@ -32,7 +32,7 @@ setwd(data.files.out)
 # load("pheno.RData", verbose = TRUE)
 
 # Adjusting intensity and making them comparable ####
-# c.rd <- rma(pheno.rd)
+# c.rd <- rma(pheno.rd) # not possible
 # c.isa <- rma(pheno.isa)
 # c.silvia <- rma(pheno.silvia)
 # save(c.isa, c.silvia, file = "rma.pheno.RData")
@@ -261,66 +261,67 @@ setwd(data.files.out)
 
 # Prepare the variables to the right format ####
 
-colnames(disease.isa) <- tolower(colnames(disease.isa))
-clin.isa <- cbind("files" = rownames(pData(pheno.isa)),
-                  pData(pheno.isa))
-# clin.silvia <- cbind("files" = rownames(pData(pheno.silvia)),
-#                      pData(pheno.silvia))
-disease.isa <- rename.col(disease.isa, "codi_pacient", "id")
-disease.isa <- rename.col(disease.isa, 'creat', 'creatinine')
-disease.isa <- rename.col(disease.isa, 'leuc', 'leucos')
-disease.isa <- rename.col(disease.isa, 'alb', 'albumin')
-disease.isa <- rename.col(disease.isa, 'triglicerids', 'trigyicerides')
-disease.isa <- rename.col(disease.isa, 'glucosa', 'glucose')
-disease.isa <- rename.col(disease.isa, 'viu_3m', 'status_90')
-disease.isa$status_90 <- fact2num(disease.isa$status_90, "si", "alive")
-disease.isa$status_90 <- fact2num(disease.isa$status_90, "no", "exitus")
+# colnames(disease.isa) <- tolower(colnames(disease.isa))
+# clin.isa <- cbind("files" = rownames(pData(pheno.isa)),
+#                   pData(pheno.isa))
+# # clin.silvia <- cbind("files" = rownames(pData(pheno.silvia)),
+# #                      pData(pheno.silvia))
+# disease.isa <- rename.col(disease.isa, "codi_pacient", "id")
+# disease.isa <- rename.col(disease.isa, 'creat', 'creatinine')
+# disease.isa <- rename.col(disease.isa, 'leuc', 'leucos')
+# disease.isa <- rename.col(disease.isa, 'alb', 'albumin')
+# disease.isa <- rename.col(disease.isa, 'triglicerids', 'trigyicerides')
+# disease.isa <- rename.col(disease.isa, 'glucosa', 'glucose')
+# disease.isa <- rename.col(disease.isa, 'viu_3m', 'status_90')
+# disease.isa$status_90 <- fact2num(disease.isa$status_90, "si", "alive")
+# disease.isa$status_90 <- fact2num(disease.isa$status_90, "no", "exitus")
+#
+# disease.isa$plaq <- disease.isa$plaq*1000
+# disease.isa <- rename.col(disease.isa, 'plaq', 'platelets')
+# disease.isa$hb <- disease.isa$hb/10
+# # disease.isa <- rename.col(disease.isa, 'hb', 'hb_g.dl')
+#
+# # clin <- rbind.fill(clin.isa, clin.silvia)
+# # disease <- rbind.fill(disease.silvia, disease.isa)
+# disease <- disease.isa
+# clin <- clin.isa
+# disease <- as.data.frame(apply(disease, 2, trim))
+#
+# disease$aki <- fact2num(disease$aki, "(yes)|(si)", 1)
+# disease$aki <- fact2num(disease$aki, "no", 0)
+# disease$aki <- level.na(disease$aki)
+#
+# disease$status_90 <- fact2num(disease$status_90, "alive", 1)
+# disease$status_90 <- fact2num(disease$status_90, "exitus", 0)
+# disease$status_90 <- level.na(disease$status_90)
+#
+# disease$infection_hospitalization <- fact2num(disease$status_90, "yes", 0)
+# disease$infection_hospitalization <- fact2num(disease$status_90, "no", 1)
+# disease$status_90 <- level.na(disease$status_90)
+#
+# vclin <- merge(clin, disease, by.x = "Sample", by.y = "id", all.x = TRUE)
+# int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
+#             "status_90", "glucose",
+#              "trigyicerides", "ast", "alt", "bili_total", "creatinine",
+#              "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
+#              "platelets", "hvpg_corte20", "hvpg", "aki",
+#              "infection_hospitalization")
+# vclin <- vclin[, colnames(vclin) %in% int.Var]
+# # 1 above, 0 below
+# if ("hvpg" %in% colnames(vclin)) {
+#   vclin$hvpg_corte20 <- as.numeric(as.numeric(vclin$hvpg) > 20)
+# }
+# # 1 below, 0 above
+# if ("lille" %in% colnames(vclin)) {
+#   vclin$lille_corte <- as.numeric(as.numeric(vclin$lille) < 0.45)
+# }
 
-disease.isa$plaq <- disease.isa$plaq*1000
-disease.isa <- rename.col(disease.isa, 'plaq', 'platelets')
-disease.isa$hb <- disease.isa$hb/10
-# disease.isa <- rename.col(disease.isa, 'hb', 'hb_g.dl')
-
-# clin <- rbind.fill(clin.isa, clin.silvia)
-# disease <- rbind.fill(disease.silvia, disease.isa)
-disease <- disease.isa
-clin <- clin.isa
-disease <- as.data.frame(apply(disease, 2, trim))
-
-disease$aki <- fact2num(disease$aki, "(yes)|(si)", 1)
-disease$aki <- fact2num(disease$aki, "no", 0)
-disease$aki <- level.na(disease$aki)
-
-disease$status_90 <- fact2num(disease$status_90, "alive", 1)
-disease$status_90 <- fact2num(disease$status_90, "exitus", 0)
-disease$status_90 <- level.na(disease$status_90)
-
-disease$infection_hospitalization <- fact2num(disease$status_90, "yes", 0)
-disease$infection_hospitalization <- fact2num(disease$status_90, "no", 1)
-disease$status_90 <- level.na(disease$status_90)
-
-vclin <- merge(clin, disease, by.x = "Sample", by.y = "id", all.x = TRUE)
-int.Var <- c("Sample", "files", "meld", "maddrey", "lille_corte", "lille",
-            "status_90", "glucose",
-             "trigyicerides", "ast", "alt", "bili_total", "creatinine",
-             "albumin", "inr", "ggt", "ap", "leucos", "hb_g.dl", "hematocrit",
-             "platelets", "hvpg_corte20", "hvpg", "aki",
-             "infection_hospitalization")
-vclin <- vclin[, colnames(vclin) %in% int.Var]
-# 1 above, 0 below
-if ("hvpg" %in% colnames(vclin)) {
-  vclin$hvpg_corte20 <- as.numeric(as.numeric(vclin$hvpg) > 20)
-}
-# 1 below, 0 above
-if ("lille" %in% colnames(vclin)) {
-  vclin$lille_corte <- as.numeric(as.numeric(vclin$lille) < 0.45)
-}
-
-data.wgcna <- t(co.isa)
+data.wgcna <- t(pheno.rd)
 # Filtering those with low correlation between studies
 # data.wgcna <- data.wgcna[ , colnames(data.wgcna) %in% comp.genes]
 # Changing the name of the files by the samples name
-rownames(data.wgcna) <- vclin$Sample[match(rownames(data.wgcna), vclin$files)]
+# rownames(data.wgcna) <- vclin$Sample[match(rownames(data.wgcna), vclin$files)]
+#
 gsg <- goodSamplesGenes(data.wgcna, verbose = 3)
 
 if (!gsg$allOK) {
@@ -341,41 +342,64 @@ if (!gsg$allOK) {
   data.wgcna <- data.wgcna[gsg$goodSamples, gsg$goodGenes]
 }
 
-# samples.pre <- t(merged.shared.pca)
-# rownames(samples.pre) <- vclin$Sample[match(rownames(samples.pre), vclin$files)]
-pdf("Samples.pdf")
-# sampleTree <- hclust(dist(samples.pre), method = "average")
+# # samples.pre <- t(merged.shared.pca)
+# # rownames(samples.pre) <- vclin$Sample[match(rownames(samples.pre), vclin$files)]
+# pdf("Samples.pdf")
+# # sampleTree <- hclust(dist(samples.pre), method = "average")
+# # plot(sampleTree, main = "Sample clustering to detect outliers",
+# #      sub = "Before ComBat correction", xlab = "", cex.lab = 1.5,
+# #      cex.axis = 1.5, cex.main = 2)
+# sampleTree <- hclust(dist(data.wgcna), method = "average")
 # plot(sampleTree, main = "Sample clustering to detect outliers",
-#      sub = "Before ComBat correction", xlab = "", cex.lab = 1.5,
+#      sub = "After corrections", xlab = "", cex.lab = 1.5,
 #      cex.axis = 1.5, cex.main = 2)
-sampleTree <- hclust(dist(data.wgcna), method = "average")
-plot(sampleTree, main = "Sample clustering to detect outliers",
-     sub = "After corrections", xlab = "", cex.lab = 1.5,
-     cex.axis = 1.5, cex.main = 2)
-dev.off()
-
-
-# Re-cluster samples
-sampleTree2 <- hclust(dist(data.wgcna),
-                      method = "average")
-# Convert traits to a color representation: white means low, red means high,
-# grey means missing entry
-v <- apply(vclin[, 3:ncol(vclin)], 2, as.numeric)
-no.keep <- apply(v, 2, function(x){all(is.na(x))})
-v <- v[, !no.keep]
-rownames(v) <- vclin$Sample
-traitColors <- numbers2colors(v, signed = FALSE)
-dimnames(traitColors) <- dimnames(v)
-# Plot the sample dendrogram and the colors underneath.
-pdf("Dendro_traits.pdf")
-plotDendroAndColors(sampleTree2, traitColors,
-                    main = "Sample dendrogram and trait heatmap")
-dev.off()
-
+# dev.off()
+#
+#
+# # Re-cluster samples
+# sampleTree2 <- hclust(dist(data.wgcna),
+#                       method = "average")
+# # Convert traits to a color representation: white means low, red means high,
+# # grey means missing entry
+# v <- apply(vclin[, 3:ncol(vclin)], 2, as.numeric)
+# no.keep <- apply(v, 2, function(x){all(is.na(x))})
+# v <- v[, !no.keep]
+# rownames(v) <- vclin$Sample
+# traitColors <- numbers2colors(v, signed = FALSE)
+# dimnames(traitColors) <- dimnames(v)
+# # Plot the sample dendrogram and the colors underneath.
+# pdf("Dendro_traits.pdf")
+# plotDendroAndColors(sampleTree2, traitColors,
+#                     main = "Sample dendrogram and trait heatmap")
+# dev.off()
+# vclin RD
+vclin <- read.table(text = "       Total Negative Positive progression  n run
+GTB140     0        0        1           2  1   1
+GTB141     0        0        1           2  2   1
+GTB142     0        0        1           2  3   1
+GTB198     0        0        1           2  4   2
+GTB199     0        0        1           2  5   2
+GTB200     0        0        1           2  6   2
+GTB143     0        1        0           0  1   1
+GTB144     0        1        0           0  2   1
+GTB145     0        1        0           0  3   1
+GTB201     0        1        0           0  4   2
+GTB202     0        1        0           0  5   2
+GTB203     0        1        0           0  6   2
+GTB146     1        0        0           1  7   1
+GTB147     1        0        0           1  8   1
+GTB204     1        0        0           1  9   2
+GTB205     1        0        0           1 10   2
+")
+batch <- vclin$run
+batch2 <- vclin$n
+vclin <- vclin[, !colnames(vclin) %in% "run"]
+model <- vclin[, !colnames(vclin) %in% c("n", "progression")]
+# model
+# batch
+# cob <- ComBat(t(data.wgcna), batch, model)
+rob <- removeBatchEffect(t(data.wgcna), batch, design = model)
 # Keep those who are different to 1
-rm.i <- apply(v, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
-v <- v[, !rm.i]
-
-vclin <- v
+data.wgcna <- t(rob)
 vclin <- orderby(vclin, rownames(data.wgcna), names.x = TRUE)
 save(data.wgcna, vclin, file = "Input.RData")
