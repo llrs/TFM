@@ -10,7 +10,8 @@ load("../../silvia_HA/unsigned_signed/Input.RData", verbose = TRUE)
 silvia.exprs <- data.wgcna
 silvia.disease <- vclin
 # Creating the multiData/multiExprs/... object
-data.wgcna <- multiSet(isa = isa.exprs, silvia = silvia.exprs) # Should list2multiData be used?
+data.wgcna <- multiSet(isa = isa.exprs, silvia = silvia.exprs)
+# Should list2multiData be used?
                          # No, it doesn't check or do anything else than messing
 
 # Check if the genes are comparable according to WGCNA
@@ -36,21 +37,25 @@ if (!gsg$allOK) {
 # plot(intcor)
 # dev.off()
 # save(intcor, corcor, file = "mergemaid.RData")
-load("mergemaid.RData", verbose = TRUE)
+load("../filtered/mergemaid.RData", verbose = TRUE)
 coef <- as.vector(corcor@pairwise.cors)
 names(coef) <- rownames(corcor@pairwise.cors)
 comp.genes <- names(coef)[coef > 0] # Threshold of comparison
 discutibles.genes <- names(coef)[coef <= 0]
 
-data.wgcna <- sapply(data.wgcna, function(x, keep) {
-  x$data[, keep %in% colnames(x$data)]
+data.wgcna2 <- lapply(data.wgcna, function(x, keep) {
+  x$data[, colnames(x$data) %in% keep]
 }, keep = comp.genes)
+names(data.wgcna2) <- names(data.wgcna)
+for (i in 1:length(data.wgcna)) {
+  data.wgcna[[i]]$data <- data.wgcna2[[i]]
+}
 
 chSet <- checkSets(data.wgcna)
 nGenes <- chSet$nGenes
 nSamples <- chSet$nSamples
 nSets <- chSet$nSets
-
+save(data.wgcna, file = "Input.RData")
 # bio.cor? ####
 if (bio.corFnc) {
   bio_mat <- tryCatch({load("bio_correlation.RData")},
@@ -66,32 +71,32 @@ if (bio.corFnc) {
 # power ####
 
 # Choose a set of soft-thresholding powers
-powerTables <- vector(mode = "list", length = nSets)
-# Call the network topology analysis function for each set in turn
-for (set in 1:nSets) {
-  # Calculate the appropiate sft ####
-  if (bio.corFnc) {
-    sft <- pickSoftThreshold(data.wgcna[[set]]$data,
-                             powerVector = powers,
-                             verbose = 5,
-                             networkType = adj.opt,
-                             corFnc = cor.all,
-                             corOptions = list(bio_mat = bio_mat,
-                                               w = c(0.5, 0.5)))
-  } else {
-    sft <- pickSoftThreshold(data.wgcna[[set]]$data,
-                             powerVector = powers, verbose = 5,
-                             # corFnc = bicor,
-                             corOptions = list(nThreads = 6), #, maxPOutliers = 0.05),
-                             networkType = adj.opt)
-  }
-  # Set it as originally
-  powerTables[[set]] <- list(data = sft[[2]])
-}
-collectGarbage()
-save(powerTables, file = "powers_multiSet.RData")
+# powerTables <- vector(mode = "list", length = nSets)
+# # Call the network topology analysis function for each set in turn
+# for (set in 1:nSets) {
+#   # Calculate the appropiate sft ####
+#   if (bio.corFnc) {
+#     sft <- pickSoftThreshold(data.wgcna[[set]]$data,
+#                              powerVector = powers,
+#                              verbose = 5,
+#                              networkType = adj.opt,
+#                              corFnc = cor.all,
+#                              corOptions = list(bio_mat = bio_mat,
+#                                                w = c(0.5, 0.5)))
+#   } else {
+#     sft <- pickSoftThreshold(data.wgcna[[set]]$data,
+#                              powerVector = powers, verbose = 5,
+#                              # corFnc = bicor,
+#                              corOptions = list(nThreads = 6), #, maxPOutliers = 0.05),
+#                              networkType = adj.opt)
+#   }
+#   # Set it as originally
+#   powerTables[[set]] <- list(data = sft[[2]])
+# }
+# collectGarbage()
+# save(powerTables, file = "powers_multiSet.RData")
 load(file = "powers_multiSet.RData", verbose = TRUE)
-power <- multiple.softThreshold(powerTables)
+power <- mean(multiple.softThreshold(powerTables))
 pdf("Network_building.pdf")
 # Plot the results:
 colors = c("black", "red")
@@ -216,8 +221,11 @@ MEDissThres <- 0.25
 # Plot the cut line into the dendrogram
 abline(h = MEDissThres, col = "red")
 
-labeledHeatmap(MEDiss, xLabels = colnames(MEs), yLabels = colnames(MEs),
-               xSymbols = colnames(MEs), ySymbols = colnames(MEs))
+labeledHeatmap(MEDiss,
+               xLabels = substring(colnames(MEs), 3),
+               yLabels = substring(colnames(MEs), 3),
+               xSymbols = substring(colnames(MEs), 3),
+               ySymbols = substring(colnames(MEs), 3))
 
 gm <- table(net$colors)
 gm
