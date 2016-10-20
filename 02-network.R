@@ -1,8 +1,4 @@
-# 1 ============================================================================
-#
-#  Code chunk 1: Starting from the previously saved data
-#
-# ==============================================================================
+# starting ####
 
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
@@ -14,12 +10,7 @@ load(file = "Input.RData", verbose = TRUE)
 nGenes <- ncol(data.wgcna)
 nSamples <- nrow(data.wgcna)
 
-# 1b ===========================================================================
-#
-#  Code chunk 1b: Calculate the biological information of the genes
-#
-# ==============================================================================
-
+# bio.cor ####
 if (bio.corFnc) {
   bio_mat <- tryCatch({load("bio_correlation.RData")},
            warning = function(x){
@@ -31,11 +22,7 @@ if (bio.corFnc) {
 }
 
 
-# 2 ============================================================================
-#
-#  Code chunk 2: Deciding the power to use
-#
-# ==============================================================================
+# power ####
 
 # Choose a set of soft-thresholding powers
 
@@ -97,11 +84,7 @@ scaleFreePlot(k, main = paste0("Check scale free topology, power",
                                sft$powerEstimate))
 dev.off()
 
-# 3 ============================================================================
-#
-#  Code chunk 3: Automatic blocks creation using the power calculated
-#
-# ==============================================================================
+# Blocks ####
 net <- blockwiseModules(data.wgcna,
                         power = sft$powerEstimate,
                 TOMType = TOM.opt,
@@ -118,12 +101,7 @@ net <- blockwiseModules(data.wgcna,
 save(net, file = "net.RData")
 load("net.RData", verbose = TRUE)
 
-# 4 ============================================================================
-#
-#  Code chunk 4: Plot how the modules correlate in a first dendrogram
-#
-# ==============================================================================
-
+# dendro ####
 
 pdf(file = "dendro.pdf", width = 12, height = 9)
 # Convert labels to colors for plotting
@@ -135,12 +113,7 @@ plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
                     addGuide = TRUE, guideHang = 0.05)
 dev.off()
 
-# 5 ============================================================================
-#
-#  Code chunk 5: Explore the connectivity
-#
-# ==============================================================================
-#
+# Connectivity ####
 connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
                                              networkType = adj.opt,
                                              power = sft$powerEstimate,
@@ -158,13 +131,7 @@ kME <- signedKME(data.wgcna, MEs)
 save(kME, file = "kME.RData")
 # load("kME.RData", verbose = TRUE)
 
-# 5b ===========================================================================
-#
-#  Code chunk 5b: See how are the modules found
-#
-# ==============================================================================
-
-
+# Modules ####
 # Calculate dissimilarity of module eigengenes
 corME <- cor(MEs)
 MEDiss <- 1 - corME
@@ -202,10 +169,5 @@ moduleColors <- net$colors
 #          plot = p)
 # })
 
-# 6 ============================================================================
-#
-#  Code chunk 6: Save the data for the next process
-#
-# ==============================================================================
-
+# Save ####
 save(MEs, moduleColors, file = "modules_ME.RData")
