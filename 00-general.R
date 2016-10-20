@@ -669,10 +669,10 @@ multiSet <- function(...) {
   }
 }
 
-# Given a powerTable calculates the higher power to reach the
-# min value of threshold
+# Given a powerTable finds the minimum power to reach the
+# min value of threshold for SFT.R.sq fitting.
 multiple.softThreshold <- function(multiPower, min = 0.85){
-  mean(unlist(lapply(multiPower, function(x){
+  unlist(lapply(multiPower, function(x){
     y <- x$data[x$data$SFT.R.sq > 0.85, "Power"]
-    return(y[1])})))
+    return(y[1])}))
 }
