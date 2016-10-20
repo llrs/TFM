@@ -3,8 +3,8 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 # Options to get the files
-singFolder <- "../../isa_HA/unsigned_signed/"
-consFolder <- "../unsigned_signed/"
+singFolder <- "../../RD/unsigned_signed/"
+consFolder <- "../../comparison_HA/unsigned_signed"
 
 # input single expr ####
 # Or any other expression one want to check if it holds.
@@ -15,18 +15,26 @@ singColors <- moduleColors
 singMEs <- orderMEs(MEs)
 load(file.path(singFolder, "Input.RData"), verbose = TRUE)
 singNames <- colnames(data.wgcna)
-#Load the Consensus data
-load(file = file.path(consFolder, "Consensus-module_MEs.RData"), verbose = TRUE)
+#Load the Consensus data # Consensus-modules_MEs.RData
+load(file = file.path(consFolder, "modules_ME.RData"), verbose = TRUE)
 load(file = file.path(consFolder, "Input.RData"), verbose = TRUE)
-consNames <- colnames(data.wgcna[[1]]$data)
+consNames <- colnames(data.wgcna) #[[1]]$data
 consMEs <- MEs
 if (length(singNames) > length(consNames)) {
-  keep <- singNames %in% consNames
+
+  singNames <- select(org.Hs.eg.db, keys = singNames,
+                      keytype = "REFSEQ", columns = "SYMBOL")[, "SYMBOL"]
+  names(singLabels) <- singNames
+  names(singColors) <- singNames
+  comNames <- intersect(singNames, consNames)
+  keep <- singNames %in% comNames
   singLabels <- singLabels[keep]
+  singLabels <- singLabels[!duplicated(names(singLabels))]
   singColors <- singColors[keep]
+  singColors <- singColors[!duplicated(names(singColors))]
 }
-if (length(singLabels) != length(moduleColors)){
-  stop("Match correclty the name of the genes")
+if (length(singLabels) < length(moduleColors)){
+  moduleColors <- moduleColors[consNames %in% comNames]
 }
 # This code assumes that the identifiers are in both datasets common
 # and that are of the same size between them
@@ -37,7 +45,7 @@ if (length(singLabels) != length(moduleColors)){
 singModules <- substring(colnames(singMEs), 3)
 singModules <- singModules[singModules %in% unique(singLabels)]
 # Compares just against the first set of data not the consensus¿?
-consModules <- substring(colnames(consMEs[[1]]$data), 3)
+consModules <- substring(colnames(consMEs), 3) # [[1]]$data
 
 # Numbers of single and consensus modules
 nSingMods <- length(singModules)
@@ -68,18 +76,23 @@ singModTotals <- apply(CountTbl, 1, sum)
 consModTotals <- apply(CountTbl, 2, sum)
 
 # Actual plotting
-pdf(file = "heatmap_ConsensusVsSingleModules.pdf", width = 10, height = 7)
+pdf(file = "heatmap_RD_Vs_HA_Modules.pdf", width = 10, height = 7)
 par(mfrow = c(1,1), cex = 1.0, mar = c(8, 10.4, 2.7, 1) + 0.3)
 # Use function labeledHeatmap to produce the color-coded table with all the
 # trimmings
-labeledHeatmap(Matrix = pTable,
+colo <- log10(CountTbl)
+colo[] <- ifelse(is.infinite(colo), 0, colo)
+labeledHeatmap.multiPage(Matrix = colo,
                xLabels = paste(" ", consModules),
                yLabels = paste(" ", singModules),
                colorLabels = TRUE,
-               xSymbols = paste0("Cons ", consModules, ": ", consModTotals),
-               ySymbols = paste0("Sing ", singModules, ": ", singModTotals),
+               xSymbols = paste0("HA ", consModules, ": ", consModTotals),
+               ySymbols = paste0("RD ", singModules, ": ", singModTotals),
                textMatrix = CountTbl,
-               colors = greenWhiteRed(100)[50:100],
-               main = "Correspondence of set-specific and consensus modules",
-               cex.text = 1.0, cex.lab = 1.0, setStdMargins = FALSE)
+               signed = FALSE,
+               # zlim = c(0, max(CountTbl)),
+               addPageNumberToMain = FALSE,
+               main = "Correspondence of modules",
+               cex.text = 1.0, cex.lab = 1.0, setStdMargins = FALSE,
+               maxRowsPerPage = 20, maxColsPerPage = 20)
 dev.off()
