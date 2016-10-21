@@ -3,6 +3,10 @@
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 consensus <- FALSE
+power <- FALSE
+network <- FALSE
+dendro <- FALSE
+connectivity <- FALSE
 # Input can be from those individual projects
 if (consensus) {
   load("../../isa_HA/unsigned_signed/Input.RData", verbose = TRUE)
@@ -70,24 +74,99 @@ if (consensus) {
 # bio.cor ####
 if (bio.corFnc) {
   bio_mat <- tryCatch({load("bio_correlation.RData")},
-           warning = function(x){
-             bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
-                                 react = TRUE)
-             save(bio_mat, file = "bio_correlation.RData")
-             return(bio_mat)
-           })
+                      warning = function(x){
+                        bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
+                                            react = TRUE)
+                        save(bio_mat, file = "bio_correlation.RData")
+                        return(bio_mat)
+                      })
 }
 
 
 # power ####
-if (consensus) {
-  # Choose a set of soft-thresholding powers
-  powerTables <- vector(mode = "list", length = nSets)
-  # Call the network topology analysis function for each set in turn
-  for (set in 1:nSets) {
-    # Calculate the appropiate sft ####
+if (power) {
+  if (consensus) {
+    # Choose a set of soft-thresholding powers
+    powerTables <- vector(mode = "list", length = nSets)
+    # Call the network topology analysis function for each set in turn
+    for (set in 1:nSets) {
+      # Calculate the appropiate sft ####
+      if (bio.corFnc) {
+        sft <- pickSoftThreshold(data.wgcna[[set]]$data,
+                                 powerVector = powers,
+                                 verbose = 5,
+                                 networkType = adj.opt,
+                                 corFnc = cor.all,
+                                 corOptions = list(bio_mat = bio_mat,
+                                                   w = c(0.5, 0.5)))
+      } else {
+        sft <- pickSoftThreshold(data.wgcna[[set]]$data,
+                                 powerVector = powers,
+                                 verbose = 5,
+                                 corFnc = bicor,
+                                 corOptions = list(maxPOutliers = 0.10),
+                                 networkType = adj.opt)
+      }
+      # Set it as originally
+      powerTables[[set]] <- list(data = sft[[2]])
+    }
+    collectGarbage()
+    save(powerTables, file = "powers_multiSet.RData")
+    power <- mean(multiple.softThreshold(powerTables))
+
+    pdf("Network_building.pdf")
+    # Plot the results:
+    colors = c("black", "red")
+    # Will plot these columns of the returned scale free analysis tables
+    plotCols = c(2,5,6,7)
+    colNames = c("Scale Free Topology Model Fit", "Mean connectivity",
+                 "Median connectivity", "Max connectivity")
+    # Get the minima and maxima of the plotted points
+    ylim <- matrix(NA, nrow = 2, ncol = 4)
+    for (set in 1:nSets) {
+      for (col in 1:length(plotCols)) {
+        ylim[1, col] = min(ylim[1, col], powerTables[[set]]$data[, plotCols[col]],
+                           na.rm = TRUE)
+        ylim[2, col] = max(ylim[2, col], powerTables[[set]]$data[, plotCols[col]],
+                           na.rm = TRUE)
+      }
+    }
+    # Plot the quantities in the chosen columns vs. the soft thresholding power
+
+    pars <- par(mfcol = c(2,2), mar = c(4.2, 4.2 , 2.2, 0.5))
+    cex1 <- 0.7
+    for (col in 1:length(plotCols)) {
+      for (set in 1:nSets) {
+        if (set == 1) {
+          plot(powerTables[[set]]$data[,1],
+               -sign(powerTables[[set]]$data[,3])*powerTables[[set]]$data[,2],
+               xlab = "Soft Threshold (power)", ylab = colNames[col], type = "n",
+               ylim = ylim[, col],
+               main = colNames[col])
+          addGrid()
+        }
+        if (col == 1) {
+          text(powerTables[[set]]$data[,1],
+               -sign(powerTables[[set]]$data[,3])*powerTables[[set]]$data[,2],
+               labels = powers, cex = cex1, col = colors[set])
+        } else
+          text(powerTables[[set]]$data[,1],
+               powerTables[[set]]$data[,plotCols[col]],
+               labels = powers, cex = cex1, col = colors[set])
+        if (col == 1) {
+          legend("bottomright", legend = names(data.wgcna),
+                 col = colors, pch = 20)
+        } else {
+          legend("topright", legend = names(data.wgcna),
+                 col = colors, pch = 20)
+        }
+      }
+    }
+    dev.off()
+  } else {
+    # Call the network topology analysis function
     if (bio.corFnc) {
-      sft <- pickSoftThreshold(data.wgcna[[set]]$data,
+      sft <- pickSoftThreshold(data.wgcna,
                                powerVector = powers,
                                verbose = 5,
                                networkType = adj.opt,
@@ -95,168 +174,119 @@ if (consensus) {
                                corOptions = list(bio_mat = bio_mat,
                                                  w = c(0.5, 0.5)))
     } else {
-      sft <- pickSoftThreshold(data.wgcna[[set]]$data,
+      sft <- pickSoftThreshold(data.wgcna,
                                powerVector = powers, verbose = 5,
-                               # corFnc = bicor,
-                               corOptions = list(nThreads = 6), #, maxPOutliers = 0.05),
+                               corFnc = bicor,
+                               corOptions = list(nThreads = 6,
+                                                 maxPOutliers = 0.10),
                                networkType = adj.opt)
     }
-    # Set it as originally
-    powerTables[[set]] <- list(data = sft[[2]])
-  }
-  collectGarbage()
-  save(powerTables, file = "powers_multiSet.RData")
-  load(file = "powers_multiSet.RData", verbose = TRUE)
-  power <- mean(multiple.softThreshold(powerTables))
+    save(sft, file = "sft.RData")
+    power <- sft$powerEstimate
+    # load("sft.RData", verbose = TRUE)
+    cex1 <- 0.9
+    # Plot the results:
+    pdfn(file = "Network_building.pdf")
+    # Scale-free topology fit index as a function of the soft-thresholding power
+    plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
+         xlab = "Soft Threshold (power)",
+         ylab = "Scale Free Topology Model Fit, R^2", type = "n",
+         main = "Scale independence", ylim = c(0, 1))
+    text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
+         labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
+    # this line corresponds to using an R^2 cut-off of h
+    abline(h = c(0.90, 0.85), col = c("red", "green"))
+    # Mean connectivity as a function of the soft-thresholding power
+    plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
+         xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
+         main = "Mean connectivity")
+    text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
+         col = "red")
+    abline(h = c(100, 1000), col = c("green", "red"))
 
-  pdf("Network_building.pdf")
-  # Plot the results:
-  colors = c("black", "red")
-  # Will plot these columns of the returned scale free analysis tables
-  plotCols = c(2,5,6,7)
-  colNames = c("Scale Free Topology Model Fit", "Mean connectivity",
-               "Median connectivity", "Max connectivity")
-  # Get the minima and maxima of the plotted points
-  ylim <- matrix(NA, nrow = 2, ncol = 4)
-  for (set in 1:nSets) {
-    for (col in 1:length(plotCols)) {
-      ylim[1, col] = min(ylim[1, col], powerTables[[set]]$data[, plotCols[col]],
-                         na.rm = TRUE)
-      ylim[2, col] = max(ylim[2, col], powerTables[[set]]$data[, plotCols[col]],
-                         na.rm = TRUE)
-    }
   }
-  # Plot the quantities in the chosen columns vs. the soft thresholding power
 
-  pars <- par(mfcol = c(2,2), mar = c(4.2, 4.2 , 2.2, 0.5))
-  cex1 <- 0.7
-  for (col in 1:length(plotCols)) {
-    for (set in 1:nSets) {
-      if (set == 1) {
-        plot(powerTables[[set]]$data[,1],
-             -sign(powerTables[[set]]$data[,3])*powerTables[[set]]$data[,2],
-             xlab = "Soft Threshold (power)",ylab = colNames[col],type = "n",
-             ylim = ylim[, col],
-             main = colNames[col])
-        addGrid()
-      }
-      if (col == 1) {
-        text(powerTables[[set]]$data[,1],
-             -sign(powerTables[[set]]$data[,3])*powerTables[[set]]$data[,2],
-             labels = powers, cex=cex1,col=colors[set]);
-      } else
-        text(powerTables[[set]]$data[,1], powerTables[[set]]$data[,plotCols[col]],
-             labels = powers,cex=cex1,col=colors[set]);
-      if (col == 1) {
-        legend("bottomright", legend = names(data.wgcna), col = colors, pch = 20)
-      } else {
-        legend("topright", legend = names(data.wgcna), col = colors, pch = 20)
-      }
-    }
+  message("The recommended power is ", power)
+  if (is.na(power)) {
+    stop("Estimated power, is NA\nReview the power manually!")
+  } else if (1/sqrt(nGenes) ^ power * nGenes >= 0.1) {
+    warning("Are you sure of this power?")
   }
-  dev.off()
+  message(paste("Using power", power))
+
+  # softConnectivity ####
+  if (!consensus) {
+    k <- softConnectivity(data.wgcna,
+                          type = adj.opt,
+                          power = power,
+                          corFnc = "bicor",
+                          corOptions = "maxPOutliers = 0.10")
+    plot(density(k))
+    scaleFreePlot(k, main = paste0("Check scale free topology, power",
+                                   sft$powerEstimate))
+    dev.off()
+  }
 } else {
-# Call the network topology analysis function
-  if (bio.corFnc) {
-    sft <- pickSoftThreshold(data.wgcna,
-                             powerVector = powers,
-                             verbose = 5,
-                             networkType = adj.opt,
-                             corFnc = cor.all,
-                             corOptions = list(bio_mat = bio_mat,
-                                               w = c(0.5, 0.5)))
+  if (consensus) {
+    load(file = "powers_multiSet.RData", verbose = TRUE)
+    power <- mean(multiple.softThreshold(powerTables))
   } else {
-    sft <- pickSoftThreshold(data.wgcna,
-                             powerVector = powers, verbose = 5,
-                             # corFnc = bicor,
-                             corOptions = list(nThreads = 6), #, maxPOutliers = 0.05),
-                             networkType = adj.opt)
+    load("sft.RData", verbose = TRUE)
+    power <- sft$powerEstimate
   }
-  save(sft, file = "sft.RData")
-  power <- sft$powerEstimate
-  # load("sft.RData", verbose = TRUE)
-  cex1 <- 0.9
-  # Plot the results:
-  pdfn(file = "Network_building.pdf")
-  # Scale-free topology fit index as a function of the soft-thresholding power
-  plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
-       xlab = "Soft Threshold (power)",
-       ylab = "Scale Free Topology Model Fit, R^2", type = "n",
-       main = "Scale independence", ylim = c(0, 1))
-  text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
-       labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
-  # this line corresponds to using an R^2 cut-off of h
-  abline(h = c(0.90, 0.85), col = c("red", "green"))
-  # Mean connectivity as a function of the soft-thresholding power
-  plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
-       xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
-       main = "Mean connectivity")
-  text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
-       col = "red")
-  abline(h = c(100, 1000), col = c("green", "red"))
-
 }
 
-message("The recommended power is ", power)
-if (is.na(power)) {
-  stop("Estimated power, is NA\nReview the power manually!")
-} else if (1/sqrt(nGenes) ^ power * nGenes >= 0.1) {
-  warning("Are you sure of this power?")
-}
-message(paste("Using power", power))
 
-if (!consensus) {
-  k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate,
-                        corFnc = "bicor", corOptions = "maxPOutliers = 0.10")
-  plot(density(k))
-  scaleFreePlot(k, main = paste0("Check scale free topology, power",
-                                 sft$powerEstimate))
-  dev.off()
-}
+
 
 # Network construction ####
-if (consensus) {
-  net <- blockwiseConsensusModules(data.wgcna,
-                                   power = power,
-                                   TOMType = TOM.opt,
-                                   networkType = adj.opt,
-                                   corType = "bicor",
-                                   maxPOutliers = 0.10,
-                                   minModuleSize = 30,
-                                   maxBlockSize = 8000,
-                                   pamRespectsDendro = FALSE,
-                                   saveTOMs = TRUE,
-                                   saveTOMFileBase = "TOM",
-                                   verbose = 3)
+if (network) {
+  if (consensus) {
+    net <- blockwiseConsensusModules(data.wgcna,
+                                     power = power,
+                                     TOMType = TOM.opt,
+                                     networkType = adj.opt,
+                                     corType = "bicor",
+                                     maxPOutliers = 0.10,
+                                     minModuleSize = 30,
+                                     maxBlockSize = 8000,
+                                     pamRespectsDendro = FALSE,
+                                     saveTOMs = TRUE,
+                                     saveTOMFileBase = "TOM",
+                                     verbose = 3)
+  } else {
+    net <- blockwiseModules(data.wgcna,
+                            power = sft$powerEstimate,
+                            TOMType = TOM.opt,
+                            networkType = adj.opt,
+                            corType = "bicor",
+                            maxPOutliers = 0.10,
+                            minModuleSize = 30,
+                            maxBlockSize = 8000,
+                            pamRespectsDendro = FALSE,
+                            saveTOMs = TRUE,
+                            saveTOMFileBase = "TOM",
+                            verbose = 3)
+  }
+  save(net, file = "net.RData")
 } else {
-  net <- blockwiseModules(data.wgcna,
-                          power = sft$powerEstimate,
-                          TOMType = TOM.opt,
-                          networkType = adj.opt,
-                          corType = "bicor",
-                          maxPOutliers = 0.10,
-                          minModuleSize = 30,
-                          maxBlockSize = 8000,
-                          pamRespectsDendro = FALSE,
-                          saveTOMs = TRUE,
-                          saveTOMFileBase = "TOM",
-                          verbose = 3)
-}
-save(net, file = "net.RData")
-load("net.RData", verbose = TRUE)
-
-if (!consensus) {
-  connect <- intramodularConnectivity.fromExpr(
-    data.wgcna, colors = net$colors,
-    networkType = adj.opt,
-    power = sft$powerEstimate,
-    scaleByMax = TRUE,
-    corFnc = "bicor",
-    corOptions = "maxPOutliers = 0.10")
-  save(connect, file = "kIM.RData")
-  load(file = "kIM.RData", verbose = TRUE)
+  load("net.RData", verbose = TRUE)
 }
 
+if (connectivity) {
+  # IntramodularConnectivity ####
+  if (!consensus) {
+    connect <- intramodularConnectivity.fromExpr(
+      data.wgcna, colors = net$colors,
+      networkType = adj.opt,
+      power = power,
+      scaleByMax = TRUE,
+      corFnc = "bicor",
+      corOptions = "maxPOutliers = 0.10")
+    save(connect, file = "kIM.RData")
+    load(file = "kIM.RData", verbose = TRUE)
+  }
+}
 # Extract eigengenes ####
 if (consensus) {
   MEs <- consensusOrderMEs(net$multiMEs)
@@ -282,22 +312,23 @@ if (consensus) {
 METree <- hclust(as.dist(MEDiss), method = "average")
 # Plot the result
 
+moduleColors <- net$colors
 pdf("Modules_relationship.pdf")
-
 if (consensus) {
   sizeGrWindow(8,10)
   plotEigengeneNetworks(MEs, names(data.wgcna))
   par(pars)
 } else {
-  # Convert labels to colors for plotting
-  moduleColors <- net$colorss
   # Plot the dendrogram and the module colors underneath
-  plotDendroAndColors(net$dendrograms[[1]],
-                      moduleColors[net$blockGenes[[1]]],
-                      "Module colors of first dendrogram",
-                      dendroLabels = FALSE, hang = 0.03,
-                      addGuide = TRUE, guideHang = 0.05)
+  if (dendro) {
+    plotDendroAndColors(net$dendrograms[[1]],
+                        moduleColors[net$blockGenes[[1]]],
+                        "Module colors of first dendrogram",
+                        dendroLabels = FALSE, hang = 0.03,
+                        addGuide = TRUE, guideHang = 0.05)
+  }
 }
+
 plot(METree, main = "Clustering of module eigengenes",
      xlab = "", sub = "")
 MEDissThres <- 0.25
@@ -321,7 +352,6 @@ plot(cbind(gm[order(perc)], perc[order(perc)]), type = "o",
      ylab = "Proportion of modules above the size",
      main = "Distribution of the size of the modules",
      col = names(gm[order(perc)]))
-
 dev.off()
 
 # Plot the expression pattern among the samples
