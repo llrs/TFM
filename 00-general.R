@@ -84,7 +84,7 @@ path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
 # subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
-subdirectory <- "batch_corrected"
+subdirectory <- "bicor"
 data.files.out <- file.path(data.out, subdirectory)
 dir.create(data.files.out)
 
@@ -123,7 +123,7 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
                       group = outcome, var.axes = FALSE,
                       labels = outcome
                       # circle = TRUE
-  ) + theme_bw() + gtitle("PCA samples")
+  ) + theme_bw() + ggtitle("PCA samples")
   plot(pca.plo)
   plot(cmd$points[, 1], cmd$points[, 2], type = "n", main = "MDS samples",
        xlab = paste0("PC1 (", perc.v[1], "% explained var.)"),
@@ -132,7 +132,7 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
   text(cmd$points[,1 ], cmd$points[, 2], col = col, cex = 0.9,
        labels = outcome)
   dev.off()
-  invisible(data)
+  invisible(cmd)
 }
 
 # Given a expression set transforms it to the gene symbols and averages the expr
