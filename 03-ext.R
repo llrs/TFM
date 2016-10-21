@@ -65,7 +65,7 @@ ylabels <- paste0("ME", orderby(t.colors, colors.modules, names.x = TRUE),
 pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
     onefile = TRUE)
 par(mar = c(7, 8.5, 3, 3))
-# Display the correlation values within a heatmap plot
+# Heatmap ME ####
 labeledHeatmap.multiPage(Matrix = colors_mo,
                xLabels = xlabels,
                yLabels = ylabels,
@@ -187,7 +187,8 @@ dev.off()
 # Plotting modules ####
 # IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
 # Set manually the name of the modules to plot for all the variables
-man.int <- c("magenta", "brown", "salmon", "midnightblue")
+man.int <- c("darkgreen", "black", "purple", "darkmagenta", "cyan",
+             "darkorange2", "lightsteelblue1", "tan")
 IM2 <- lapply(IM0, function(x){x[x %in% paste0("ME", man.int)]})
 save(IM2, file = "selected_modules.RData")
 fnlist(IM2, "modules_variables.csv")
@@ -203,7 +204,7 @@ a <- sapply(names(IM2), function(y, d){
 
 
 
-# mean GS ####
+# Heatmap mean ####
 
 w.mean <- sapply(names(IM0), function(y, d) {
   sapply(d[[y]], function(x, var){
@@ -218,16 +219,20 @@ dim(text.mean) <- dim(w.mean)
 pdf("heatmap_GS_mean.pdf")
 par(mar = c(6, 8.5, 3, 3))
 labeledHeatmap.multiPage(Matrix = w.mean,
-                         xLabels = xlabels,
-                         yLabels = ylabels,
-                         colors = greenWhiteRed(50),
+                         xLabels = colnames(w.mean),
+                         # xSymbols = colnames(w.mean),
+                         yLabels = rownames(w.mean),
+                         # ySymbols = rownames(w.mean),
+                         colors = greenWhiteRed(50)[25:50],
                          textMatrix = text.mean,
                          colorLabels = FALSE,
                          setStdMargins = FALSE,
                          cex.text = 0.5,
-                         zlim = c(-1, 1),
+                         zlim = c(0, 1),
+                         signed = FALSE,
                          12,
                          addPageNumberToMain = FALSE,
+                         maxRowsPerPage = 20,
                          main = "Weighted mean gene significance of modules")
 dev.off()
 
