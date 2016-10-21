@@ -9,7 +9,13 @@ Reactome <- TRUE
 Kegg <- TRUE
 GSEA <- TRUE
 STRING <- TRUE
-keytype <- "REFSEQ" # Initial format of input all will be converted to entrez
+# Initial format of input all will be converted to entrez
+keytype <- "SYMBOL" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
+# "ENTREZID", "ENZYME", "EVIDENCE", "EVIDENCEALL", "GENENAME",
+# "GO", "GOALL", "IPI", "MAP", "OMIM", "ONTOLOGY", "ONTOLOGYALL",
+# "PATH", "PFAM", "PMID", "PROSITE", "REFSEQ", "SYMBOL", "UCSCKG",
+# "UNIGENE", "UNIPROT")
+# Entrez for GO
 GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
                   # "genename", "unigene")
 
@@ -52,11 +58,15 @@ for (x in names(numb.col)) {
   levels(genes)[lg == x] <- numb.col[x]
 }
 genes <- as.numeric(levels(genes))[genes]
-# Convert all into Entrezid.
-names(genes) <- unique(AnnotationDbi::select(org.Hs.eg.db,
+
+# Convert all into Entrezid. # And only keep those
+names.genes <- unique(AnnotationDbi::select(org.Hs.eg.db,
                                              keys = rownames(exprs),
                                              keytype = keytype,
-                                             columns = "ENTREZID")[, "ENTREZID"])
+                                             columns = "ENTREZID"))
+keep.genes <- rownames(exprs) %in% names.genes[, keytype]
+genes <- genes[keep.genes]
+names(genes) <- names.genes[names.genes[, keytpe] %in% rownames(exprs), "ENTREZID"]
 
 # Grup all genes of the same group
 clusters <- sapply(unique(moduleColors), function(x, genes, nc){
