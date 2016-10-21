@@ -17,7 +17,6 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
 load(file = "Input.RData", verbose = TRUE)
 load(file = "modules_ME.RData", verbose = TRUE)
 load(file = "selected_modules.RData", verbose = TRUE)
-# load(file = "RD_interesting.RData", verbose = TRUE)
 
 keepSamples <- rownames(data.wgcna) %in% rownames(vclin)
 
