@@ -393,13 +393,12 @@ GTB205     1        0        0           1 10   2
 ")
 batch <- vclin$run
 batch2 <- vclin$n
-vclin <- vclin[, !colnames(vclin) %in% "run"]
-model <- vclin[, !colnames(vclin) %in% c("n", "progression")]
+model <- vclin[, !colnames(vclin) %in% c("n", "run")]
 # model
 # batch
 # cob <- ComBat(t(data.wgcna), batch, model)
-rob <- removeBatchEffect(t(data.wgcna), batch, design = model)
+# rob <- removeBatchEffect(t(data.wgcna), batch, design = model)
 # Keep those who are different to 1
-data.wgcna <- t(rob)
-vclin <- orderby(vclin, rownames(data.wgcna), names.x = TRUE)
+# data.wgcna <- t(rob)
+vclin <- orderby(model, rownames(data.wgcna), names.x = TRUE)
 save(data.wgcna, vclin, file = "Input.RData")
