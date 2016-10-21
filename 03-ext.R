@@ -1,7 +1,6 @@
 # Load ####
-
-
-source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
+#
+source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the expression and trait data saved in the first part
 load(file = "Input.RData", verbose = TRUE)
@@ -185,8 +184,12 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
                          main = "ModuleMembership-GeneSignificance relationships")
 dev.off()
 
-IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
-# IM2
+# Plotting modules ####
+# IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
+# Set manually the name of the modules to plot for all the variables
+man.int <- c("magenta", "brown", "salmon", "midnightblue")
+IM2 <- lapply(IM0, function(x){x[x %in% paste0("ME", man.int)]})
+save(IM2, file = "selected_modules.RData")
 fnlist(IM2, "modules_variables.csv")
 
 # Plot the graphs GS_MM of the interesting modules according to IM2.
@@ -198,7 +201,8 @@ a <- sapply(names(IM2), function(y, d){
          modNames = modNames, disease = disease)
 }, d = IM2)
 
-save(IM2, file = "selected_modules.RData")
+
+
 # mean GS ####
 
 w.mean <- sapply(names(IM0), function(y, d) {
@@ -214,8 +218,8 @@ dim(text.mean) <- dim(w.mean)
 pdf("heatmap_GS_mean.pdf")
 par(mar = c(6, 8.5, 3, 3))
 labeledHeatmap.multiPage(Matrix = w.mean,
-                         xLabels = colnames(w.mean),
-                         yLabels = rownames(w.mean),
+                         xLabels = xlabels,
+                         yLabels = ylabels,
                          colors = greenWhiteRed(50),
                          textMatrix = text.mean,
                          colorLabels = FALSE,
@@ -226,6 +230,7 @@ labeledHeatmap.multiPage(Matrix = w.mean,
                          addPageNumberToMain = FALSE,
                          main = "Weighted mean gene significance of modules")
 dev.off()
+
 # GS connectivity ####
 # load(file = "kIM.RData", verbose = TRUE)
 # load(file = "sft.RData", verbose = TRUE)
@@ -243,7 +248,6 @@ dev.off()
 # connectivity.plot(moduleColors, connect,
 #                   geneTraitSignificance, "ggt")
 
-
 # Automatic Screening ####
 # # Automatic screening with weighted? screening not know how it works.
 # autoScreen <- apply(disease, 2, automaticNetworkScreening,
@@ -253,6 +257,7 @@ dev.off()
 #                     power = sft$powerEstimate)
 #
 # save(autoScreen, file = "autoScreen.RData")
+
 # Tops related genes ####
 #
 #  Code chunk 6: Explore the genes top related to each clinical variable
@@ -270,7 +275,6 @@ dev.off()
 #   genes.i <- abs(genes) >= threshold
 #   colnames(genes)[genes.i]
 # }
-
 
 # Store results ####
 
