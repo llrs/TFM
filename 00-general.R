@@ -121,8 +121,9 @@ pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
   pca.plo <- ggbiplot(prcomp(dists, scale. = TRUE),
                       obs.scale = 1, var.scale = 1, ellipse = TRUE,
                       group = outcome, var.axes = FALSE,
+                      labels = outcome
                       # circle = TRUE
-  )
+  ) + theme_bw() + gtitle("PCA samples")
   plot(pca.plo)
   plot(cmd$points[, 1], cmd$points[, 2], type = "n", main = "MDS samples",
        xlab = paste0("PC1 (", perc.v[1], "% explained var.)"),
