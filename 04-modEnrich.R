@@ -3,12 +3,12 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
-compare <- TRUE
-topGO <- FALSE
-Reactome <- FALSE
-Kegg <- FALSE
-GSEA <- FALSE
-STRING <- FALSE
+compare <- FALSE
+topGO <- TRUE
+Reactome <- TRUE
+Kegg <- TRUE
+GSEA <- TRUE
+STRING <- TRUE
 keytype <- "REFSEQ" # Initial format of input all will be converted to entrez
 GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
                   # "genename", "unigene")
@@ -17,7 +17,7 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
 load(file = "Input.RData", verbose = TRUE)
 load(file = "modules_ME.RData", verbose = TRUE)
 load(file = "selected_modules.RData", verbose = TRUE)
-load(file = "RD_interesting.RData", verbose = TRUE)
+# load(file = "RD_interesting.RData", verbose = TRUE)
 
 keepSamples <- rownames(data.wgcna) %in% rownames(vclin)
 
