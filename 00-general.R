@@ -70,7 +70,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "RD"
+study <- "comparison_HA"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
@@ -624,9 +624,9 @@ go.enrich <- function(GOdata, moduleName, ont) {
     })
   tryCatch({showSigOfNodes(GOdata,
                            score(resultKS), firstSigNodes = 2, useInfo = 'all')
-    title(main = "GO analysis using KS algorithm")},
+    title(main = "GO analysis using Weight01 algorithm")},
     error = function(e) {
-      message("Couldn't calculate the KS")
+      message("Couldn't calculate the weight01")
       message(e)
     })
   tryCatch({showSigOfNodes(GOdata,

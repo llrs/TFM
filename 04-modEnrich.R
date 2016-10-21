@@ -90,7 +90,7 @@ clusters <- sapply(unique(moduleColors), function(x, genes, nc){
 string_db <- STRINGdb$new(version = "10", species = 9606,
                            score_threshold = 0, input_directory = "" )
 
-imodules <- unique(unlist(IM))
+imodules <- unique(unlist(IM2))
 
  if (Reactome | Kegg) {
    universeGenesEntrez <- unique(AnnotationDbi::keys(org.Hs.eg.db))
