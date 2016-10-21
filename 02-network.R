@@ -1,7 +1,7 @@
-# Sarting ####
+# starting ####
+
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
-
 # Input can be from those individual projects
 load("../../isa_HA/unsigned_signed/Input.RData", verbose = TRUE)
 isa.exprs <- data.wgcna
@@ -42,7 +42,6 @@ coef <- as.vector(corcor@pairwise.cors)
 names(coef) <- rownames(corcor@pairwise.cors)
 comp.genes <- names(coef)[coef > 0] # Threshold of comparison
 discutibles.genes <- names(coef)[coef <= 0]
-
 data.wgcna2 <- lapply(data.wgcna, function(x, keep) {
   x$data[, colnames(x$data) %in% keep]
 }, keep = comp.genes)
@@ -56,7 +55,15 @@ nGenes <- chSet$nGenes
 nSamples <- chSet$nSamples
 nSets <- chSet$nSets
 save(data.wgcna, file = "Input.RData")
-# bio.cor? ####
+# Load the data saved in the first part
+load(file = "Input.RData", verbose = TRUE)
+# load(file = "modules_ME_orig.RData", verbose = TRUE)
+# data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+#                                                "plum1", "tan")]
+nGenes <- ncol(data.wgcna)
+nSamples <- nrow(data.wgcna)
+
+# bio.cor ####
 if (bio.corFnc) {
   bio_mat <- tryCatch({load("bio_correlation.RData")},
            warning = function(x){
@@ -141,16 +148,60 @@ for (col in 1:length(plotCols)) {
       legend("topright", legend = names(data.wgcna), col = colors, pch = 20)
     }
   }
+
+# Call the network topology analysis function
+if (bio.corFnc) {
+  sft <- pickSoftThreshold(data.wgcna,
+                           powerVector = powers,
+                           verbose = 5,
+                           networkType = adj.opt,
+                           corFnc = cor.all,
+                           corOptions = list(bio_mat = bio_mat,
+                                             w = c(0.5, 0.5)))
+} else {
+  sft <- pickSoftThreshold(data.wgcna,
+                           powerVector = powers, verbose = 5,
+                           # corFnc = bicor,
+                           corOptions = list(nThreads = 6), #, maxPOutliers = 0.05),
+                           networkType = adj.opt)
 }
 dev.off()
 
 message(paste("Recomended power", power))
 if (is.na(power)) {
+
+# load("sft.RData", verbose = TRUE)
+cex1 <- 0.9
+# Plot the results:
+pdfn(file = "Network_building.pdf")
+# Scale-free topology fit index as a function of the soft-thresholding power
+plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
+     xlab = "Soft Threshold (power)",
+     ylab = "Scale Free Topology Model Fit, R^2", type = "n",
+     main = "Scale independence", ylim = c(0, 1))
+text(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
+     labels = powers, cex = cex1, col = "red", ylim = c(0, 1))
+# this line corresponds to using an R^2 cut-off of h
+abline(h = c(0.90, 0.85), col = c("red", "green"))
+# Mean connectivity as a function of the soft-thresholding power
+plot(sft$fitIndices[, 1], sft$fitIndices[, 5],
+     xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
+     main = "Mean connectivity")
+text(sft$fitIndices[, 1], sft$fitIndices[, 5], labels = powers, cex = cex1,
+     col = "red")
+abline(h = c(100, 1000), col = c("green", "red"))
+
+
+message(paste("Recomended power", sft$powerEstimate))
+if (is.na(sft$powerEstimate)) {
   stop("Estimated power, is NA\nReview the power manually!")
 } else if (1/sqrt(nGenes) ^ power * nGenes >= 0.1) {
+} else if (1/sqrt(nGenes) ^ sft$powerEstimate * nGenes >= 0.1) {
   warning("Are you sure of this power?")
 }
 message(paste("Using power", power))
+message(paste("Using power", sft$powerEstimate))
+save(sft, file = "sft.RData")
 
 # Not able to calculate on the multSet object
 # Calculate connectivity and plot it
@@ -161,10 +212,20 @@ message(paste("Using power", power))
 # scaleFreePlot(k, main = paste0("Check scale free topology, power",
 #                                power))
 
+k <- softConnectivity(data.wgcna, type = adj.opt, power = sft$powerEstimate,
+                      # corFnc = "bicor",
+                      )
+plot(density(k))
+scaleFreePlot(k, main = paste0("Check scale free topology, power",
+                               sft$powerEstimate))
+dev.off()
 
 # Network construction ####
 net <- blockwiseConsensusModules(data.wgcna,
                         power = power,
+# Blocks ####
+net <- blockwiseModules(data.wgcna,
+                        power = sft$powerEstimate,
                 TOMType = TOM.opt,
                 networkType = adj.opt,
                 # corType = "bicor",
@@ -179,7 +240,7 @@ net <- blockwiseConsensusModules(data.wgcna,
 save(net, file = "net.RData")
 load("net.RData", verbose = TRUE)
 
-# Dendro ####
+# dendro ####
 
 # pdf(file = "dendro.pdf", width = 12, height = 9)
 # # Convert labels to colors for plotting
@@ -190,6 +251,15 @@ load("net.RData", verbose = TRUE)
 #                     dendroLabels = FALSE, hang = 0.03,
 #                     addGuide = TRUE, guideHang = 0.05)
 # dev.off()
+pdf(file = "dendro.pdf", width = 12, height = 9)
+# Convert labels to colors for plotting
+mergedColors <- net$colors
+# Plot the dendrogram and the module colors underneath
+plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
+                    "Module colors of first dendrogram",
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+dev.off()
 
 # # Connectivity ####
 # connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
@@ -198,15 +268,31 @@ load("net.RData", verbose = TRUE)
 #                                              scaleByMax = TRUE)
 # save(connect, file = "kIM.RData")
 # load(file = "kIM.RData", verbose = TRUE)
+# Connectivity ####
+connect <- intramodularConnectivity.fromExpr(data.wgcna, colors = net$colors,
+                                             networkType = adj.opt,
+                                             power = sft$powerEstimate,
+                                             scaleByMax = TRUE)
+save(connect, file = "kIM.RData")
+load(file = "kIM.RData", verbose = TRUE)
 
 
 # Calculate eigengenes, it is already calculated
 MEs <- consensusOrderMEs(net$multiMEs)
+MEs <- net$MEs
+MEs <- orderMEs(MEs)
 
 # Module exploring ####
+# It is the same as MM == kME
+kME <- signedKME(data.wgcna, MEs)
+save(kME, file = "kME.RData")
+# load("kME.RData", verbose = TRUE)
 
+# Modules ####
 # Calculate dissimilarity of module eigengenes
 MEDiss <- consensusMEDissimilarity(MEs)
+corME <- cor(MEs)
+MEDiss <- 1 - corME
 # Cluster module eigengenes
 METree <- hclust(as.dist(MEDiss), method = "average")
 # Plot the result
@@ -215,6 +301,7 @@ pdf("Modules_relationship.pdf")
 
 plotEigengeneNetworks(MEs, names(data.wgcna))
 par(pars)
+pdfn("Modules_relationship.pdf")
 plot(METree, main = "Clustering of module eigengenes",
      xlab = "", sub = "")
 MEDissThres <- 0.25
@@ -226,6 +313,8 @@ labeledHeatmap(MEDiss,
                yLabels = substring(colnames(MEs), 3),
                xSymbols = substring(colnames(MEs), 3),
                ySymbols = substring(colnames(MEs), 3))
+labeledHeatmap(MEDiss, xLabels = colnames(corME), yLabels = colnames(corME),
+               xSymbols = colnames(corME), ySymbols = colnames(corME))
 
 gm <- table(net$colors)
 gm
@@ -250,3 +339,5 @@ moduleColors <- net$colors
 
 # save data ####
 save(MEs, moduleColors, file = "Consensus-module_MEs.RData")
+# Save ####
+save(MEs, moduleColors, file = "modules_ME.RData")
