@@ -389,11 +389,16 @@ weighted <- function(x, w){
 # Function that used the previously calculated biological correlation to
 # calculate the total correlation
 # x is the datExpresssion
-cor.all <- function(x, y = NULL, bio_mat, w = c(0.5, 0.18, 0.10, 0.22), ...){
+cor.all <- function(x, bio_mat, weights = c(0.5, 0.18, 0.10, 0.22), ...){
   # exp, reactome, kegg, go
-  cor_mat <- cor(x, use = "p")
-  cors <- c(list(exp = cor_mat), bio_mat)
-  apply(simplify2array(cors), c(1,2), weighted, w = w)
+  # cor_mat <- cor(x, use = "p")
+  if (sum(w) > 1) {
+    stop("Weights are too big. The sum must be equal to 1")
+  } else if (sum(w) < 1) {
+    warning("Weights are smaller than 1.")
+  }
+  cors <- c(list(exp = x), bio_mat)
+  apply(simplify2array(cors), c(1,2), weighted, w = weights)
 }
 
 # Builds a graph of the kegg pahtways known

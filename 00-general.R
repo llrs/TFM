@@ -63,14 +63,14 @@ powers <- c(1:30)
 base.dir <- "/home/lrevilla/Documents"
 data.dir <- file.path(base.dir, "data")
 code.dir <- file.path(base.dir, "TFM")
-bio.corFnc <- FALSE
+bio.corFnc <- TRUE
 
 if (bio.corFnc) {
   source(file.path(code.dir, "bio_cor.R"))
 }
 
 # Study's options ####
-study <- "comparison_HA"
+study <- "subnetwork"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
@@ -83,8 +83,8 @@ raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
-# subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
-subdirectory <- "bicor"
+subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
+# subdirectory <- "bicor"
 data.files.out <- file.path(data.out, subdirectory)
 dir.create(data.files.out)
 

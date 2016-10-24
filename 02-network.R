@@ -2,11 +2,11 @@
 
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
-consensus <- FALSE
-power <- FALSE
-network <- FALSE
-dendro <- FALSE
-connectivity <- FALSE
+consensus <- FALSE # If it from a consensus file
+power <- FALSE # Calculate the power or reuse the existing in the folder
+network <- TRUE # Build the network or reuse the existing in the folder
+dendro <- FALSE # plot a dendro or not
+connectivity <- FALSE # If consensus the connectivity shouldn't be calculated
 # Input can be from those individual projects
 if (consensus) {
   load("../../isa_HA/unsigned_signed/Input.RData", verbose = TRUE)
@@ -64,9 +64,9 @@ if (consensus) {
 } else {
   # Load the data saved in the first part
   load(file = "Input.RData", verbose = TRUE)
-  # load(file = "modules_ME_orig.RData", verbose = TRUE)
-  # data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
-  #                                                "plum1", "tan")]
+  load(file = "modules_ME_orig.RData", verbose = TRUE)
+  data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+                                                 "plum1", "tan")]
   nGenes <- ncol(data.wgcna)
   nSamples <- nrow(data.wgcna)
 }
@@ -82,7 +82,6 @@ if (bio.corFnc) {
                       })
 }
 
-
 # power ####
 if (power) {
   if (consensus) {
@@ -91,22 +90,12 @@ if (power) {
     # Call the network topology analysis function for each set in turn
     for (set in 1:nSets) {
       # Calculate the appropiate sft ####
-      if (bio.corFnc) {
-        sft <- pickSoftThreshold(data.wgcna[[set]]$data,
-                                 powerVector = powers,
-                                 verbose = 5,
-                                 networkType = adj.opt,
-                                 corFnc = cor.all,
-                                 corOptions = list(bio_mat = bio_mat,
-                                                   w = c(0.5, 0.5)))
-      } else {
-        sft <- pickSoftThreshold(data.wgcna[[set]]$data,
-                                 powerVector = powers,
-                                 verbose = 5,
-                                 corFnc = bicor,
-                                 corOptions = list(maxPOutliers = 0.10),
-                                 networkType = adj.opt)
-      }
+      sft <- pickSoftThreshold(data.wgcna[[set]]$data,
+                               powerVector = powers,
+                               verbose = 5,
+                               corFnc = bicor,
+                               corOptions = list(maxPOutliers = 0.10),
+                               networkType = adj.opt)
       # Set it as originally
       powerTables[[set]] <- list(data = sft[[2]])
     }
@@ -165,22 +154,12 @@ if (power) {
     dev.off()
   } else {
     # Call the network topology analysis function
-    if (bio.corFnc) {
-      sft <- pickSoftThreshold(data.wgcna,
-                               powerVector = powers,
-                               verbose = 5,
-                               networkType = adj.opt,
-                               corFnc = cor.all,
-                               corOptions = list(bio_mat = bio_mat,
-                                                 w = c(0.5, 0.5)))
-    } else {
-      sft <- pickSoftThreshold(data.wgcna,
-                               powerVector = powers, verbose = 5,
-                               corFnc = bicor,
-                               corOptions = list(nThreads = 6,
-                                                 maxPOutliers = 0.10),
-                               networkType = adj.opt)
-    }
+    sft <- pickSoftThreshold(data.wgcna,
+                             powerVector = powers, verbose = 5,
+                             corFnc = bicor,
+                             corOptions = list(nThreads = 6,
+                                               maxPOutliers = 0.10),
+                             networkType = adj.opt)
     save(sft, file = "sft.RData")
     power <- sft$powerEstimate
     # load("sft.RData", verbose = TRUE)
@@ -241,7 +220,18 @@ if (power) {
 
 # Network construction ####
 if (network) {
-  if (consensus) {
+  if (bio.corFnc) {
+    adj <- adjacency(data.wgcna, type = adj.opt, power = power)
+    adj.bio <- cor.all(adj, bio_mat, weights = c(0.5, 0.5))
+    TOM <- TOMsimilarity(adj.bio, TOMType = TOM.opt)
+    dissTOM <- 1 - TOM
+    geneTree <- hclust(as.dist(dissTOM), method = "average")
+    dynamicMods <- cutreeDynamic(dendro = geneTree, distM = dissTOM,
+                               deepSplit = 2, pamRespectsDendro = FALSE,
+                               minClusterSize = 30)
+    moduleColors <- labels2colors(dynamicMods)
+    MEs <- moduleEigengenes(data.wgcna, moduleColors)
+  } else if (consensus) {
     net <- blockwiseConsensusModules(data.wgcna,
                                      power = power,
                                      TOMType = TOM.opt,
@@ -254,6 +244,7 @@ if (network) {
                                      saveTOMs = TRUE,
                                      saveTOMFileBase = "TOM",
                                      verbose = 3)
+    save(net, file = "net.RData")
   } else {
     net <- blockwiseModules(data.wgcna,
                             power = sft$powerEstimate,
@@ -267,8 +258,8 @@ if (network) {
                             saveTOMs = TRUE,
                             saveTOMFileBase = "TOM",
                             verbose = 3)
+    save(net, file = "net.RData")
   }
-  save(net, file = "net.RData")
 } else {
   load("net.RData", verbose = TRUE)
 }
@@ -290,7 +281,7 @@ if (connectivity) {
 # Extract eigengenes ####
 if (consensus) {
   MEs <- consensusOrderMEs(net$multiMEs)
-} else {
+} else if (!bio.corFnc) {
   MEs <- orderMEs(net$MEs)
 }
 
@@ -320,7 +311,7 @@ if (consensus) {
   par(pars)
 } else {
   # Plot the dendrogram and the module colors underneath
-  if (dendro) {
+  if (dendro & !bio.corFnc) {
     plotDendroAndColors(net$dendrograms[[1]],
                         moduleColors[net$blockGenes[[1]]],
                         "Module colors of first dendrogram",
