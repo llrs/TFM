@@ -69,7 +69,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "consensus_HA"
+study <- "RD-HA"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 
@@ -82,7 +82,7 @@ path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
 # subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
-subdirectory <- "filtered"
+subdirectory <- "modules"
 data.files.out <- file.path(data.out, subdirectory)
 dir.create(data.files.out)
 

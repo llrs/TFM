@@ -3,8 +3,8 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 # Options to get the files
-singFolder <- "../../RD/unsigned_signed/"
-consFolder <- "../../comparison_HA/unsigned_signed"
+singFolder <- "../../RD/bicor"
+consFolder <- "../../comparison_HA/bicor"
 
 # input single expr ####
 # Or any other expression one want to check if it holds.
