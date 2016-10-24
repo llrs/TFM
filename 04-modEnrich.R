@@ -4,11 +4,11 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 compare <- FALSE
-topGO <- TRUE
+topGO <- FALSE
 Reactome <- TRUE
-Kegg <- TRUE
-GSEA <- TRUE
-STRING <- TRUE
+Kegg <- FALSE
+GSEA <- FALSE
+STRING <- FALSE
 # Initial format of input all will be converted to entrez
 keytype <- "SYMBOL" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
 # "ENTREZID", "ENZYME", "EVIDENCE", "EVIDENCEALL", "GENENAME",
@@ -64,9 +64,10 @@ names.genes <- unique(AnnotationDbi::select(org.Hs.eg.db,
                                              keys = rownames(exprs),
                                              keytype = keytype,
                                              columns = "ENTREZID"))
-keep.genes <- rownames(exprs) %in% names.genes[, keytype]
-genes <- genes[keep.genes]
-names(genes) <- names.genes[names.genes[, keytpe] %in% rownames(exprs), "ENTREZID"]
+name <- data.frame(keytype = rownames(exprs), mod = genes)
+ids <- merge(name, names.genes, by.y = keytype, by.x = "keytype")
+genes <- ids$mod
+names(genes) <- ids$ENTREZID
 
 # Grup all genes of the same group
 clusters <- sapply(unique(moduleColors), function(x, genes, nc){
@@ -176,7 +177,7 @@ out <- sapply(imodules, function(x) {
                                      universe = universeGenesEntrez,
                                      pvalueCutoff = 0.05, readable = TRUE,
                                      minGSSize = 2)
-    if (nrow(summary(reactome_enrich)) != 0) {
+    if (length(summary(reactome_enrich)) != 0) {
       write.csv(summary(reactome_enrich),
                 file = paste0("reactome_", moduleName, ".csv"))
       pdf(paste0("reactome_", moduleName, ".pdf"), onefile = TRUE)
@@ -219,7 +220,7 @@ out <- sapply(imodules, function(x) {
                               universe = universeGenesEntrez,
                               use_internal_data = TRUE,
                               minGSSize = 2)
-    if (nrow(summary(kegg_enrich)) != 0) {
+    if (length(summary(kegg_enrich)) != 0) {
       write.csv(summary(kegg_enrich),
                 file = paste0("kegg_", moduleName, ".csv"))
       pdf(paste0("kegg_", moduleName, ".pdf"), onefile = TRUE)
