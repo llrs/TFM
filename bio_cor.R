@@ -392,9 +392,9 @@ weighted <- function(x, w){
 cor.all <- function(x, bio_mat, weights = c(0.5, 0.18, 0.10, 0.22), ...){
   # exp, reactome, kegg, go
   # cor_mat <- cor(x, use = "p")
-  if (sum(w) > 1) {
+  if (sum(weights) > 1) {
     stop("Weights are too big. The sum must be equal to 1")
-  } else if (sum(w) < 1) {
+  } else if (sum(weights) < 1) {
     warning("Weights are smaller than 1.")
   }
   cors <- c(list(exp = x), bio_mat)
