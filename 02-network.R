@@ -222,15 +222,16 @@ if (power) {
 if (network) {
   if (bio.corFnc) {
     adj <- adjacency(data.wgcna, type = adj.opt, power = power)
-    adj.bio <- cor.all(adj, bio_mat, weights = c(0.5, 0.5))
+    adj.bio <- cor.all(adj, bio_mat, weights = c(0.75, 0.25))
     TOM <- TOMsimilarity(adj.bio, TOMType = TOM.opt)
     dissTOM <- 1 - TOM
     geneTree <- hclust(as.dist(dissTOM), method = "average")
-    dynamicMods <- cutreeDynamic(dendro = geneTree, distM = dissTOM,
+    dynamicMods <- cutreeHybrid(dendro = geneTree, distM = dissTOM,
                                deepSplit = 2, pamRespectsDendro = FALSE,
                                minClusterSize = 30)
-    moduleColors <- labels2colors(dynamicMods)
+    moduleColors <- labels2colors(dynamicMods$labels)
     MEs <- moduleEigengenes(data.wgcna, moduleColors)
+    MEs <- MEs$eigengenes
   } else if (consensus) {
     net <- blockwiseConsensusModules(data.wgcna,
                                      power = power,
