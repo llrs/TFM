@@ -179,7 +179,8 @@ out <- sapply(imodules, function(x) {
                                      minGSSize = 2)
     if (length(summary(reactome_enrich)) != 0) {
       write.csv(summary(reactome_enrich),
-                file = paste0("reactome_", moduleName, ".csv"))
+                file = paste0("reactome_", moduleName, ".csv"),
+                row.names = FALSE)
       pdf(paste0("reactome_", moduleName, ".pdf"), onefile = TRUE)
       tryCatch({dotplot(reactome_enrich)},
                error = function(e) {
