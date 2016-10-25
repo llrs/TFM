@@ -679,3 +679,44 @@ multiple.softThreshold <- function(multiPower, min = 0.85){
     y <- x$data[x$data$SFT.R.sq > 0.85, "Power"]
     return(y[1])}))
 }
+
+# Select the right weights of bio.cor
+weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
+  g <- seq(0, 1, by = 0.25)
+  combin.weights <- expand.grid(g, g, g, g)
+  colnames(combin.weights) <- c("Expr",  names(bio_mat))
+  combin.weights <- unique(combin.weights[, !is.na(colnames(combin.weights))])
+  keep.weights <- apply(combin.weights, 1, function(x)(sum(x) == 1))
+  combin.weights <- combin.weights[keep.weights, ]
+
+  adj <- adjacency(data.wgcna, type = adj.opt, power = power)
+  out <- apply(combin.weights, 1, function(we){
+    adj.bio <- cor.all(adj, bio_mat, weights = we)
+    TOM <- TOMsimilarity(adj.bio, TOMType = TOM.opt)
+    dissTOM <- 1 - TOM
+    geneTree <- hclust(as.dist(dissTOM), method = "average")
+    dynamicMods <- cutreeHybrid(dendro = geneTree, distM = dissTOM,
+                                deepSplit = 2, pamRespectsDendro = FALSE,
+                                minClusterSize = 30)
+    moduleColors <- labels2colors(dynamicMods$labels)
+    prop.table(table(moduleColors))}
+  )
+  tables <- Reduce(rbind, out)
+  keep <- t(apply(tables, 1, Reduce, f = sum, accumulate = T))
+  tables[keep > 1] <- NA
+  full <- cbind(combin.weights, tables)
+  return(full)
+}
+
+
+# Plot the combinations of parameters given by weight.bio.cor
+weight.plot <- function(full, labels.bio_mat){
+  labels <- c("Exprs", labels.bio_mat)
+  new.df <- melt(full, id.vars = labels)
+  scal <- scale_fill_manual(values = unique(as.character(new.df$variable)))
+  ggplot(new.df, aes(x = value, fill = variable)) +
+    facet_wrap(~labels, labeller = label_wrap_gen(multi_line = FALSE)) +
+    geom_histogram(bins = 5) + theme_bw() + scal +
+    xlab("Proportion of genes by module") + ylab("Modules") +
+    ggtitle("Effect of the weight on the bio_mat on the size of the modules.")
+}
