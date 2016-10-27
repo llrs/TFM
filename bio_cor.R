@@ -213,14 +213,13 @@ react_cor <- function(react_a, react_b, hR){
 comb2mat <- function(input, func, ...){
   # Perform all the combinations of 2 from the input
   cobs <- list()
-  # cobs <- foreach(i=1:length(input), .combine = rbind) %do% {
-  # .combinadic(input, 2, i)}
+  # foreach(i=1:length(input)) %dopar% {.combinadic(input, 2, i)}
   for (i in 1:length(input)) {
     cobs[[i]] <- .combinadic(input, 2, i)
   }
   # cobs <- combn(input, 2)
   func <- match.fun(func)
-  # cobs <- lapply(seq_len(ncol(cobs)), function(i) cobs[,i])
+  # cobs <- lapply(seq_len(ncol(cobs)), function(i) func(i[1], i[2], ...)
   # simplify2array(bplapply(cobs, ))
   N <- sapply(cobs, function(x){func(x[1], x[2], ...)}) # maybe bplapply
   # Function that performs the calculus
