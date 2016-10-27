@@ -21,7 +21,12 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
 
 # Load previously work done ####
 load(file = "Input.RData", verbose = TRUE)
+# load(file = "modules_ME.RData", verbose = TRUE)
+load(file = "modules_ME_orig.RData", verbose = TRUE)
+data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+                                               "plum1", "tan")]
 load(file = "modules_ME.RData", verbose = TRUE)
+MEs <- MEs$eigengenes
 load(file = "selected_modules.RData", verbose = TRUE)
 
 keepSamples <- rownames(data.wgcna) %in% rownames(vclin)

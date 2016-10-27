@@ -7,10 +7,14 @@ load(file = "Input.RData", verbose = TRUE)
 
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
-load(file = "modules_ME.RData", verbose = TRUE)
 # rfiles <- list.files(pattern = ".RData")
 # sapply(rfiles, load, verbose = TRUE)
 
+load(file = "modules_ME_orig.RData", verbose = TRUE)
+data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+                                               "plum1", "tan")]
+load(file = "modules_ME.RData", verbose = TRUE)
+MEs <- MEs$eigengenes
 # ME var ####
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
@@ -185,11 +189,11 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
 dev.off()
 
 # Plotting modules ####
-# IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
+IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
 # Set manually the name of the modules to plot for all the variables
-man.int <- c("darkgreen", "black", "purple", "darkmagenta", "cyan",
-             "darkorange2", "lightsteelblue1", "tan")
-IM2 <- lapply(IM0, function(x){x[x %in% paste0("ME", man.int)]})
+# man.int <- c("darkgreen", "black", "purple", "darkmagenta", "cyan",
+#              "darkorange2", "lightsteelblue1", "tan")
+# IM2 <- lapply(IM0, function(x){x[x %in% paste0("ME", man.int)]})
 save(IM2, file = "selected_modules.RData")
 fnlist(IM2, "modules_variables.csv")
 
