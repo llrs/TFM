@@ -20,12 +20,18 @@ load(file = file.path(consFolder, "modules_ME.RData"), verbose = TRUE)
 load(file = file.path(consFolder, "Input.RData"), verbose = TRUE)
 consNames <- colnames(data.wgcna) #[[1]]$data
 consMEs <- MEs
+keytype <- "REFSEQ"
 if (length(singNames) > length(consNames)) {
+  # Convert all into SYMBOLS And only keep those
+  names.genes <- unique(AnnotationDbi::select(org.Hs.eg.db,
+                                              keys = singNames,
+                                              keytype = keytype,
+                                              columns = "SYMBOL"))
+  name <- data.frame(keytype = singNames, mod = singLabels)
+  ids <- merge(name, names.genes, by.y = keytype, by.x = "keytype")
+  singLabels <- ids$mod
+  singColors <- ids$mod
 
-  singNames <- select(org.Hs.eg.db, keys = singNames,
-                      keytype = "REFSEQ", columns = "SYMBOL")[, "SYMBOL"]
-  names(singLabels) <- singNames
-  names(singColors) <- singNames
   comNames <- intersect(singNames, consNames)
   keep <- singNames %in% comNames
   singLabels <- singLabels[keep]
