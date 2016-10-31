@@ -214,7 +214,8 @@ react_cor <- function(react_a, react_b, hR){
 comb2mat <- function(input, func, ...){
   # Perform all the combinations of 2 from the input
   cobs <- list()
-  cobs <- foreach(i = 1:length(input)) %dopar% {.combinadic(input, 2, i)}
+  # parallel
+  cobs <- foreach(i = 1:length(input), .verbose = T) %dopar% {.combinadic(input, 2, i)}
   # for (i in 1:length(input)) {
   #   cobs[[i]] <- .combinadic(input, 2, i)
   # }
@@ -261,7 +262,8 @@ comb_biopath <- function(comb, info, by, biopath) {
   b <- b[b != ""]
   b <- b[!is.na(b)]
 
-  if (all(bplapply(a, is.na)) | all(bplapply(a, is.na))) {
+  if (all(bplapply(a, is.na, BPPARAM = p)) |
+      all(bplapply(a, is.na, BPPARAM = p))) {
   # if (all(sapply(a, is.na)) | all(sapply(b, is.na))) { # maybe bplapply
     return(NA)
   } else if (length(a) == 0 | length(b) == 0) {
@@ -404,9 +406,9 @@ cor.all <- function(x, bio_mat, weights = c(0.5, 0.18, 0.10, 0.22), ...){
     warning("Weights are smaller than 1.")
   }
   cors <- c(list(exp = x), bio_mat)
-  # Could use
-  parApply(cl, simplify2array(cors), c(1, 2), weights, w = weights)
-  # apply(simplify2array(cors), c(1,2), weighted, w = weights)
+  # Could use parallel
+  # parApply(cl, simplify2array(cors), c(1, 2), weights, w = weights)
+  apply(simplify2array(cors), c(1,2), weighted, w = weights)
 }
 
 # Builds a graph of the kegg pahtways known
@@ -437,6 +439,7 @@ kegg_build <- function(entrez_id){
 
 }
 
+# p <- DoparParam()
 # Using data correlates biologically two genes
 bio.cor2 <- function(genes_id, ids = "Entrez Gene",
                      go = FALSE, react = TRUE, kegg = FALSE, all = FALSE) {
@@ -487,14 +490,14 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   }
   if (kegg | react) {
     # Calculate the pathways correlation
-    if (kegg) {
-      kegg.bio <- foreach(i = 1:n.combin, .combine = c) %dopar% {
+    if (kegg) {  # parallel
+      kegg.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = T) %dopar% {
         comb <- .combinadic(genes_id, 2, i)
         react_genes(comb, genes, "KEGG", ids)
       } # For each kegg and bio
     }
-    if (react) {
-      react.bio <- foreach(i = 1:n.combin, .combine = c) %dopar% {
+    if (react) {  #  parallel
+      react.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = T) %dopar% {
         comb <- .combinadic(genes_id, 2, i)
         react_genes(comb, genes, "Reactome", ids)
       } # For each kegg and bio
@@ -570,13 +573,15 @@ react_genes <- function(comb, genes, react, id) {
   } else if (is.na(react_path)) {
     return(NA)
   }
-  react <- bplapply(seq_len(ncol(react_path)), function(i) {x = react_path[, i]
-  # react <- apply(react_path, 1, function(x){ # maybe bplapply?
+  # parallel
+  # react <- bplapply(seq_len(ncol(react_path)), function(i) {x = react_path[, i]
+  react <- apply(react_path, 1, function(x){ # maybe bplapply?
     a <- genes.info(genes, react, x[1])
     b <- genes.info(genes, react, x[2])
     out <- compare_graphs(a, b)
     out
-  })
+  }#, BPPARAM = p
+  )
 
   # If NA returns NA
   if (length(react) != sum(is.na(react))) {
