@@ -47,6 +47,10 @@ library("reshape2")
 library("reactome.db")
 library("AnnotationDbi")
 library("STRINGdb")
+library("foreach")
+library("doParallel")
+library("BiocParallel")
+library("parallel")
 
 # Options and configurations ####
 
@@ -682,12 +686,14 @@ multiple.softThreshold <- function(multiPower, min = 0.85){
 
 # Select the right weights of bio.cor
 weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
-  g <- seq(0, 1, by = 0.25)
+  g <- seq(0, 1, by = 0.1)
   combin.weights <- expand.grid(g, g, g, g)
   colnames(combin.weights) <- c("Expr",  names(bio_mat))
   combin.weights <- unique(combin.weights[, !is.na(colnames(combin.weights))])
   keep.weights <- apply(combin.weights, 1, function(x)(sum(x) == 1))
   combin.weights <- combin.weights[keep.weights, ]
+  # Filter to those whose the expression is at least 50%
+  combin.weights[combin.weights[["Expr"]] >= 0.5, ]
 
   adj <- adjacency(data.wgcna, type = adj.opt, power = power)
   out <- apply(combin.weights, 1, function(we){
