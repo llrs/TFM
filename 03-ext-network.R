@@ -28,72 +28,77 @@ if (length(singNames) > length(consNames)) {
                                               keytype = keytype,
                                               columns = "SYMBOL"))
   name <- data.frame(keytype = singNames, mod = singLabels)
-  ids <- merge(name, names.genes, by.y = keytype, by.x = "keytype")
-  singLabels <- ids$mod
+  ids <- merge(name, names.genes, by.y = keytype, by.x = "keytype",
+               sort = FALSE)
+  singLabels <- ids$SYMBOL
   singColors <- ids$mod
+  sing <- as.character(singColors)
+  names(sing) <- singLabels
+  cons <- moduleColors
+  names(cons) <- consNames
 
-  comNames <- intersect(singNames, consNames)
-  keep <- singNames %in% comNames
-  singLabels <- singLabels[keep]
-  singLabels <- singLabels[!duplicated(names(singLabels))]
-  singColors <- singColors[keep]
-  singColors <- singColors[!duplicated(names(singColors))]
+  comNames <- intersect(names(sing), names(cons))
+  keep <- names(sing) %in% comNames
+  sing <- sing[keep]
+  keep <- names(cons) %in% comNames
+  cons <- cons[keep]
 }
 if (length(singLabels) < length(moduleColors)){
   moduleColors <- moduleColors[consNames %in% comNames]
 }
-# This code assumes that the identifiers are in both datasets common
-# and that are of the same size between them
 
 # comparing modules ####
-# Isolate the module labels in the order they appear in
-# ordered module eigengenes
-singModules <- substring(colnames(singMEs), 3)
-singModules <- singModules[singModules %in% unique(singLabels)]
-# Compares just against the first set of data not the consensus¿?
-consModules <- substring(colnames(consMEs), 3) # [[1]]$data
-
-# Numbers of single and consensus modules
-nSingMods <- length(singModules)
-nConsMods <- length(consModules)
-
-# Initialize tables of p-values and of the corresponding counts
-pTable <- matrix(0, nrow = nSingMods, ncol = nConsMods)
-CountTbl <- matrix(0, nrow = nSingMods, ncol = nConsMods)
-# Execute all pairwaise comparisons
-for (smod in 1:nSingMods) {
-  for (cmod in 1:nConsMods) {
-    singMembers <- singLabels == singModules[smod]
-    consMembers <- moduleColors == consModules[cmod]
-    pTable[smod, cmod] <- -log10(fisher.test(singMembers, consMembers,
-                                             alternative = "greater")$p.value)
-    CountTbl[smod, cmod] <- sum(singColors == singModules[smod] &
-                                  moduleColors == consModules[cmod])
-  }
-}
+comparison <- table(sing, cons)
+comparison <- matrix(as.data.frame.matrix(comparison))
+# # Isolate the module labels in the order they appear in
+# # ordered module eigengenes
+# singModules <- substring(colnames(singMEs), 3)
+# singModules <- singModules[singModules %in% unique(singLabels)]
+# # Compares just against the first set of data not the consensus¿?
+# consModules <- substring(colnames(consMEs), 3) # [[1]]$data
+#
+# # Numbers of single and consensus modules
+# nSingMods <- length(singModules)
+# nConsMods <- length(consModules)
+#
+# # Initialize tables of p-values and of the corresponding counts
+# pTable <- matrix(0, nrow = nSingMods, ncol = nConsMods)
+# CountTbl <- matrix(0, nrow = nSingMods, ncol = nConsMods)
+# # Execute all pairwaise comparisons
+# for (smod in 1:nSingMods) {
+#   for (cmod in 1:nConsMods) {
+#     singMembers <- singLabels == singModules[smod]
+#     consMembers <- moduleColors == consModules[cmod]
+#     pTable[smod, cmod] <- -log10(fisher.test(singMembers, consMembers,
+#                                              alternative = "greater")$p.value)
+#     CountTbl[smod, cmod] <- sum(singColors == singModules[smod] &
+#                                   moduleColors == consModules[cmod])
+#   }
+# }
 
 # heatmap ####
 
 # Truncate p values smaller than 10^{-50} to 10^{-50}
-pTable[is.infinite(pTable)] <- 1.3*max(pTable[is.finite(pTable)])
-pTable[pTable > 50 ] <- 50
+# pTable[is.infinite(pTable)] <- 1.3*max(pTable[is.finite(pTable)])
+# pTable[pTable > 50 ] <- 50
 # Marginal counts (really module sizes)
+CountTbl <- comparison
 singModTotals <- apply(CountTbl, 1, sum)
 consModTotals <- apply(CountTbl, 2, sum)
 
 # Actual plotting
-pdf(file = "heatmap_RD_Vs_HA_Modules.pdf", width = 10, height = 7)
+pdf(file = "heatmap_RD_Vs_HA_Modules2.pdf", width = 10, height = 7)
 par(mfrow = c(1,1), cex = 1.0, mar = c(8, 10.4, 2.7, 1) + 0.3)
 # Use function labeledHeatmap to produce the color-coded table with all the
 # trimmings
 colo <- log10(CountTbl)
 colo[] <- ifelse(is.infinite(colo), 0, colo)
 labeledHeatmap.multiPage(Matrix = colo,
-               xLabels = paste(" ", consModules),
-               yLabels = paste(" ", singModules),
+               xLabels = paste(" ", colnames(CountTbl)),
+               yLabels = paste(" ", rownames(CountTbl)),
                colorLabels = TRUE,
-               xSymbols = paste0("HA ", consModules, ": ", consModTotals),
-               ySymbols = paste0("RD ", singModules, ": ", singModTotals),
+               xSymbols = paste0("HA ", colnames(CountTbl), ": ", consModTotals),
+               ySymbols = paste0("RD ", rownames(CountTbl), ": ", singModTotals),
                textMatrix = CountTbl,
                signed = FALSE,
                # zlim = c(0, max(CountTbl)),
