@@ -28,9 +28,11 @@
   return(res)
 }
 
+# Function to estimate how much two graphs overlap by looking if the nodes
+# are the same
+# Function used in bio.cor2
 compare_graphs <- function(g1, g2){
-  # Function to estimate how much two graphs overlap by looking if the nodes
-  # are the same
+
   # Check which case are we using
   if (is(g1, "graph") & is(g2, "graph")) {
     prot1 <- nodes(g1)
@@ -180,7 +182,6 @@ dist_cor <- function(a, b, info){
   return(score)
 }
 
-
 # Function that correlates based on reactome ids
 # Just needed on bio.cor not in bio.cor2
 react_cor <- function(react_a, react_b, hR){
@@ -213,10 +214,10 @@ react_cor <- function(react_a, react_b, hR){
 comb2mat <- function(input, func, ...){
   # Perform all the combinations of 2 from the input
   cobs <- list()
-  # foreach(i=1:length(input)) %dopar% {.combinadic(input, 2, i)}
-  for (i in 1:length(input)) {
-    cobs[[i]] <- .combinadic(input, 2, i)
-  }
+  cobs <- foreach(i = 1:length(input)) %dopar% {.combinadic(input, 2, i)}
+  # for (i in 1:length(input)) {
+  #   cobs[[i]] <- .combinadic(input, 2, i)
+  # }
   # cobs <- combn(input, 2)
   func <- match.fun(func)
   # cobs <- lapply(seq_len(ncol(cobs)), function(i) func(i[1], i[2], ...)
@@ -250,7 +251,7 @@ seq2mat <- function(x, dat) {
 # Extract all the ids of biopath for each element on the combination
 # and compare them all
 # Used in bio.cor2
-comb_biopath <- function(comb, info, by, biopath){
+comb_biopath <- function(comb, info, by, biopath) {
   # react_path <- apply(comb, 2, function(y){
   a <- unique(info[info[[by]] == comb[1], biopath])
   a <- a[a != ""]
@@ -260,8 +261,8 @@ comb_biopath <- function(comb, info, by, biopath){
   b <- b[b != ""]
   b <- b[!is.na(b)]
 
-  # if (all(bplapply(a, is.na)) | all(bplapply(a, is.na)) {
-  if (all(sapply(a, is.na)) | all(sapply(b, is.na))) { # maybe bplapply
+  if (all(bplapply(a, is.na)) | all(bplapply(a, is.na))) {
+  # if (all(sapply(a, is.na)) | all(sapply(b, is.na))) { # maybe bplapply
     return(NA)
   } else if (length(a) == 0 | length(b) == 0) {
     return(NA)
@@ -403,8 +404,9 @@ cor.all <- function(x, bio_mat, weights = c(0.5, 0.18, 0.10, 0.22), ...){
     warning("Weights are smaller than 1.")
   }
   cors <- c(list(exp = x), bio_mat)
-  # Could use parApply(cl, simplify2array(cors), c(1, 2), weights, w = weights)
-  apply(simplify2array(cors), c(1,2), weighted, w = weights)
+  # Could use
+  parApply(cl, simplify2array(cors), c(1, 2), weights, w = weights)
+  # apply(simplify2array(cors), c(1,2), weighted, w = weights)
 }
 
 # Builds a graph of the kegg pahtways known
@@ -485,21 +487,32 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   }
   if (kegg | react) {
     # Calculate the pathways correlation
-    # foreach(1:ncombin, .combine = c) %dopar% {} # For each kegg and bio
+    if (kegg) {
+      kegg.bio <- foreach(i = 1:n.combin, .combine = c) %dopar% {
+        comb <- .combinadic(genes_id, 2, i)
+        react_genes(comb, genes, "KEGG", ids)
+      } # For each kegg and bio
+    }
+    if (react) {
+      react.bio <- foreach(i = 1:n.combin, .combine = c) %dopar% {
+        comb <- .combinadic(genes_id, 2, i)
+        react_genes(comb, genes, "Reactome", ids)
+      } # For each kegg and bio
+    }
     # and then assign to the kegg.bio
     # BECAUSE react.bio is an empty list, converted to matrix by se2mat
-    for (i in 1:n.combin) {
-      comb <- .combinadic(genes_id, 2, i)
-
-      # Kegg calculus
-      if (kegg) {
-        kegg.bio[i] <- react_genes(comb, genes, "KEGG", ids)
-      }
-      # Reactome calculus
-      if (react) {
-        react.bio[i] <- react_genes(comb, genes, "Reactome", ids)
-      }
-    }
+    # for (i in 1:n.combin) {
+    #   comb <- .combinadic(genes_id, 2, i)
+    #
+    #   # Kegg calculus
+    #   if (kegg) {
+    #     kegg.bio[i] <- react_genes(comb, genes, "KEGG", ids)
+    #   }
+    #   # Reactome calculus
+    #   if (react) {
+    #     react.bio[i] <- react_genes(comb, genes, "Reactome", ids)
+    #   }
+    # }
   }
 
   if (react) {
@@ -557,8 +570,8 @@ react_genes <- function(comb, genes, react, id) {
   } else if (is.na(react_path)) {
     return(NA)
   }
-  # bplapply(seq_len(ncol(react_path)), function(i) x = react_path[, i]
-  react <- apply(react_path, 1, function(x){ # maybe bplapply?
+  react <- bplapply(seq_len(ncol(react_path)), function(i) {x = react_path[, i]
+  # react <- apply(react_path, 1, function(x){ # maybe bplapply?
     a <- genes.info(genes, react, x[1])
     b <- genes.info(genes, react, x[2])
     out <- compare_graphs(a, b)
