@@ -54,7 +54,7 @@ library("parallel")
 
 # Options and configurations ####
 
-enableWGCNAThreads(6) # Speeding up certain calculations with multi-threading.
+enableWGCNAThreads(4) # Speeding up certain calculations with multi-threading.
 # The following setting is important, do not omit.
 options(stringsAsFactors = FALSE)
 
@@ -96,7 +96,7 @@ dir.create(data.files.out)
 
 # Normalize data and plots PCA of samples
 pca.graph <- function(celfiles=NULL, data=NULL, file, outcome = NULL,
-                      col = NULL, ...){
+                      col = NULL, ...) {
   # Data is the normalized, celfiles are the raw files
   if (is.null(data)) {
     if (!is.null(celfiles)) {
@@ -693,7 +693,7 @@ weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
   keep.weights <- apply(combin.weights, 1, function(x)(sum(x) == 1))
   combin.weights <- combin.weights[keep.weights, ]
   # Filter to those whose the expression is at least 50%
-  combin.weights[combin.weights[["Expr"]] >= 0.5, ]
+  combin.weights[combin.weights[, 1] >= 0.5, ]
 
   adj <- adjacency(data.wgcna, type = adj.opt, power = power)
   out <- apply(combin.weights, 1, function(we){
@@ -717,12 +717,11 @@ weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
 
 # Plot the combinations of parameters given by weight.bio.cor
 weight.plot <- function(full, labels.bio_mat){
-  labels <- c("Exprs", labels.bio_mat)
-  new.df <- melt(full, id.vars = labels)
+  labels.dat <- c("Expr", labels.bio_mat)
+  new.df <- melt(full, id.vars = labels.dat)
   scal <- scale_fill_manual(values = unique(as.character(new.df$variable)))
   ggplot(new.df, aes(x = value, fill = variable)) +
-    facet_wrap(~labels, labeller = label_wrap_gen(multi_line = FALSE)) +
+    facet_wrap(labels.dat, labeller = label_wrap_gen(multi_line = FALSE)) +
     geom_histogram(bins = 5) + theme_bw() + scal +
-    xlab("Proportion of genes by module") + ylab("Modules") +
-    ggtitle("Effect of the weight on the bio_mat on the size of the modules.")
+    xlab("Proportion of genes by module") + ylab("Modules")
 }
