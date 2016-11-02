@@ -3,7 +3,7 @@
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 consensus <- FALSE # If it from a consensus file
-power <- FALSE # Calculate the power or reuse the existing in the folder
+power <- TRUE # Calculate the power or reuse the existing in the folder
 network <- TRUE # Build the network or reuse the existing in the folder
 dendro <- FALSE # plot a dendro or not
 connectivity <- FALSE # If consensus the connectivity shouldn't be calculated
@@ -73,13 +73,13 @@ if (consensus) {
 
 # bio.cor ####
 if (bio.corFnc) {
-  bio_mat <- tryCatch({load("bio_correlation.RData")},
-                      warning = function(x){
-                        bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
-                                            react = TRUE)
-                        save(bio_mat, file = "bio_correlation.RData")
-                        return(bio_mat)
-                      })
+  if (file.exists("bio_correlation.RData")) {
+    load("bio_correlation.RData", verbose = TRUE)
+  } else {
+    bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
+                        kegg = TRUE, react = FALSE)
+    save(bio_mat, file = "bio_correlation.RData")
+  }
 }
 
 # power ####
@@ -303,8 +303,10 @@ if (consensus) {
 # Cluster module eigengenes
 METree <- hclust(as.dist(MEDiss), method = "average")
 # Plot the result
+if (!bio.corFnc) {
+  moduleColors <- net$colors
+}
 
-moduleColors <- net$colors
 pdf("Modules_relationship.pdf")
 if (consensus) {
   sizeGrWindow(8,10)
@@ -333,7 +335,7 @@ labeledHeatmap(MEDiss,
                xSymbols = colnames(MEs),
                ySymbols = colnames(MEs))
 
-gm <- table(net$colors)
+gm <- table(moduleColors)
 gm
 gm <- gm[names(gm) != "grey"]
 hist(gm, xlab = "Size of modules")
