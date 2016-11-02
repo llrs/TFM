@@ -215,10 +215,10 @@ comb2mat <- function(input, func, ...){
   # Perform all the combinations of 2 from the input
   cobs <- list()
   # parallel
-  cobs <- foreach(i = 1:length(input), .verbose = T) %dopar% {.combinadic(input, 2, i)}
-  # for (i in 1:length(input)) {
-  #   cobs[[i]] <- .combinadic(input, 2, i)
-  # }
+  # cobs <- foreach(i = 1:length(input), .verbose = T) %dopar% {.combinadic(input, 2, i)}
+  for (i in 1:length(input)) {
+    cobs[[i]] <- .combinadic(input, 2, i)
+  }
   # cobs <- combn(input, 2)
   func <- match.fun(func)
   # cobs <- lapply(seq_len(ncol(cobs)), function(i) func(i[1], i[2], ...)
@@ -262,9 +262,9 @@ comb_biopath <- function(comb, info, by, biopath) {
   b <- b[b != ""]
   b <- b[!is.na(b)]
 
-  if (all(bplapply(a, is.na, BPPARAM = p)) |
-      all(bplapply(a, is.na, BPPARAM = p))) {
-  # if (all(sapply(a, is.na)) | all(sapply(b, is.na))) { # maybe bplapply
+  # if (all(bplapply(a, is.na, BPPARAM = p)) |
+      # all(bplapply(a, is.na, BPPARAM = p))) {
+  if (all(sapply(a, is.na)) | all(sapply(b, is.na))) { # maybe bplapply
     return(NA)
   } else if (length(a) == 0 | length(b) == 0) {
     return(NA)
@@ -491,13 +491,13 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   if (kegg | react) {
     # Calculate the pathways correlation
     if (kegg) {  # parallel
-      kegg.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = T) %dopar% {
+      kegg.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
         comb <- .combinadic(genes_id, 2, i)
         react_genes(comb, genes, "KEGG", ids)
       } # For each kegg and bio
     }
     if (react) {  #  parallel
-      react.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = T) %dopar% {
+      react.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
         comb <- .combinadic(genes_id, 2, i)
         react_genes(comb, genes, "Reactome", ids)
       } # For each kegg and bio
