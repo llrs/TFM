@@ -65,34 +65,36 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
   if (is.na(e_a) | is.na(e_b)) {
     return(NA)
   }
-
   # Ensure proper format
   e_a <- as.character(e_a)
   e_b <- as.character(e_b)
 
   s.path <- function(ig){
     # The longest of the shortest path of a graph
-    lfi <- leaves(ig, "in")
-    degs <- degree(ig)
+    # ig <- igraph.from.graphNEL(ig)
+    lfi <- graph::leaves(ig, "in")
+    degs <- graph::degree(ig)
     root <- names(degs$outDegree)[degs$outDegree == 0]
-    paths <- sp.between(ig, lfi, root)
-    plens <- subListExtract(paths, "length", simplify = TRUE)
+    paths <- RBGL::sp.between(ig, lfi, root)
+    plens <- Biobase::subListExtract(paths, "length", simplify = TRUE)
     max(plens)
   }
 
   if (mapfun) {
-    mapfunc <- function(x) mget(x, revmap(org.Hs.egGO2EG), ifnotfound = NA)
+    mapfunc <- function(z) {
+      mget(z, revmap(org.Hs.egGO2EG), ifnotfound = NA)
+    }
 
-    LP <- simLL(e_a, e_b, Ontology, measure = "LP", mapfun = mapfunc, ...)
-    UI <- simLL(e_a, e_b, Ontology, measure = "UI", mapfun = mapfunc, ...)
+    LP <- simLL(e_a, e_b, Ontology, measure = "LP", mapfun = mapfunc)
+    UI <- simLL(e_a, e_b, Ontology, measure = "UI", mapfun = mapfunc)
   } else {
-    LP <- simLL(e_a, e_b, Ontology, measure = "LP", chip = chip, ...)
-    UI <- simLL(e_a, e_b, Ontology, measure = "UI", chip = chip, ...)
+    LP <- simLL(e_a, e_b, Ontology, measure = "LP", chip = chip)
+    UI <- simLL(e_a, e_b, Ontology, measure = "UI", chip = chip)
   }
-
-
+  out <- NA
   if (length(LP) > 1 | length(UI) > 1) {
     if (is.na(LP["sim"]) | is.na(UI["sim"])) {
+      # warning("score ", out)
       return(NA)
     } else {
       # Calculates the score taking into account the size and the middle path
@@ -101,11 +103,20 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
       #        sets divided by the size of the union of the node sets
       # LP: longest path, is the longest path in the intersection graph of
       #                the two supplied graph.
-      return((UI$sim/LP$sim)*max(s.path(LP$g1), s.path(LP$g2)))
+
+      mean.g1 <- s.path(LP$g1)
+      mean.g2 <- s.path(LP$g2)
+      #Warning this can fill everyting with 0
+      out <- (UI$sim/LP$sim)*max(mean.g1, mean.g2, 0, na.rm = T)
+      # warning("score ", out)
+      return(out)
     }
   } else if (is.na(LP) | is.na(UI)) {
-    return(NA)
+    # warning("score ", out)
+    return(out)
   }
+  # warning("score ", out)
+  return(out)
 }
 
 # function that given two kegg pathways calculates the similarity
@@ -214,6 +225,7 @@ react_cor <- function(react_a, react_b, hR){
 comb2mat <- function(input, func, ...){
   # Perform all the combinations of 2 from the input
   cobs <- list()
+  dots <- list(...)
   # parallel
   # cobs <- foreach(i = 1:length(input), .verbose = T) %dopar% {.combinadic(input, 2, i)}
   for (i in 1:length(input)) {
@@ -223,28 +235,31 @@ comb2mat <- function(input, func, ...){
   func <- match.fun(func)
   # cobs <- lapply(seq_len(ncol(cobs)), function(i) func(i[1], i[2], ...)
   # simplify2array(bplapply(cobs, ))
-  N <- sapply(cobs, function(x){func(x[1], x[2], ...)}) # maybe bplapply
+  # p <- DoparParam()
+  # N <- bplapply(cobs, function(x){func(x[1], x[2], dots)}, BPPARAM = p)
+  # warning(length(N), " testing the N \n", head(N))
+  N <- foreach(i = cobs, .combine = c, .verbose = F) %dopar% {
+    func(i[1], i[2], mapfun = TRUE, Ontology = "BP")
+  }
+  # N <- sapply(cobs, function(x){func(x[1], x[2], ...)}) # maybe bplapply
   # Function that performs the calculus
   # N <- seq_len(ncol(combs))
-  out <- matrix(ncol = length(input), nrow = length(input))
-  out[lower.tri(out)] <- N
-  out <- t(out)
-  out[lower.tri(out)] <- N
-  out <- t(out)
-  diag(out) <- 1
-  rownames(out) <- colnames(out) <- input
-  return(out)
+  seq2mat(input, N)
 }
 
 # Transform a vector to a symetric matrix
 # Uses dat to fill it and x to set names
 seq2mat <- function(x, dat) {
+  if (length(dat) != choose(length(x), 2)) {
+    stop("Data is not enough big to populate the matrix")
+  }
   out <- matrix(ncol = length(x), nrow = length(x))
-  out[lower.tri(out)] <- unlist(dat)
-  out <- t(out)
-  out[lower.tri(out)] <- unlist(dat)
-  out <- t(out)
+  out[upper.tri(out)] <- unlist(dat)
+  out[lower.tri(out)] <- t(out)[lower.tri(t(out))]
   diag(out) <- 1
+  if (ncol(out) != length(x)) {
+    stop("Error, the symetrization doesn't work")
+  }
   rownames(out) <- colnames(out) <- x
   return(out)
 }
@@ -439,7 +454,7 @@ kegg_build <- function(entrez_id){
 
 }
 
-# p <- DoparParam()
+
 # Using data correlates biologically two genes
 bio.cor2 <- function(genes_id, ids = "Entrez Gene",
                      go = FALSE, react = TRUE, kegg = FALSE, all = FALSE) {
@@ -454,10 +469,18 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     go <- kegg <- react <- all
   }
   n.combin <- choose(length(genes_id), 2)
+
   # Obtain data from the annotation packages
   gene.symbol <- unique(toTable(org.Hs.egSYMBOL2EG))
   colnames(gene.symbol) <- c("Entrez Gene", "Symbol")
-  gene.symbol <- gene.symbol[gene.symbol[[ids]] %in% genes_id, ]
+  gene.symbol <- merge(gene.symbol, as.data.frame(genes_id),
+               by.x = ids, by.y = "genes_id",
+               sort = FALSE, all.y = T, all.x = FALSE)
+
+  # FIXME the length of input and for the calculus may differ
+  if (length(unique(gene.symbol$`Entrez Gene`)) != length(genes_id)) {
+    message("1:many mapping ids")
+  }
 
   if (kegg) {
     # Obtain data
@@ -467,6 +490,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     genes <- unique(merge(gene.symbol, gene.kegg, all = TRUE, sort = FALSE))
     kegg.bio <- rep(NA, n.combin)
   }
+
   if (react) {
     if (!kegg) {
       genes <- gene.symbol
@@ -477,59 +501,65 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     react.bio <- rep(NA, n.combin)
   }
 
-  ## Calculate for each combination the values
-  # Calculate the GO correlation
-  if (go) {
-    go_mat <- comb2mat(gene.symbol$`Entrez Gene`, go_cor, mapfun = TRUE,
-                       Ontology = "BP")
+
+  # Calculate the GO, or pathways overlap
+  if (go) {  # parallel # to run non parallel transform the %dopar% into %do%
+    message("Length of ", length(gene.symbol$`Entrez Gene`))
+    go.mat <- foreach(i = 1:length(gene.symbol$`Entrez Gene`), .combine = c,
+                      verbose = TRUE) %dopar% {
+                        comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
+                        message("new comb ", paste(comb))
+                        go_cor(comb[1], comb[2], mapfun = TRUE, Ontology = "BP")
+                      }
+    go_mat <- tryCatch(seq2mat(entrez.gene, go.mat), error = function(x){
+      warning("Length of go is ", length(go.mat))
+      return(go.mat)
+    })
+    # go_mat <- comb2mat(gene.symbol$`Entrez Gene`, func = go_cor, mapfun = TRUE,
+                       # Ontology = "BP")
     # go_mat.mf <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "MF")
-    # go_mat.cc <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "CC")
-    if (sum(!is.na(go_mat))  == length(genes_id)) {
+    # go_mat.cc <- comb2mat(genes_id, go_cor, mapfun = TentrRUE, Ontology = "CC")
+    if (sum(!is.na(go_mat))  == length(gene.symbol$`Entrez Gene`)) {
       warning("GO didn't found relevant information!")
     }
   }
-  if (kegg | react) {
-    # Calculate the pathways correlation
-    if (kegg) {  # parallel
-      kegg.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
-        comb <- .combinadic(genes_id, 2, i)
-        react_genes(comb, genes, "KEGG", ids)
-      } # For each kegg and bio
-    }
-    if (react) {  #  parallel
-      react.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
-        comb <- .combinadic(genes_id, 2, i)
-        react_genes(comb, genes, "Reactome", ids)
-      } # For each kegg and bio
-    }
-    # and then assign to the kegg.bio
-    # BECAUSE react.bio is an empty list, converted to matrix by se2mat
-    # for (i in 1:n.combin) {
-    #   comb <- .combinadic(genes_id, 2, i)
-    #
-    #   # Kegg calculus
-    #   if (kegg) {
-    #     kegg.bio[i] <- react_genes(comb, genes, "KEGG", ids)
-    #   }
-    #   # Reactome calculus
-    #   if (react) {
-    #     react.bio[i] <- react_genes(comb, genes, "Reactome", ids)
-    #   }
-    # }
-  }
 
-  if (react) {
+  if (kegg) {  # parallel # to run non parallel transform the %dopar% into %do%
+    kegg.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
+      comb <- .combinadic(genes_id, 2, i)
+      react_genes(comb, genes, "KEGG", ids)
+    }
+
     if (sum(!is.na(react.bio)) == length(genes_id)) {
       warning("React didn't found relevant information")
     }
     react_mat <- seq2mat(genes_id, react.bio)
   }
-  if (kegg) {
+
+  if (react) {  # parallel # to run non parallel transform the %dopar% into %do%
+    react.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
+      comb <- .combinadic(genes_id, 2, i)
+      react_genes(comb, genes, "Reactome", ids)
+    }
+
     if (sum(!is.na(kegg.bio)) == length(genes_id)) {
       warning("KEGG didn't found relevant information")
     }
     kegg_mat <- seq2mat(genes_id, kegg.bio)
   }
+
+  # for (i in 1:n.combin) {
+  #   comb <- .combinadic(genes_id, 2, i)
+  #
+  #   # Kegg calculus
+  #   if (kegg) {
+  #     kegg.bio[i] <- react_genes(comb, genes, "KEGG", ids)
+  #   }
+  #   # Reactome calculus
+  #   if (react) {
+  #     react.bio[i] <- react_genes(comb, genes, "Reactome", ids)
+  #   }
+  # }
 
   if (all) {
     cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
