@@ -693,7 +693,7 @@ weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
   keep.weights <- apply(combin.weights, 1, function(x)(sum(x) == 1))
   combin.weights <- combin.weights[keep.weights, ]
   # Filter to those whose the expression is at least 50%
-  combin.weights[combin.weights[, 1] >= 0.5, ]
+  combin.weights <- combin.weights[combin.weights[, "Expr"] >= 0.5, ]
 
   adj <- adjacency(data.wgcna, type = adj.opt, power = power)
   out <- apply(combin.weights, 1, function(we){
@@ -705,11 +705,13 @@ weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
                                 deepSplit = 2, pamRespectsDendro = FALSE,
                                 minClusterSize = 30)
     moduleColors <- labels2colors(dynamicMods$labels)
-    prop.table(table(moduleColors))}
+    # prop.table(table(moduleColors))}
+    table(moduleColors)
+    }
   )
   tables <- Reduce(rbind, out)
   keep <- t(apply(tables, 1, Reduce, f = sum, accumulate = T))
-  tables[keep > 1] <- NA
+  tables[keep > ncol(data.wgcna)] <- NA # ncol(data.wgcna)<->1
   full <- cbind(combin.weights, tables)
   return(full)
 }
