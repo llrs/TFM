@@ -56,6 +56,16 @@ compare_graphs <- function(g1, g2){
   score
 }
 
+# The longest of the shortest path of a graph
+s.path <- function(ig){
+  lfi <- graph::leaves(ig, "in")
+  degs <- graph::degree(ig)
+  root <- names(degs$outDegree)[degs$outDegree == 0]
+  paths <- RBGL::sp.between(ig, lfi, root)
+  plens <- Biobase::subListExtract(paths, "length", simplify = TRUE)
+  out <- max(plens)
+}
+
 # Why just BP and note CC and MF ??
 # Calculates the degree of overlap of the GO BP ontologies of entrez ids.
 go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
@@ -69,17 +79,6 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
   e_a <- as.character(e_a)
   e_b <- as.character(e_b)
 
-  s.path <- function(ig){
-    # The longest of the shortest path of a graph
-    # ig <- igraph.from.graphNEL(ig)
-    lfi <- graph::leaves(ig, "in")
-    degs <- graph::degree(ig)
-    root <- names(degs$outDegree)[degs$outDegree == 0]
-    paths <- RBGL::sp.between(ig, lfi, root)
-    plens <- Biobase::subListExtract(paths, "length", simplify = TRUE)
-    max(plens)
-  }
-
   if (mapfun) {
     mapfunc <- function(z) {
       mget(z, revmap(org.Hs.egGO2EG), ifnotfound = NA)
@@ -91,11 +90,11 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
     LP <- simLL(e_a, e_b, Ontology, measure = "LP", chip = chip)
     UI <- simLL(e_a, e_b, Ontology, measure = "UI", chip = chip)
   }
-  out <- NA
+  out <- 0.0
   if (length(LP) > 1 | length(UI) > 1) {
     if (is.na(LP["sim"]) | is.na(UI["sim"])) {
       # warning("score ", out)
-      return(NA)
+      return(out)
     } else {
       # Calculates the score taking into account the size and the middle path
       # Taking advantage of the fact that in GO there is a root and leaves
@@ -496,7 +495,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   if (all) {
     go <- kegg <- react <- all
   }
-  n.combin <- choose(length(genes_id), 2)
+
 
   # Obtain data from the annotation packages
   gene.symbol <- unique(toTable(org.Hs.egSYMBOL2EG))
@@ -504,7 +503,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   gene.symbol <- merge(gene.symbol, as.data.frame(genes_id),
                by.x = ids, by.y = "genes_id",
                sort = FALSE, all.y = T, all.x = FALSE)
-
+  n.combin <- choose(nrow(gene.symbol), 2)
   # FIXME the length of input and for the calculus may differ
   if (length(unique(gene.symbol$`Entrez Gene`)) != length(genes_id)) {
     message("1:many mapping ids")
@@ -516,7 +515,6 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     colnames(gene.kegg) <- c("Entrez Gene", "KEGG") # Always check it!
     # Merge data
     genes <- unique(merge(gene.symbol, gene.kegg, all = TRUE, sort = FALSE))
-    kegg.bio <- rep(NA, n.combin)
   }
 
   if (react) {
@@ -526,23 +524,24 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     gene.reactome <- unique(toTable(reactomePATHID2EXTID))
     colnames(gene.reactome) <- c("Reactome", "Entrez Gene")
     genes <- unique(merge(genes, gene.reactome, all = TRUE, sort = FALSE))
-    react.bio <- rep(NA, n.combin)
   }
 
-
+  .packaglst <- c("org.Hs.eg.db", "RBGL", "Rgraphviz", "graph", "Biobase",
+                  "AnnotationDbi", "GOstats")
   # Calculate the GO, or pathways overlap
   if (go) {  # parallel # to run non parallel transform the %dopar% into %do%
     message("Length of ", length(gene.symbol$`Entrez Gene`))
-    go.mat <- foreach(i = 1:length(gene.symbol$`Entrez Gene`), .combine = c,
-                      verbose = TRUE) %dopar% {
+    # registerDoSEQ()
+    go.mat <- foreach(i = seq_len(n.combin),
+                      .combine = c, .verbose = TRUE, .errorhandling = "stop",
+                      .packages = .packaglst) %dopar% {
                         comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
-                        message("new comb ", paste(comb))
+                        # message("new comb ", paste(comb))
                         go_cor(comb[1], comb[2], mapfun = TRUE, Ontology = "BP")
                       }
-    go_mat <- tryCatch(seq2mat(entrez.gene, go.mat), error = function(x){
-      warning("Length of go is ", length(go.mat))
-      return(go.mat)
-    })
+    # registerDoParallel(4)
+    # print(go.mat)
+    go_mat <- seq2mat(gene.symbol$`Entrez Gene`, go.mat)
     # go_mat <- comb2mat(gene.symbol$`Entrez Gene`, func = go_cor, mapfun = TRUE,
                        # Ontology = "BP")
     # go_mat.mf <- comb2mat(genes_id, go_cor, mapfun = TRUE, Ontology = "MF")
@@ -554,40 +553,27 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
 
   if (kegg) {  # parallel # to run non parallel transform the %dopar% into %do%
     kegg.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
-      comb <- .combinadic(genes_id, 2, i)
+      comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
       react_genes(comb, genes, "KEGG", ids)
     }
 
-    if (sum(!is.na(react.bio)) == length(genes_id)) {
+    if (sum(!is.na(kegg.bio)) == length(genes_id)) {
       warning("React didn't found relevant information")
     }
-    react_mat <- seq2mat(genes_id, react.bio)
+    react_mat <- seq2mat(gene.symbol$`Entrez Gene`, kegg.bio)
   }
 
   if (react) {  # parallel # to run non parallel transform the %dopar% into %do%
     react.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
-      comb <- .combinadic(genes_id, 2, i)
+      comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
       react_genes(comb, genes, "Reactome", ids)
     }
 
     if (sum(!is.na(kegg.bio)) == length(genes_id)) {
       warning("KEGG didn't found relevant information")
     }
-    kegg_mat <- seq2mat(genes_id, kegg.bio)
+    kegg_mat <- seq2mat(gene.symbol$`Entrez Gene`, kegg.bio)
   }
-
-  # for (i in 1:n.combin) {
-  #   comb <- .combinadic(genes_id, 2, i)
-  #
-  #   # Kegg calculus
-  #   if (kegg) {
-  #     kegg.bio[i] <- react_genes(comb, genes, "KEGG", ids)
-  #   }
-  #   # Reactome calculus
-  #   if (react) {
-  #     react.bio[i] <- react_genes(comb, genes, "Reactome", ids)
-  #   }
-  # }
 
   if (all) {
     cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
