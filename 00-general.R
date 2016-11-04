@@ -220,7 +220,7 @@ w.cor <- function(data) {
   list(weight, w.cor, p.value = p.value.w)
 }
 
-plot.GGMM <- function(data) {
+plot.GGMM <- function(data, module) {
   # Weights of the correlation between genes-trait and module-membership
   corr.res <- w.cor(data)
   weight <- corr.res[1]
@@ -284,26 +284,6 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   # w.m <- weighted.mean(data[gene, "GS"], w = 1 - data[gene, "GSP"])
   u.cor <- cor(x = data$MM, y = data$GS)
   p.value.u <- corPvalueStudent(u.cor, nrow(data))
-  # png(file = paste("MM_GS", var, module, ".png", sep = "_"),
-  #     width = 700, height = 700)
-  #
-  # verboseScatterplot(data[gene, "MM"],
-  #                    data[gene, "GS"],
-  #                    xlab = paste("Module Membership in", module, "module"),
-  #                    ylab = paste("Gene significance for", var),
-  #                    main = paste0("Module membership vs. gene ",
-  #                                  "significance\nWeighted cor=",
-  #                                  signif(w.cor, digits = 2), ", unweighted"),
-  #                    abline = 1,
-  #                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2,
-  #                    col = ifelse(module %in% c("white", "floralwhite"),
-  #                                 "black", module),
-  #                    sub = paste("Correlation of genes with trait:",
-  #                                "Weighted mean",
-  #                                signif(wgenecor, 2), "normal",
-  #                                signif(mean(data[, "GS"],
-  #                                            na.rm = TRUE), 2)))
-  # dev.off()
 
   # With ggplot with size for the weights
   ab <- lm(data$GS ~ data$MM)
@@ -321,13 +301,7 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                         signif(p.value.w, digits = 2))) +
     xlab(paste("Module Membership in", module, "module")) +
     ylab(paste("Gene significance for", var))
-  # Point of the weighted mean
-  # geom_point(aes(wmmcor, wgenecor),
-  #            col = ifelse(module == "red", "green", "red")) +
-  # Point of the unweighted mean
-  # geom_point(aes(mean(data[gene, "MM"], na.rm = TRUE),
-  #                mean(data[gene, "GS"]), na.rm = TRUE),
-  #            col = ifelse(module == "green", "orange", "green"))
+
   warning(paste("Plotting", module, "in", var, "."))
   ggsave(filename = name.file("MM_GS", var, module, ".png"),
          plot = plot.g)
@@ -363,6 +337,12 @@ select.genes <- function(GTS, GSP, p.value = 0.05, threshold = 0.3,
 }
 
 # Select modules by ME above a threshold of correlation or the top ntop
+# MTC the value of correlation
+# MTP the p-value of such correlations
+# p.value the threshold of p.values
+# threshold the threshold of the correlation
+# ntop if present the top ntop number of modules is selected for each variables
+# return a list of variables and modules selected.
 select.modules <- function(MTC, MTP, p.value = 0.07,
                            threshold = 0.3, ntop = NULL) {
   #MTC module trait correlation
@@ -398,11 +378,6 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
 coloring <- function(MTC, MTP) {
   colors <- sapply(colnames(MTC), function(x){
     MTC[, x]*(1 - MTP[, x])})
-  # colors.value <- sapply(colnames(colors), function(x){
-  #   y <- colors[,x]
-  #   2*(y - min(y))/(max(y) - min(y)) - 1
-  # })
-  # colors.value
   colors
 }
 
@@ -573,9 +548,8 @@ orderby <- function(x, by, names.x = FALSE) {
   return(out)
 }
 
-#Remove the 0 of the second position
+#Remove the 0 of the second position of a string
 convert <- function(x){
-
   ifelse(substring(x, 2, 2) == "0", paste0(substring(x, 1, 1),
                                            substring(x, 3, 3)),
          x)
@@ -592,20 +566,41 @@ checkPower <- function(power, nGenes) {
 }
 
 # Extract the data of each hub and represent it for each sample
-module.expr <- function(data.wgcna, modules, color) {
+# data.wgcna is the data with rows each sample and columns the genes
+# modules is the assignment of modules of each gene
+# color is the color to plot
+# amplitude is the b-a difference of the normalization
+# centered logical; it should have the 0 inside
+# returns a ggplot object
+module.expr <- function(data.wgcna, modules, color, amplitude = 2,
+                        centered = FALSE) {
   out <- data.wgcna[, modules == color]
-  out <- scale(out)
-  df <- melt(out)
-  ggplot(df, aes(Var1, value, group = factor(Var2))) +
-    geom_line(color = color) + xlab("Samples") + ylab("Expression") +
-    ggtitle(paste("Expression scaled on module", color)) + theme_bw()
+  if (centered) {
+    max.x <- amplitude/2
+    min.x <- -max.x
+  } else {
+    max.x <- amplitude
+    min.x <- 0
+  }
+  out <- apply(out, 1, scaling, min.x = min.x, max.x = max.x)
+  df <- melt(t(out))
+  ggplot(df, aes(Var1, value, group = factor(Var2))) + theme_bw() +
+    geom_line(color = color) + xlab("Samples") + ylab("Expression")
+}
+
+# x numbers to be scaled
+# min.x minimum value of values scaled
+# max.x maximum value of values scaled
+scaling <- function(x, min.x = -1 , max.x = 1) {
+  return((max.x - min.x)*(x - min(x, na.rm = T))/(
+    max(x, na.rm = T) - min(x, na.rm = T)) + min.x)
 }
 
 # Function which computes the enrichement in GOdata objects and plot them
 go.enrich <- function(GOdata, moduleName, ont) {
   resultFisher <- runTest(GOdata,
                           algorithm = "classic", statistic = "fisher")
-  resultKS <- runTest(GOdata, algorithm='weight01', statistic = "ks")
+  resultKS <- runTest(GOdata, algorithm = 'weight01', statistic = "ks")
   resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
   avgResult <- combineResults(resultFisher, resultKS, resultKS.elim,
                               method = "mean")
@@ -616,7 +611,6 @@ go.enrich <- function(GOdata, moduleName, ont) {
   write.csv(allRes, file = name.file("GO_table", ont, moduleName, ".csv"),
             row.names = FALSE)
 
-  # Plotting topGO ####
   pdf(name.file("GO", ont, moduleName, ".pdf"), onefile = TRUE)
 
   tryCatch({showSigOfNodes(GOdata,
