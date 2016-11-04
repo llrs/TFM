@@ -248,7 +248,16 @@ comb2mat <- function(input, func, ...){
 }
 
 # Transform a vector to a symetric matrix
-# Uses dat to fill it and x to set names
+#
+# The matrix should be of ncol = x and nrow = x, so dat is at least
+# choose(length(x), 2) of length.
+# dat is the values or object to fill the matrix with
+# x are the colnames and the rownames we want of the resulting matrix.
+#
+# testthat
+# a <- seq2mat(LETTERS[1:5], 1:10)
+# isSymmetric(a)
+# func(LETTERS[3], LETTERS[2], a) == a[LETTERS[3], LETTERS[2]]
 seq2mat <- function(x, dat) {
   if (length(dat) != choose(length(x), 2)) {
     stop("Data is not enough big to populate the matrix")
@@ -265,6 +274,11 @@ seq2mat <- function(x, dat) {
 }
 
 # Extract all the ids of biopath for each element on the combination
+# comb ids of the column "by" to compare
+# info is the data.fram with information of the by and biopath columns
+# by Type of columns to subset
+# biopath Column of info we want to compare
+# return A matrix of combinations of all the ids selected from biopath
 # and compare them all
 # Used in bio.cor2
 comb_biopath <- function(comb, info, by, biopath) {
@@ -455,7 +469,21 @@ kegg_build <- function(entrez_id){
 }
 
 
-# Using data correlates biologically two genes
+# Comparing information in databases
+#
+# Calculates the overlap or correlation of the information available in several
+# systems.
+#
+# For Gene Ontologies, the DAG path structure is used to compute how similar two
+# genes are. For metabolic pathways the max number of proteins involved in a
+# pathway for each gene is calculated.
+#
+#
+# genes_id is vector of ids to compare
+# ids indicate if the id is eihter Entre Gene or Symbol
+# go logical; indicates if the overlap in terms of GO is calculated
+# react logical; indicates if the overlap in Reactome pathway is calculated
+# kegg logical; indicates if the overlap in Kegg database is calculated
 bio.cor2 <- function(genes_id, ids = "Entrez Gene",
                      go = FALSE, react = TRUE, kegg = FALSE, all = FALSE) {
   # Using data correlates biologically two genes or probes
@@ -580,6 +608,9 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
 }
 
 # Extract which genes are from which reactome
+# genes is the data.frame with information
+# colm is the colum where "id" is found
+# id is the ids we are looking for in column Symbol of such data.frame
 genes.info <- function(genes, colm, id) {
   # Genes is the df, colm is the column you want, id is the id of the pathway
   out <- unique(genes[genes[[colm]] == id, "Symbol"])
@@ -587,6 +618,11 @@ genes.info <- function(genes, colm, id) {
 }
 
 # Calculates for all the combinations of pathway the right score
+# comb are the ids to compare
+# genes is the matrix with the information about "id" and "react"
+# id is the column of "genes" where comb are to be found
+# react is the column where pathways should be found.
+# returns the max score of comparing the ids of such reaction
 react_genes <- function(comb, genes, react, id) {
   if (!react %in% colnames(genes)) {
     stop("Please check which type of reaction you want")
@@ -628,3 +664,4 @@ react_genes <- function(comb, genes, react, id) {
 # a
 # Rprof()
 # summaryRprof(tmp)
+
