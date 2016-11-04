@@ -86,7 +86,7 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
 dev.off()
 save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
-# calculate GS MM ####
+# calculate GS MM ###
 
 modNames <- substring(names(MEs), 3)
 
@@ -119,6 +119,7 @@ IM0 <- select.modules(moduleTraitCor, moduleTraitPvalue,
                             p.value = 1, threshold = 0)
 # IM0
 # Explore for all the variables of trait the selected modules
+# calculates the correlation of each module between the GS and the MM
 GS.MM.cor <- sapply(names(IM0), function(y, d){
   sapply(d[[y]],
          GGMMfun, var = y, MM = geneModuleMembership,
@@ -127,7 +128,7 @@ GS.MM.cor <- sapply(names(IM0), function(y, d){
          modNames = modNames, disease = disease, cor.out = TRUE)
 }, d = IM0)
 
-
+# Calculates the p.value of each correlation between GS and MM
 GS.MM.p.value <- sapply(names(IM0), function(y, d){
   sapply(d[[y]],
          GGMMfun, var = y, MM = geneModuleMembership,
@@ -135,24 +136,6 @@ GS.MM.p.value <- sapply(names(IM0), function(y, d){
          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
          modNames = modNames, disease = disease, p.value = TRUE)
 }, d = IM0)
-
-# Plot for all the variables of trait the selected modules
-# a <- sapply(names(IM0), function(y, d){
-#   sapply(d[[y]],
-#          GGMMfun, var = y, MM = geneModuleMembership,
-#          GS = geneTraitSignificance,
-#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-#          modNames = modNames, disease = disease)
-# }, d = IM0)
-
-# # Plot the graphs of the interesting modules according to IM.
-# a <- sapply(names(IM), function(y, d){
-#   sapply(d[[y]],
-#          GGMMfun, var = y, MM = geneModuleMembership,
-#          GS = geneTraitSignificance,
-#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-#          modNames = modNames, disease = disease)
-# }, d = IM)
 
 rownames(GS.MM.cor) <- substring(rownames(GS.MM.cor), 3)
 GS.MM.cor <- orderby(GS.MM.cor, colors.modules, names.x = TRUE)
@@ -188,26 +171,6 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
                          main = "ModuleMembership-GeneSignificance relationships")
 dev.off()
 
-# Plotting modules ####
-IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
-# Set manually the name of the modules to plot for all the variables
-# man.int <- c("darkgreen", "black", "purple", "darkmagenta", "cyan",
-#              "darkorange2", "lightsteelblue1", "tan")
-# IM2 <- lapply(IM0, function(x){x[x %in% paste0("ME", man.int)]})
-save(IM2, file = "selected_modules.RData")
-fnlist(IM2, "modules_variables.csv")
-
-# Plot the graphs GS_MM of the interesting modules according to IM2.
-a <- sapply(names(IM2), function(y, d){
-  sapply(d[[y]],
-         GGMMfun, var = y, MM = geneModuleMembership,
-         GS = geneTraitSignificance,
-         GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-         modNames = modNames, disease = disease)
-}, d = IM2)
-
-
-
 # Heatmap mean ####
 
 w.mean <- sapply(names(IM0), function(y, d) {
@@ -239,6 +202,26 @@ labeledHeatmap.multiPage(Matrix = w.mean,
                          maxRowsPerPage = 20,
                          main = "Weighted mean gene significance of modules")
 dev.off()
+
+# Plotting modules ####
+# IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
+# Set manually the name of the modules to plot for all the variables
+man.int <- c("MEthistle1", "MEfloralwhite", "MEpink", "MEgreen", "MEbrown4",
+             "MElightpink4", "MEbisque4", "MEpaleturquoise", "MEdarkslateblue",
+             "MEthistle2", "MEblue")
+IM2 <- lapply(IM0, function(x){x[x %in% man.int]})
+save(IM2, file = "selected_modules.RData")
+fnlist(IM2, "modules_variables.csv")
+
+# Plot the graphs GS_MM of the interesting modules according to IM2.
+a <- sapply(names(IM2), function(y, d){
+  sapply(d[[y]],
+         GGMMfun, var = y, MM = geneModuleMembership,
+         GS = geneTraitSignificance,
+         GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+         modNames = modNames, disease = disease)
+}, d = IM2)
+
 
 # GS connectivity ####
 # load(file = "kIM.RData", verbose = TRUE)
