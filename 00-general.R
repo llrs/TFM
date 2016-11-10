@@ -44,6 +44,8 @@ library("graph") # Graphs representation and handling
 library("Rgraphviz") # graphic
 # library("lumi") # Analyse illumina chips
 library("reshape2")
+library("mirbase.db")
+library("targetscan.Hs.eg.db")
 
 # Options and configurations ####
 
@@ -585,4 +587,81 @@ module.expr <- function(data.wgcna, modules, color) {
   ggplot(df, aes(Var1, value, group = factor(Var2))) +
     geom_line(color = color) + xlab("Samples") + ylab("Expression") +
     ggtitle(paste("Expression scaled on module", color)) + theme_bw()
+}
+
+# Given miRNA look for targets in the miRBase.db
+#
+# Uses targetscan to map entrez gene identifers to miRNA
+# miRNA a list of character of miRNA
+# mature logical, are the miRNA matures? The ids for miRNA in miRBase are if
+# mature hsa-miR-xxx if not mature hsa-mir-xxxx
+miRNA.target <- function(miRNA, mature = TRUE) {
+
+  if (!mature) {
+    myMature <- matureName(get(miRNA, mirbaseMATURE))
+  } else {
+    myMature <- miRNA
+  }
+  myMature <- myMature[!is.na(unlist(myMature))]
+  myMirFam <- unlist(unique(mget(myMature, targetscan.Hs.egMIRBASE2FAMILY,
+                          ifnotfound = NA)))
+  if (is.null(myMirFam)) {
+    return(NA)
+  }
+  if (all(is.na(myMirFam))) {
+    stop("Couldn't find the miRNA in the dabase")
+  }
+  myMirFam <- unlist(myMirFam[!is.na(myMirFam)])
+  myMirTargets <- unique(unlist(mget(myMirFam,
+                                     revmap(targetscan.Hs.egTARGETS))))
+  myMirTargets[!is.na(myMirTargets)]
+}
+
+# Function to search the targeted genes in the kegg and reactome database
+# targets is the name of the targets as the output from miRNA.target
+# kegg logical, should the KEGG pathways be used? Caution the kegg package has
+# data from 2011
+# reactome logical, should the Reactome pathway be used?
+target.database <- function(targets, kegg = TRUE, reactome = FALSE) {
+
+  if (kegg) {
+    myMirTargetsDB <- unlist(mget(targets, org.Hs.egPATH, ifnotfound = NA))
+    myMirTargetsDB <- myMirTargetsDB[!is.na(myMirTargetsDB)]
+    myMirTargetsDBNames <- unlist(lapply(myMirTargetsDB,
+                                         function(i) {mget(i, KEGGPATHID2NAME)}))
+    myMirTargetsDBNames[!is.na(myMirTargetsDBNames)]
+
+  } else if (reactome) {
+    myMirTargetsDB <- unlist(mget(targets, reactomeEXTID2PATHID,
+                                  ifnotfound = NA))
+    myMirTargetsDB <- myMirTargetsDB[!is.na(myMirTargetsDB)]
+    myMirTargetsDBNames <- lapply(myMirTargetsDB,
+                                  function(i) {mget(i, reactomePATHID2NAME)})
+    myMirTargetsDBNames <- unlist(myMirTargetsDBNames)
+    myMirTargetsDBNames[!is.na(myMirTargetsDBNames)]
+  }
+}
+
+# Given the metabolic targets of the groups and the total calculates the
+# participation of each group on the total
+# group count of times a pathway is targeted by miRNAs of a module/group
+# total count of times a pathway is targeted by miRNAs of the univers/chip/study
+# absolute logical; should the absolute counts be used or the relative frequency
+compare.targets <- function(group, total, absolute = TRUE) {
+  if (!is.table(group)) {
+    t.group <- table(group)
+  } else {
+    t.group <- group
+  }
+  if (!is.table(total)) {
+    t.total <- table(total)
+  } else {
+    t.total <- total
+  }
+  keep <- names(t.total) %in% names(t.group)
+  if (absolute) {
+    t.group/t.total[keep]
+  } else {
+    (t.group/sum(t.group))/(t.total[keep]/sum(t.total))
+  }
 }
