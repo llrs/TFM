@@ -46,6 +46,7 @@ library("Rgraphviz") # graphic
 library("reshape2")
 library("mirbase.db")
 library("targetscan.Hs.eg.db")
+library("STRINGdb")
 
 # Options and configurations ####
 

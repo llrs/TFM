@@ -3,10 +3,10 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
-compare <- TRUE
+compare <- FALSE
 topGO <- FALSE
 Reactome <- FALSE
-Kegg <- FALSE
+Kegg <- TRUE
 GSEA <- FALSE
 STRING <- FALSE
 # Initial format of input all will be converted to entrez
@@ -38,9 +38,9 @@ disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
 
 vclin <- vclin[, !disease.rm]
 
-if (!all(rownames(data.wgcna) == rownames(vclin))) {
-  stop("Order of samples in clinical variable and expression is not the same!")
-}
+# if (!all(rownames(data.wgcna) == rownames(vclin))) {
+#   stop("Order of samples in clinical variable and expression is not the same!")
+# }
 
 # Reconvert the data to the "normal" format, of each column a sample.
 exprs <- t(data.wgcna)
@@ -65,20 +65,13 @@ for (x in names(numb.col)) {
 genes <- as.numeric(levels(genes))[genes]
 
 # Convert all into Entrezid. # And only keep those
-names.genes <- unique(AnnotationDbi::select(org.Hs.eg.db,
-                                             keys = rownames(exprs),
-                                             keytype = keytype,
-                                             columns = "ENTREZID"))
-name <- data.frame(keytype = rownames(exprs), mod = genes)
-ids <- merge(name, names.genes, by.y = keytype, by.x = "keytype")
-genes <- ids$mod
-names(genes) <- ids$ENTREZID
+miRNA_mature <- gsub("hsa-mir", "hsa-miR", colnames(data.wgcna))
+genes <- miRNA.target(miRNA_mature)
 
 # Grup all genes of the same group
-clusters <- sapply(unique(moduleColors), function(x, genes, nc){
-  ng <- names(genes[genes == nc[x]])
-  ng[!is.na(ng)]
-}, genes = genes, nc = numb.col)
+clusters <- sapply(unique(moduleColors), function(x){
+  miRNA.target(miRNA_mature[moduleColors == x])
+})
 
 # Compare modules ####
 
@@ -109,7 +102,7 @@ string_db <- STRINGdb$new(version = "10", species = 9606,
 imodules <- unique(unlist(IM2))
 
  if (Reactome | Kegg) {
-   universeGenesEntrez <- unique(AnnotationDbi::keys(org.Hs.eg.db))
+   universeGenesEntrez <- miRNA.target(miRNA_mature)
    universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
 }
 # Study each module ####
