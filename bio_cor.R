@@ -532,13 +532,13 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   if (go) {  # parallel # to run non parallel transform the %dopar% into %do%
     message("Length of ", length(gene.symbol$`Entrez Gene`))
     # registerDoSEQ()
-    go.mat <- foreach(i = seq_len(n.combin),
-                      .combine = c, .verbose = TRUE, .errorhandling = "stop",
-                      .packages = .packaglst) %dopar% {
-                        comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
-                        # message("new comb ", paste(comb))
-                        go_cor(comb[1], comb[2], mapfun = TRUE, Ontology = "BP")
-                      }
+    go.mat <- c()
+   for (i in seq_len(n.combin)) {
+      comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
+      # message("new comb ", paste(comb))
+      score <- go_cor(comb[1], comb[2], mapfun = TRUE, Ontology = "BP")
+      go.mat <- c(go.mat, score)
+    }
     # registerDoParallel(4)
     # print(go.mat)
     go_mat <- seq2mat(gene.symbol$`Entrez Gene`, go.mat)
@@ -650,4 +650,3 @@ react_genes <- function(comb, genes, react, id) {
 # a
 # Rprof()
 # summaryRprof(tmp)
-

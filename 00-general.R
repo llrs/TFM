@@ -64,7 +64,7 @@ adj.opt <- "unsigned"
 TOM.opt <- "signed"
 # Powers to test with
 powers <- c(1:30)
-base.dir <- "/home/lrevilla/Documents"
+base.dir <- "~/Documents"
 data.dir <- file.path(base.dir, "data")
 code.dir <- file.path(base.dir, "TFM")
 bio.corFnc <- TRUE
@@ -86,11 +86,11 @@ path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))
 raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
-dir.create(data.out)
+# dir.create(data.out)
 subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
 # subdirectory <- "bicor"
 data.files.out <- file.path(data.out, subdirectory)
-dir.create(data.files.out)
+# dir.create(data.files.out)
 
 # Functions ####
 

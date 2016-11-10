@@ -1,6 +1,7 @@
 # Load ####
 #
 source("~/Documents/TFM/00-general.R", echo = TRUE)
+warning("Done")
 setwd(data.files.out)
 # Load the expression and trait data saved in the first part
 load(file = "Input.RData", verbose = TRUE)
@@ -10,11 +11,11 @@ load(file = "Input.RData", verbose = TRUE)
 # rfiles <- list.files(pattern = ".RData")
 # sapply(rfiles, load, verbose = TRUE)
 
-load(file = "modules_ME_orig.RData", verbose = TRUE)
-data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
-                                               "plum1", "tan")]
+# load(file = "modules_ME_orig.RData", verbose = TRUE)
+# data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+                                               # "plum1", "tan")]
 load(file = "modules_ME.RData", verbose = TRUE)
-MEs <- MEs$eigengenes
+# MEs <- MEs$eigengenes
 # ME var ####
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)

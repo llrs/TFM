@@ -3,7 +3,7 @@
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 consensus <- FALSE # If it from a consensus file
-power <- TRUE # Calculate the power or reuse the existing in the folder
+power <- FALSE # Calculate the power or reuse the existing in the folder
 network <- TRUE # Build the network or reuse the existing in the folder
 dendro <- FALSE # plot a dendro or not
 connectivity <- FALSE # If consensus the connectivity shouldn't be calculated
@@ -77,7 +77,7 @@ if (bio.corFnc) {
     load("bio_correlation.RData", verbose = TRUE)
   } else {
     bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
-                        kegg = TRUE, react = FALSE)
+                        all = TRUE)
     save(bio_mat, file = "bio_correlation.RData")
   }
 }
@@ -191,7 +191,6 @@ if (power) {
   } else if (1/sqrt(nGenes) ^ power * nGenes >= 0.1) {
     warning("Are you sure of this power?")
   }
-  message(paste("Using power", power))
 
   # softConnectivity ####
   if (!consensus) {
@@ -214,8 +213,7 @@ if (power) {
     power <- sft$powerEstimate
   }
 }
-
-
+message(paste("Using power", power))
 
 
 # Network construction ####
@@ -351,6 +349,7 @@ dev.off()
 # Plot the expression pattern among the samples
 # a <- sapply(unique(moduleColors), function(x){
 #   p <- module.expr(data.wgcna, moduleColors, x)
+# #   p <- p + ggtitle("6 RD and 6 non RD")
 #   ggsave(filename = name.file("module", x, ".png"),
 #          plot = p)
 # })

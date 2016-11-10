@@ -3,14 +3,14 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
-compare <- FALSE
+compare <- TRUE
 topGO <- FALSE
-Reactome <- TRUE
+Reactome <- FALSE
 Kegg <- FALSE
 GSEA <- FALSE
 STRING <- FALSE
 # Initial format of input all will be converted to entrez
-keytype <- "SYMBOL" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
+keytype <- "REFSEQ" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
 # "ENTREZID", "ENZYME", "EVIDENCE", "EVIDENCEALL", "GENENAME",
 # "GO", "GOALL", "IPI", "MAP", "OMIM", "ONTOLOGY", "ONTOLOGYALL",
 # "PATH", "PFAM", "PMID", "PROSITE", "REFSEQ", "SYMBOL", "UCSCKG",
@@ -22,11 +22,11 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
 # Load previously work done ####
 load(file = "Input.RData", verbose = TRUE)
 # load(file = "modules_ME.RData", verbose = TRUE)
-load(file = "modules_ME_orig.RData", verbose = TRUE)
-data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
-                                               "plum1", "tan")]
+# load(file = "modules_ME_orig.RData", verbose = TRUE)
+# data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+#                                                "plum1", "tan")]
 load(file = "modules_ME.RData", verbose = TRUE)
-MEs <- MEs$eigengenes
+# MEs <- MEs$eigengenes
 load(file = "selected_modules.RData", verbose = TRUE)
 
 keepSamples <- rownames(data.wgcna) %in% rownames(vclin)
@@ -121,7 +121,7 @@ out <- sapply(imodules, function(x) {
     moduleName <- x
   }
 
-  message(paste("Analyzing", moduleName, "module!"))
+  message("Analyzing ", moduleName, " module!")
   selFun <- moduleSel(moduleName, numb.col)
 
   # Preparing the objects with Entrezid for the reactome and kegg analysis
