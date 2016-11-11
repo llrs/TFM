@@ -56,24 +56,34 @@ compare_graphs <- function(g1, g2){
   score
 }
 
-# The longest of the shortest path of a graph
-s.path <- function(ig){
+# function to  calculate the arrows from top to bottom
+# ig a graph
+s.path <- function(ig) {
   lfi <- graph::leaves(ig, "in")
   degs <- graph::degree(ig)
   root <- names(degs$outDegree)[degs$outDegree == 0]
   paths <- RBGL::sp.between(ig, lfi, root)
   plens <- Biobase::subListExtract(paths, "length", simplify = TRUE)
-  out <- max(plens)
+  out <- min(plens)
+  return(out)
 }
 
 # Why just BP and note CC and MF ??
 # Calculates the degree of overlap of the GO BP ontologies of entrez ids.
+# test genes
+# 52 11342
+# 52 80895
+#
 go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
                    Ontology = "BP", ...) {
   # https://support.bioconductor.org/p/85702/#85732
+  out <- 0.0
 
   if (is.na(e_a) | is.na(e_b)) {
-    return(NA)
+    out <- NA
+  }
+  if (e_a == e_b) {
+    out <- 1
   }
   # Ensure proper format
   e_a <- as.character(e_a)
@@ -84,37 +94,34 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
       mget(z, revmap(org.Hs.egGO2EG), ifnotfound = NA)
     }
 
-    LP <- simLL(e_a, e_b, Ontology, measure = "LP", mapfun = mapfunc)
-    UI <- simLL(e_a, e_b, Ontology, measure = "UI", mapfun = mapfunc)
+    LP <- GOstats::simLL(e_a, e_b, Ontology, measure = "LP", mapfun = mapfunc)
+    UI <- GOstats::simLL(e_a, e_b, Ontology, measure = "UI", mapfun = mapfunc)
   } else {
-    LP <- simLL(e_a, e_b, Ontology, measure = "LP", chip = chip)
-    UI <- simLL(e_a, e_b, Ontology, measure = "UI", chip = chip)
+    LP <- GOstats::simLL(e_a, e_b, Ontology, measure = "LP", chip = chip)
+    UI <- GOstats::simLL(e_a, e_b, Ontology, measure = "UI", chip = chip)
   }
-  out <- 0.0
+
   if (length(LP) > 1 | length(UI) > 1) {
-    if (is.na(LP["sim"]) | is.na(UI["sim"])) {
-      # warning("score ", out)
-      return(out)
-    } else {
+    if (!is.na(LP["sim"]) & !is.na(UI["sim"])) {
+
       # Calculates the score taking into account the size and the middle path
       # Taking advantage of the fact that in GO there is a root and leaves
       # UI: Union intersect, is the size of the intersection of the node
       #        sets divided by the size of the union of the node sets
       # LP: longest path, is the longest path in the intersection graph of
       #                the two supplied graph.
+      # mean.gx number of steps from top of GO DAG to bottom
 
       mean.g1 <- s.path(LP$g1)
       mean.g2 <- s.path(LP$g2)
-      #Warning this can fill everyting with 0
-      out <- (UI$sim/LP$sim)*max(mean.g1, mean.g2, 0, na.rm = T)
-      # warning("score ", out)
-      return(out)
+
+      out <- (UI$sim/LP$sim)*min(mean.g1, mean.g2, na.rm = T)
     }
-  } else if (is.na(LP) | is.na(UI)) {
-    # warning("score ", out)
-    return(out)
   }
   # warning("score ", out)
+  if (out > 1) {
+    stop("go_cor is bigger than 1?? It can't be")
+  }
   return(out)
 }
 
