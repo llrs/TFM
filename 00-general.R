@@ -80,7 +80,8 @@ raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(path.files, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
-run.dir <- paste(adj.opt, TOM.opt, sep = "_")
+# run.dir <- paste(adj.opt, TOM.opt, sep = "_")
+run.dir <- "bicor"
 data.files.out <- file.path(data.out, run.dir)
 dir.create(data.files.out)
 

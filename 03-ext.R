@@ -1,28 +1,22 @@
-# Load =========================================================================
+# Load ####
 #
-#  Code chunk 1: Read the saved data from previous steps
-#
-
-
-source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
-setwd("/home/lrevilla/Documents/miRNA_circulant/unsigned_signed/power_8")
-# setwd(data.files.out)
+source("~/Documents/TFM/00-general.R", echo = TRUE)
+warning("Done")
+setwd(data.files.out)
 # Load the expression and trait data saved in the first part
 load(file = "Input.RData", verbose = TRUE)
 
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
-load(file = "modules_ME.RData", verbose = TRUE)
 # rfiles <- list.files(pattern = ".RData")
 # sapply(rfiles, load, verbose = TRUE)
 
-# ME var =======================================================================
-#
-#  Code chunk 2: Correlate eigenvalues of modules with Variables
-#
-
-
-
+# load(file = "modules_ME_orig.RData", verbose = TRUE)
+# data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+                                               # "plum1", "tan")]
+load(file = "modules_ME.RData", verbose = TRUE)
+# MEs <- MEs$eigengenes
+# ME var ####
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
@@ -53,10 +47,7 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
 moduleTraitPvalue <- orderby(moduleTraitPvalue, rownames(moduleTraitCor),
                              names.x = TRUE)
 
-# Modules variables ============================================================
-#
-#  Code chunk 3: Display the correlations of modules and variables in a heatmap
-#
+# Modules variables ####
 
 # Will display correlations and their p-values as text
 textMatrix <- paste0(sprintf("%.2f", moduleTraitCor), "\n(",
@@ -79,7 +70,7 @@ ylabels <- paste0("ME", orderby(t.colors, colors.modules, names.x = TRUE),
 pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
     onefile = TRUE)
 par(mar = c(7, 8.5, 3, 3))
-# Display the correlation values within a heatmap plot
+# Heatmap ME ####
 labeledHeatmap.multiPage(Matrix = colors_mo,
                xLabels = xlabels,
                yLabels = ylabels,
@@ -89,17 +80,14 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
                textMatrix = textMatrix,
                setStdMargins = FALSE,
                cex.text = 0.5,
+               zlim = c(-1, 1),
                12,
                addPageNumberToMain = FALSE,
                main = "Module Eigengene-trait relationships")
 dev.off()
 save(moduleTraitCor, moduleTraitPvalue, file = "Module_info.RData")
 
-# calculate GS MM ========================================================================
-#
-#  Code chunk 4: Calculates the correlation between gene significance of a
-#                variable and the module membership
-#
+# calculate GS MM ###
 
 modNames <- substring(names(MEs), 3)
 
@@ -119,10 +107,7 @@ names(geneTraitSignificance) <- paste0("GS.", names.disease)
 names(GSPvalue) <- paste0("p.GS.", names.disease)
 
 
-# Heatmap GS MM ================================================================
-#
-#  Code chunk 5: Study the relationship between GS and MM of all modules
-#
+# Heatmap GS MM ####
 
 # IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
 #                                  p.value = 0.05)
@@ -135,6 +120,7 @@ IM0 <- select.modules(moduleTraitCor, moduleTraitPvalue,
                             p.value = 1, threshold = 0)
 # IM0
 # Explore for all the variables of trait the selected modules
+# calculates the correlation of each module between the GS and the MM
 GS.MM.cor <- sapply(names(IM0), function(y, d){
   sapply(d[[y]],
          GGMMfun, var = y, MM = geneModuleMembership,
@@ -143,7 +129,7 @@ GS.MM.cor <- sapply(names(IM0), function(y, d){
          modNames = modNames, disease = disease, cor.out = TRUE)
 }, d = IM0)
 
-
+# Calculates the p.value of each correlation between GS and MM
 GS.MM.p.value <- sapply(names(IM0), function(y, d){
   sapply(d[[y]],
          GGMMfun, var = y, MM = geneModuleMembership,
@@ -151,24 +137,6 @@ GS.MM.p.value <- sapply(names(IM0), function(y, d){
          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
          modNames = modNames, disease = disease, p.value = TRUE)
 }, d = IM0)
-
-# Plot for all the variables of trait the selected modules
-# a <- sapply(names(IM0), function(y, d){
-#   sapply(d[[y]],
-#          GGMMfun, var = y, MM = geneModuleMembership,
-#          GS = geneTraitSignificance,
-#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-#          modNames = modNames, disease = disease)
-# }, d = IM0)
-
-# # Plot the graphs of the interesting modules according to IM.
-# a <- sapply(names(IM), function(y, d){
-#   sapply(d[[y]],
-#          GGMMfun, var = y, MM = geneModuleMembership,
-#          GS = geneTraitSignificance,
-#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-#          modNames = modNames, disease = disease)
-# }, d = IM)
 
 rownames(GS.MM.cor) <- substring(rownames(GS.MM.cor), 3)
 GS.MM.cor <- orderby(GS.MM.cor, colors.modules, names.x = TRUE)
@@ -198,15 +166,55 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
                          colorLabels = FALSE,
                          setStdMargins = FALSE,
                          cex.text = 0.5,
+                         zlim = c(-1, 1),
                          12,
                          addPageNumberToMain = FALSE,
                          main = "ModuleMembership-GeneSignificance relationships")
 dev.off()
 
-IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
-# IM2
+# Heatmap mean ####
+
+w.mean <- sapply(names(IM0), function(y, d) {
+  sapply(d[[y]], function(x, var){
+    data <- extract(x, var, geneModuleMembership,
+                    geneTraitSignificance, GSPvalue,
+                    MMPvalue, moduleColors)
+    weighted.mean(abs(data$GS), w = (1 - data$GSP))
+  }, var = y)
+}, d = IM0)
+text.mean <- paste(sprintf("%.2f", w.mean))
+dim(text.mean) <- dim(w.mean)
+pdf("heatmap_GS_mean.pdf")
+par(mar = c(6, 8.5, 3, 3))
+labeledHeatmap.multiPage(Matrix = w.mean,
+                         xLabels = colnames(w.mean),
+                         # xSymbols = colnames(w.mean),
+                         yLabels = rownames(w.mean),
+                         # ySymbols = rownames(w.mean),
+                         colors = greenWhiteRed(50)[25:50],
+                         textMatrix = text.mean,
+                         colorLabels = FALSE,
+                         setStdMargins = FALSE,
+                         cex.text = 0.5,
+                         zlim = c(0, 1),
+                         signed = FALSE,
+                         12,
+                         addPageNumberToMain = FALSE,
+                         maxRowsPerPage = 20,
+                         main = "Weighted mean gene significance of modules")
+dev.off()
+
+# Plotting modules ####
+# IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
+# Set manually the name of the modules to plot for all the variables
+man.int <- c("MEthistle1", "MEfloralwhite", "MEpink", "MEgreen", "MEbrown4",
+             "MElightpink4", "MEbisque4", "MEpaleturquoise", "MEdarkslateblue",
+             "MEthistle2", "MEblue")
+IM2 <- lapply(IM0, function(x){x[x %in% man.int]})
+save(IM2, file = "selected_modules.RData")
 fnlist(IM2, "modules_variables.csv")
-# Plot the graphs of the interesting modules according to IM2.
+
+# Plot the graphs GS_MM of the interesting modules according to IM2.
 a <- sapply(names(IM2), function(y, d){
   sapply(d[[y]],
          GGMMfun, var = y, MM = geneModuleMembership,
@@ -215,11 +223,8 @@ a <- sapply(names(IM2), function(y, d){
          modNames = modNames, disease = disease)
 }, d = IM2)
 
-save(IM2, file = "selected_modules.RData")
-# GS connectivity ==============================================================
-#
-#  Code chunk 5b: Plots the relationship between GS and connectivity
-#
+
+# GS connectivity ####
 # load(file = "kIM.RData", verbose = TRUE)
 # load(file = "sft.RData", verbose = TRUE)
 
@@ -236,7 +241,6 @@ save(IM2, file = "selected_modules.RData")
 # connectivity.plot(moduleColors, connect,
 #                   geneTraitSignificance, "ggt")
 
-
 # Automatic Screening ####
 # # Automatic screening with weighted? screening not know how it works.
 # autoScreen <- apply(disease, 2, automaticNetworkScreening,
@@ -246,7 +250,8 @@ save(IM2, file = "selected_modules.RData")
 #                     power = sft$powerEstimate)
 #
 # save(autoScreen, file = "autoScreen.RData")
-# Tops related genes ===========================================================
+
+# Tops related genes ####
 #
 #  Code chunk 6: Explore the genes top related to each clinical variable
 #
@@ -256,10 +261,7 @@ save(IM2, file = "selected_modules.RData")
 #                               addMEy = FALSE)
 # fnlist(genes.interes, "significant_genes_variables.csv")
 
-# Top related genes per module =================================================
-#
-#  Code chunk 7: Explore the top genes related to each module in a clinical var
-#
+# Top related genes per module ####
 
 # genes.modules <- function(disease, GTS, modules, threshold = 0.3) {
 #   genes <- GTS[, match(disease, colnames(GTS))]
@@ -267,11 +269,7 @@ save(IM2, file = "selected_modules.RData")
 #   colnames(genes)[genes.i]
 # }
 
-
-# Store results ================================================================
-#
-#  Code chunk 9: Store the results of the WGCNA
-#
+# Store results ####
 
 # Create a dataframe with gene symbol, modul, MM and MMPvalue
 geneInfo <- data.frame(genes = colnames(data.wgcna),
@@ -324,7 +322,6 @@ if (length(genes) == 0) {
   write.csv(as.data.frame(genes), file = "int_genes_module.csv")
 }
 
-load("DE.RData", verbose = TRUE)
 # Foreach module create a table in a file with genes, GS GS-P.values
 geneInfo1 <- lapply(unique(geneInfo$moduleColor),
                     function(x, gI, GS, GSP, d, ...){
@@ -336,7 +333,5 @@ geneInfo1 <- lapply(unique(geneInfo$moduleColor),
   gT <- gT[, ord]
   keep.Trait <- apply(gT, 2, function(x){all(is.na(x))})
   gT <- gT[, !keep.Trait]
-  gT <- merge(gT, DE[, c("logFC", "adj.P.Val")], by.x = "genes", by.y = 0,
-              all.x = TRUE, all.y = FALSE)
   write.csv(gT, name.file(x, "trait.csv"), row.names = FALSE, na = "")
 }, gI = geneInfo, GS = geneTraitSignificance, GSP = GSPvalue, d = disease)
