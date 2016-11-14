@@ -58,13 +58,14 @@ compare_graphs <- function(g1, g2){
 
 # function to  calculate the arrows from top to bottom
 # ig a graph
+# return all the paths from top to bottom
 s.path <- function(ig) {
   lfi <- graph::leaves(ig, "in")
   degs <- graph::degree(ig)
   root <- names(degs$outDegree)[degs$outDegree == 0]
   paths <- RBGL::sp.between(ig, lfi, root)
   plens <- Biobase::subListExtract(paths, "length", simplify = TRUE)
-  out <- min(plens)
+  out <- mean(plens)
   return(out)
 }
 
@@ -73,7 +74,7 @@ s.path <- function(ig) {
 # test genes
 # 52 11342
 # 52 80895
-#
+# 57654 58493
 go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
                    Ontology = "BP", ...) {
   # https://support.bioconductor.org/p/85702/#85732
@@ -110,12 +111,14 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
       #        sets divided by the size of the union of the node sets
       # LP: longest path, is the longest path in the intersection graph of
       #                the two supplied graph.
-      # mean.gx number of steps from top of GO DAG to bottom
+      # mean.gx mean number of steps from top of GO DAG to bottom
 
       mean.g1 <- s.path(LP$g1)
       mean.g2 <- s.path(LP$g2)
-
-      out <- (UI$sim/LP$sim)*min(mean.g1, mean.g2, na.rm = T)
+      # LP/mean attemps to normalize the length of the longest path taking into
+      # account which is the mean length from top to bottom for each individual
+      # graph
+      out <- UI$sim*LP$sim/mean(c(mean.g1, mean.g2))
     }
   }
   # warning("score ", out)
