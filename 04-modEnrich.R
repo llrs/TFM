@@ -1,11 +1,12 @@
 #  Analyse the modules ####
 
-source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 compare <- FALSE
+topGO <- FALSE
 Reactome <- FALSE
+Kegg <- TRUE
 GSEA <- FALSE
 STRING <- FALSE
 # Initial format of input all will be converted to entrez
