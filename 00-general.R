@@ -204,12 +204,35 @@ extract <- function(module, clinvar, MM, GS, GSP, MMP, moduleColors) {
 
 }
 
+# Function to calculate the wight
+# cor is correlation value between -1 and 1
+# p.value1 the p.value of the correlation or a p.value, between 0 and 1
+# p.value2 the p.value of other measure, between 0 and 1
+# return the values of the weight the higher the better
+weight <- function(cor = NULL, p.value1, p.value2 = NULL) {
+  if (is.null(cor) & is.null(p.value2)) {
+    stop("Which weight you want to calculate?\n",
+         "Correlation with p.value or two p.values?")
+  }
+  if (any(p.value1 > 1) | any(p.value1 < 0)) {
+    stop("p.value is not in between 0 and 1")
+  }
+
+  if (!is.null(p.value2)) {
+    out <- (1 - p.value1) * (1 - p.value2)
+  } else {
+    out <- cor * (1 - p.value1)
+  }
+  return(out)
+}
+
 # Given data calculates the weight, the weighte correlation and its p.value
 w.cor <- function(data) {
-  weight <- (1 - data$GSP) * (1 - data$MMP)
-  w.cor <- corr(data[, c("MM", "GS")], weight) # requires the boot package
+
+  weights <- weight(p.value1 = data$GSP, p.value2 = data$MMP)
+  w.cor <- corr(data[, c("MM", "GS")], weights) # requires the boot package
   p.value.w <- corPvalueStudent(w.cor, nrow(data))
-  list(weight, w.cor, p.value = p.value.w)
+  list(weights, w.cor, p.value = p.value.w)
 }
 
 plot.GGMM <- function(data) {
@@ -386,14 +409,9 @@ select.modules <- function(MTC, MTP, p.value = 0.07,
 }
 
 # Coloring taking into account both the correlation value and the p-value
+# It is a wrapper to the weight function
 coloring <- function(MTC, MTP) {
-  colors <- sapply(colnames(MTC), function(x){
-    MTC[, x]/(1 + MTP[, x])})
-  colors.value <- sapply(colnames(colors), function(x){
-    y <- colors[,x]
-    2*(y - min(y))/(max(y) - min(y)) - 1
-  })
-  colors.value
+  weight(cor = MTC, p.value1 = MTP)
 }
 
 # Function to generate function to select the module
@@ -539,6 +557,8 @@ MM_kWithin <- function(MM, con, col, power, cor.out = FALSE, p.value = FALSE) {
 }
 
 # Join with sep, except the last one
+# ... the characters to join
+# return a character of length 1
 name.file <- function(..., sep = "_"){
   arg <- c(...)
   if (length(arg) > 2) {
