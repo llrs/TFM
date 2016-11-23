@@ -74,7 +74,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "subnetwork"
+study <- "comparison_HA"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
@@ -87,8 +87,8 @@ raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 # dir.create(data.out)
-subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
-# subdirectory <- "bicor"
+# subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
+subdirectory <- "bicor"
 data.files.out <- file.path(data.out, subdirectory)
 # dir.create(data.files.out)
 
@@ -720,4 +720,33 @@ weight.plot <- function(full, labels.bio_mat){
     facet_wrap(labels.dat, labeller = label_wrap_gen(multi_line = FALSE)) +
     geom_histogram(bins = 5) + theme_bw() + scal +
     xlab("Proportion of genes by module") + ylab("Modules")
+}
+
+# exprMat The expression matrice
+# gctFn gct file name.
+# Create a file with the specificities of GSE java application
+gsea.write.gct <- function(exprMat, gctFn) {
+  nGenes <- nrow(exprMat)
+  nConds <- ncol(exprMat)
+  write("#1.2", file = gctFn, append = FALSE) # All .gct files require this dummy header line.
+  write(paste(nGenes, nConds, sep = "\t"), file = gctFn, append = TRUE)
+  write(paste("Name", "Description", paste(colnames(exprMat), collapse = "\t"), sep = "\t"), file = gctFn, append = T)
+  # The second column of the .gct file, "Description", is filled out with "na"'s.
+  rownames(exprMat) <- paste(rownames(exprMat), "na", sep = "\t") # Append "\tna" to every gene name.
+  write.table(exprMat, file = gctFn, append = TRUE, quote = FALSE, sep = "\t",
+              na = "", row.names = TRUE, col.names = FALSE)
+}
+
+# Write the cls file of the phenotype to be used
+# pheno the phenotype of the data
+# column the column of the pheno
+# file_name the name of the output file
+# returns a file
+gsea.write.cls <- function(pheno, column, file_name) {
+  # (number of samples) (space) (number of classes) (space) 1
+  clases <- unique(pheno[, column])
+  write(paste(nrow(pheno), length(clases), "1"),
+        file = file_name)
+  write(paste("#", clases, collapse = " "), file = file_name, append = TRUE)
+  write(paste(pheno[, column], collapse = " "), file = file_name, append = TRUE)
 }
