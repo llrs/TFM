@@ -8,7 +8,10 @@ topGO <- FALSE
 Reactome <- FALSE
 Kegg <- FALSE
 GSEA <- FALSE
+# load("../clusters.RData")
+# load(design, )
 STRING <- FALSE
+
 # Initial format of input all will be converted to entrez
 keytype <- "REFSEQ" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
 # "ENTREZID", "ENZYME", "EVIDENCE", "EVIDENCEALL", "GENENAME",
@@ -80,6 +83,7 @@ clusters <- sapply(unique(moduleColors), function(x, genes, nc){
   ng[!is.na(ng)]
 }, genes = genes, nc = numb.col)
 
+save(clusters, file = "modules_entrezid.RData")
 # Compare modules ####
 
  if (compare) {
@@ -111,7 +115,19 @@ imodules <- unique(unlist(IM2))
  if (Reactome | Kegg) {
    universeGenesEntrez <- unique(AnnotationDbi::keys(org.Hs.eg.db))
    universeGenesEntrez <- universeGenesEntrez[!is.na(universeGenesEntrez)]
+ }
+
+if (GSEA) {
+  # TODO
+  # Requires exprs with controls and other conditions and design
+  # to be able to calculate the contrast
+  mc <- makeContrasts(, levels = design)
+  keep <- ids2indices(gene.sets, rownames(exprs))
+  camera(exprs, keep, design, contrast = 2)
+  roast(exprs, keep, design, contrast = 2)
+  romer(exprs, keep, design, contrast = 2)
 }
+
 # Study each module ####
 out <- sapply(imodules, function(x) {
 
@@ -217,10 +233,7 @@ out <- sapply(imodules, function(x) {
     }
   }
 
-  #  Kegg ======================================================================
-  #
-  #  Code chunk 3: Kegg analysis of each module
-  #
+  #  Kegg ####
   if (Kegg) {
     kegg_enrich <- enrichKEGG(moduleGenes,
                               universe = universeGenesEntrez,
@@ -252,17 +265,21 @@ out <- sapply(imodules, function(x) {
       message("Not enough data in KEGG for module ", moduleName)
     }
   }
+
   # GSEA ####
   if (GSEA) {
+    message("Calculating GSEA in KEGG in module ", moduleName)
+    # TODO correct the way moduleGenes are ordered, to a more meaningful
+    # Use some of the ideas of R. Castelo
     gse <- gsePathway(as.vector(moduleGenes)[order(moduleGenes,
-                                                         decreasing = TRUE)],
+                                                   decreasing = TRUE)],
                       nPerm = 1000, pvalueCutoff = 0.2,
                       pAdjustMethod = "BH", verbose = TRUE)
 
     # General plotting
     if (!is.null(gse)) {
       summary(gse)
-      message(paste("Plotting GSE for module", moduleName))
+      message("Plotting GSE for module ", moduleName)
       pdfn(paste0("gsea_", moduleName, ".pdf"), onefile = TRUE)
       enrichMap(gse)
       dev.off()
@@ -271,7 +288,7 @@ out <- sapply(imodules, function(x) {
     # gseaplot(gse, geneSetID = moduleGenes[1])
   }
 
-  # STRING =====================================================================
+  # STRING ####
   if (STRING) {
     if (length(moduleGenes) < 375) {
       string_id <- string_db$map(data.frame(gene = moduleGenes), "gene",
@@ -283,22 +300,6 @@ out <- sapply(imodules, function(x) {
       string_db$plot_network(string_id$STRING_id, # payload_id = payload,
                              add_link = FALSE)
       dev.off()
-      # png(name.file("STRING_enrichment", moduleName, ".png"))
-      # tryCatch({
-      #   tryCatch({string_db$plot_ppi_enrichment(string_id$STRING_id,
-      #                                           title = paste("Interaction enrichment of", moduleName))},
-      #            error = function(e) {
-      #              dput(string_id$STRING_id)
-      #              message("Couldn't map the enrichment of STRING")
-      #              # sessionInfo()
-      #              # message(e)
-      #            })
-      # }, error = function(e) {
-      #   message(length(string_id$STRING_id))
-      #   message("Another error")
-      #   # message(e)
-      # })
-      # dev.off()
     } else {
       warning(paste("Moduel", moduleName, "is bigger!"))
     }
