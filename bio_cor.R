@@ -65,8 +65,8 @@ s.path <- function(ig) {
   root <- names(degs$outDegree)[degs$outDegree == 0]
   paths <- RBGL::sp.between(ig, lfi, root)
   plens <- Biobase::subListExtract(paths, "length", simplify = TRUE)
-  out <- mean(plens)
-  return(out)
+  # out <- mean(plens)
+  return(plens)
 }
 
 # Why just BP and note CC and MF ??
@@ -75,6 +75,8 @@ s.path <- function(ig) {
 # 52 11342
 # 52 80895
 # 57654 58493
+# 1164 1163
+# 4150 2130
 go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
                    Ontology = "BP", ...) {
   # https://support.bioconductor.org/p/85702/#85732
@@ -113,18 +115,23 @@ go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
       #                the two supplied graph.
       # mean.gx mean number of steps from top of GO DAG to bottom
 
-      mean.g1 <- s.path(LP$g1)
-      mean.g2 <- s.path(LP$g2)
-      # LP/mean attemps to normalize the length of the longest path taking into
-      # account which is the mean length from top to bottom for each individual
-      # graph
-      out <- UI$sim*LP$sim/mean(c(mean.g1, mean.g2))
+      # mean.g1 <- s.path(LP$g1)
+      # mean.g2 <- s.path(LP$g2)
+      # n.root.path <- length(c(mean.g1, mean.g2))
+      # mean/LP attemps to normalize the mean length from top to bottom for each
+      #  individual graph by the length of the longest path merging both graphs
+      out <- UI$sim/LP$sim
+      # out1 <- n.root.path/(mean(c(length(mean.g1), length(mean.g2))))/(
+      #   UI$sim*LP$sim)
     }
   }
   # warning("score ", out)
   if (out > 1) {
-    stop("go_cor is bigger than 1?? It can't be")
+    stop("go_cor is bigger than 1, for genes ", e_a, " and ", e_b)
   }
+  # else if (out1 > 1) {
+  #   stop("go_cor1 is bigger than 1 for genes ", e_a, " and ", e_b)
+  # }
   return(out)
 }
 
@@ -542,13 +549,15 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   if (go) {  # parallel # to run non parallel transform the %dopar% into %do%
     message("Length of ", length(gene.symbol$`Entrez Gene`))
     # registerDoSEQ()
-    go.mat <- c()
-   for (i in seq_len(n.combin)) {
-      comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
-      # message("new comb ", paste(comb))
-      score <- go_cor(comb[1], comb[2], mapfun = TRUE, Ontology = "BP")
-      go.mat <- c(go.mat, score)
-    }
+
+    go.mat <- foreach(i = 1:length(gene.symbol$`Entrez Gene`), .combine = c,
+                      .verbose = TRUE) %dopar% {
+                        comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
+                        # message("new comb ", paste(comb))
+                        score <- go_cor(comb[1], comb[2], mapfun = TRUE,
+                                        Ontology = "BP")
+                        # go.mat <- c(go.mat, score)
+                      }
     # registerDoParallel(4)
     # print(go.mat)
     go_mat <- seq2mat(gene.symbol$`Entrez Gene`, go.mat)
