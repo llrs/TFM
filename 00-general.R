@@ -51,6 +51,9 @@ library("foreach")
 library("doParallel")
 library("BiocParallel")
 library("parallel")
+library("GSVA")
+library("GSVAdata")
+library("GSEABase")
 
 # Options and configurations ####
 
@@ -74,7 +77,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "comparison_HA"
+study <- "RD"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
@@ -187,7 +190,9 @@ extract <- function(module, clinvar, MM, GS, GSP, MMP, moduleColors) {
   moduleGenes <- moduleColors == module
   varc.gs <- match(paste0("GS.", clinvar), colnames(GS))
   varc.gsp <- match(paste0("p.GS.", clinvar), colnames(GSP))
-
+  if (sum(is.na(c(column.mmp, column.mmp, varc.gs, varc.gsp))) >= 1) {
+    stop("Unable to find the apropiate data")
+  }
   if (length(varc.gs) > 1 | length(column.mm) > 1) {
     if (length(varc.gs) > 1) {
       warning("Choose between ", paste(colnames(GS)[varc.gs],
@@ -197,42 +202,46 @@ extract <- function(module, clinvar, MM, GS, GSP, MMP, moduleColors) {
                                       collapse = " "))
     }
   }
-  data <- cbind(MM[moduleGenes, column.mm, drop = FALSE],
+  mod_data <- cbind(MM[moduleGenes, column.mm, drop = FALSE],
                 GS[moduleGenes, varc.gs, drop = FALSE],
                 GSP[moduleGenes, varc.gsp, drop = FALSE],
                 MMP[moduleGenes, column.mmp, drop = FALSE])
 
-  colnames(data) <- c("MM", "GS", "GSP", "MMP")
-  keep <- apply(data, 1, function(x){!all(is.na(x))})
-  data <- unique(data[keep, ])
-  if (nrow(data) == 0) {
+  colnames(mod_data) <- c("MM", "GS", "GSP", "MMP")
+  keep <- apply(mod_data, 1, function(x){!all(is.na(x))})
+  mod_data <- unique(mod_data[keep, ])
+  if (nrow(mod_data) == 0) {
+    warning("Data for ", module, " isn't available")
     return(NA)
   }
-  return(data)
+  return(mod_data)
 
 }
 
 # Given data calculates the weight, the weighte correlation and its p.value
-w.cor <- function(data) {
-  weight <- (1 - data$GSP) * (1 - data$MMP)
-  w.cor <- corr(data[, c("MM", "GS")], weight) # requires the boot package
-  p.value.w <- corPvalueStudent(w.cor, nrow(data))
+w.cor <- function(mod_data) {
+  weight <- (1 - mod_data[, "GSP"]) * (1 - mod_data[, "MMP"])
+  w.cor <- corr(mod_data[, c("MM", "GS")], weight) # requires the boot package
+  p.value.w <- corPvalueStudent(w.cor, nrow(mod_data))
   list(weight, w.cor, p.value = p.value.w)
 }
 
-plot.GGMM <- function(data, module) {
+plot.GGMM <- function(mod_data, module) {
   # Weights of the correlation between genes-trait and module-membership
-  corr.res <- w.cor(data)
+  if (sum(is.na(mod_data)) >= 1) {
+    warning("data for ", module, "wasn't available")
+  }
+  corr.res <- w.cor(mod_data)
   weight <- corr.res[1]
   w.cor <- corr.res[2]
   p.value.w <- corr.res[3]
 
-  u.cor <- cor(x = data$MM, y = data$GS)
-  p.value.u <- corPvalueStudent(u.cor, nrow(data))
+  u.cor <- cor(x = mod_data[, "MM"], y = mod_data[, "GS"])
+  p.value.u <- corPvalueStudent(u.cor, nrow(mod_data))
   # With ggplot with size for the weights
-  ab <- lm(data$GS ~ data$MM)
+  ab <- lm(mod_data[, "GS"] ~ mod_data[, "MM"])
   plot.g <- ggplot() +
-    geom_point(aes(x = data$MM, y = data$GS,
+    geom_point(aes(x = mod_data[, "MM"], y = mod_data[, "GS"],
                    size = weight),
                col = ifelse(module %in% c("white", "floralwhite"),
                             "black", module)) + theme_bw() +
@@ -254,7 +263,10 @@ plot.GGMM <- function(data, module) {
 GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
                     disease, cor.out = FALSE, p.value = FALSE){
 
-  data <- extract(x, var, MM, GS, GSP, MMP, moduleColors)
+  mod_data <- extract(x, var, MM, GS, GSP, MMP, moduleColors)
+  if (sum(is.na(mod_data)) >= 1) {
+    return(NA)
+  }
 
   if (is.na(x)) {
     return(NA)
@@ -265,30 +277,30 @@ GGMMfun <- function(x, var, MM, GS, GSP, MMP, moduleColors, modNames,
   }
 
   # Calculates the weighted mean of genes correlation with the trait
-  # wgenecor <- weighted.mean(data[,"GS"], (1 - data[,"GSP"]), na.rm = TRUE)
-  # wmmcor <- weighted.mean(data[,"MM"], (1 - data[,"MMP"]), na.rm = TRUE)
+  # wgenecor <- weighted.mean(mod_data[,"GS"], (1 - mod_data[,"GSP"]), na.rm = TRUE)
+  # wmmcor <- weighted.mean(mod_data[,"MM"], (1 - mod_data[,"MMP"]), na.rm = TRUE)
 
   # Weights of the correlation between genes-trait and module-membership
-  weight <- (1 - data$GSP) * (1 - data$MMP)
-  w.cor <- corr(data[, c("MM", "GS")], weight)
-  p.value.w <- corPvalueStudent(w.cor, nrow(data))
+  weight <- (1 - mod_data[, "GSP"]) * (1 - mod_data[, "MMP"])
+  w.cor <- corr(mod_data[, c("MM", "GS")], weight)
+  p.value.w <- corPvalueStudent(w.cor, nrow(mod_data))
   if (cor.out) {
     return(w.cor)
   } else if (p.value) {
     return(p.value.w)
   }
-  if (length(data$MM) == 0) {
+  if (length(mod_data[, "MM"]) == 0) {
     return(NA)
   }
   # browser()
-  # w.m <- weighted.mean(data[gene, "GS"], w = 1 - data[gene, "GSP"])
-  u.cor <- cor(x = data$MM, y = data$GS)
-  p.value.u <- corPvalueStudent(u.cor, nrow(data))
+  # w.m <- weighted.mean(mod_data[gene, "GS"], w = 1 - mod_data[gene, "GSP"])
+  u.cor <- cor(x = mod_data[, "MM"], y = mod_data[, "GS"])
+  p.value.u <- corPvalueStudent(u.cor, nrow(mod_data))
 
   # With ggplot with size for the weights
-  ab <- lm(data$GS ~ data$MM)
+  ab <- lm(mod_data[, "GS"] ~ mod_data[, "MM"])
   plot.g <- ggplot() +
-    geom_point(aes(x = data$MM, y = data$GS,
+    geom_point(aes(x = mod_data[, "MM"], y = mod_data[, "GS"],
                    size = weight),
                col = ifelse(module %in% c("white", "floralwhite"),
                             "black", module)) + theme_bw() +
