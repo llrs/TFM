@@ -69,7 +69,7 @@ s.path <- function(ig) {
   return(plens)
 }
 
-# Why just BP and note CC and MF ??
+# Why just BP and note CC and MF ?? Because we want to join by function
 # Calculates the degree of overlap of the GO BP ontologies of entrez ids.
 # test genes
 # 52 11342
@@ -77,16 +77,22 @@ s.path <- function(ig) {
 # 57654 58493
 # 1164 1163
 # 4150 2130
+# 159 52
+
 go_cor <- function(e_a, e_b, chip = "hgu133plus2.db", mapfun = NULL,
                    Ontology = "BP", ...) {
   # https://support.bioconductor.org/p/85702/#85732
+  suppressPackageStartupMessages({
+    library("GOstats")
+    library("org.Hs.eg.db")
+  })
   out <- 0.0
 
   if (is.na(e_a) | is.na(e_b)) {
-    out <- NA
+    return(NA)
   }
   if (e_a == e_b) {
-    out <- 1
+    return(1)
   }
   # Ensure proper format
   e_a <- as.character(e_a)
@@ -298,7 +304,6 @@ seq2mat <- function(x, dat) {
 # and compare them all
 # Used in bio.cor2
 comb_biopath <- function(comb, info, by, biopath) {
-  # react_path <- apply(comb, 2, function(y){
   a <- unique(info[info[[by]] == comb[1], biopath])
   a <- a[a != ""]
   a <- a[!is.na(a)]
@@ -307,9 +312,7 @@ comb_biopath <- function(comb, info, by, biopath) {
   b <- b[b != ""]
   b <- b[!is.na(b)]
 
-  # if (all(bplapply(a, is.na, BPPARAM = p)) |
-      # all(bplapply(a, is.na, BPPARAM = p))) {
-  if (all(sapply(a, is.na)) | all(sapply(b, is.na))) { # maybe bplapply
+  if (all(sapply(a, is.na)) | all(sapply(b, is.na))) {
     return(NA)
   } else if (length(a) == 0 | length(b) == 0) {
     return(NA)
@@ -439,6 +442,23 @@ weighted <- function(x, w){
   sum(x*w, na.rm = TRUE)
 }
 
+# adj Adjacency matrix
+# bio_mat bio_mat object
+rm.dup <- function(adj, bio_mat) {
+  if (ncol(adj) != ncol(bio_mat[[1]])) {
+    ids <- select(org.Hs.eg.db, keys = colnames(adj), keytype = "SYMBOL",
+                  column = "ENTREZID")
+    dup_ids <- ids[duplicated(ids$SYMBOL), "ENTREZID"]
+    sapply(bio_mat, function(x){
+      dupli <- colnames(x) %in% dup_ids
+      colums_d <- x[,  dupli]
+      if ((sum(is.na(colums_d)) | sum(colums_d == 0)) == (ncol(adj) - 1)) {
+        merge(t(ids), colnames(x))
+      }
+    })
+  }
+}
+
 # Function that used the previously calculated biological correlation to
 # calculate the total correlation
 # x is the datExpresssion
@@ -484,6 +504,14 @@ kegg_build <- function(entrez_id){
 
 }
 
+# Finds the indices of the duplicated events of a vector
+# The output is determined by the sapply function
+indices.dup <- function(vec) {
+  sapply(unique(vec[duplicated(vec)]), function(x){
+     b <- 1:length(vec)
+     b[vec == x]})
+}
+
 
 # Comparing information in databases
 #
@@ -513,22 +541,30 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     go <- kegg <- react <- all
   }
 
-
   # Obtain data from the annotation packages
-  gene.symbol <- unique(toTable(org.Hs.egSYMBOL2EG))
-  colnames(gene.symbol) <- c("Entrez Gene", "Symbol")
-  gene.symbol <- merge(gene.symbol, as.data.frame(genes_id),
-               by.x = ids, by.y = "genes_id",
-               sort = FALSE, all.y = T, all.x = FALSE)
-  n.combin <- choose(nrow(gene.symbol), 2)
-  # FIXME the length of input and for the calculus may differ
-  if (length(unique(gene.symbol$`Entrez Gene`)) != length(genes_id)) {
-    message("1:many mapping ids")
+  if (ids == "Symbol") {
+    gene.symbol <- select(org.Hs.eg.db, keys = genes_id,
+                          keytype = "SYMBOL", column = "ENTREZID")
+    colnames(gene.symbol) <- c("Symbol", "Entrez Gene")
+  } else {
+    gene.symbol <- select(org.Hs.eg.db, keys = genes_id,
+                          keytype = "ENTREZID", column = "SYMBOL")
+    colnames(gene.symbol) <- c("Entrez Gene", "Symbol")
+  }
+  n.combin <- choose(length(gene.symbol$`Entrez Gene`), 2)
+  # FIXME the length of input and for the calculus may differ!!!!
+  if (sum(is.na(gene.symbol$`Entrez Gene`)) >= 1) {
+    message("Some symbols are not mapped to Entrez Genes IDs")
+  }
+  dup_symb <- duplicated(gene.symbol$Symbol[!is.na(gene.symbol$`Entrez Gene`)])
+  if (sum(dup_symb) >= 1) {
+    message("Some symbols are mapped to several Entrez Genes IDs.")
   }
 
   if (kegg) {
     # Obtain data
-    gene.kegg <- unique(toTable(org.Hs.egPATH2EG))
+    gene.kegg <- select(org.Hs.eg.db, keys = gene.symbol$`Entrez Gene`,
+                        keytype = "ENTREZID", columns = "PATH")
     colnames(gene.kegg) <- c("Entrez Gene", "KEGG") # Always check it!
     # Merge data
     genes <- unique(merge(gene.symbol, gene.kegg, all = TRUE, sort = FALSE))
@@ -538,26 +574,25 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     if (!kegg) {
       genes <- gene.symbol
     }
-    gene.reactome <- unique(toTable(reactomePATHID2EXTID))
-    colnames(gene.reactome) <- c("Reactome", "Entrez Gene")
+    gene.reactome <- select(reactome.db, keys = gene.symbol$`Entrez Gene`,
+                            keytype = "ENTREZID", columns = "REACTOMEID")
+    colnames(gene.reactome) <- c("Entrez Gene", "Reactome")
     genes <- unique(merge(genes, gene.reactome, all = TRUE, sort = FALSE))
   }
+  # detach(package:GOstats, unload = TRUE, character.only = TRUE)
+  # detach(package:org.Hs.eg.db, unload = TRUE, character.only = TRUE)
 
-  .packaglst <- c("org.Hs.eg.db", "RBGL", "Rgraphviz", "graph", "Biobase",
-                  "AnnotationDbi", "GOstats")
   # Calculate the GO, or pathways overlap
   if (go) {  # parallel # to run non parallel transform the %dopar% into %do%
-    message("Length of ", length(gene.symbol$`Entrez Gene`))
-    # registerDoSEQ()
-
-    go.mat <- foreach(i = 1:length(gene.symbol$`Entrez Gene`), .combine = c,
-                      .verbose = TRUE) %dopar% {
+    message("Calculating GO information")
+    go.mat <- foreach(i = seq_len(n.combin), .verbose = TRUE) %dopar% {
                         comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
                         # message("new comb ", paste(comb))
                         score <- go_cor(comb[1], comb[2], mapfun = TRUE,
                                         Ontology = "BP")
-                        # go.mat <- c(go.mat, score)
-                      }
+                        score
+      # go.mat <- c(go.mat, score)
+    }
     # registerDoParallel(4)
     # print(go.mat)
     go_mat <- seq2mat(gene.symbol$`Entrez Gene`, go.mat)
@@ -568,31 +603,39 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     if (sum(!is.na(go_mat))  == length(gene.symbol$`Entrez Gene`)) {
       warning("GO didn't found relevant information!")
     }
+    message("GO information has been calculated")
   }
 
   if (kegg) {  # parallel # to run non parallel transform the %dopar% into %do%
-    kegg.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
+    message("Calculating KEGG information")
+    kegg.bio <- foreach(i = seq_len(n.combin), .combine = c,
+                        .verbose = F) %dopar% {
       comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
-      react_genes(comb, genes, "KEGG", ids)
+      react_genes(comb, genes, "KEGG", "Entrez Gene")
     }
 
     if (sum(!is.na(kegg.bio)) == length(genes_id)) {
-      warning("React didn't found relevant information")
+      warning("React didn't found relevant information!\n")
     }
     react_mat <- seq2mat(gene.symbol$`Entrez Gene`, kegg.bio)
+    message("KEGG information has been calculated")
   }
 
   if (react) {  # parallel # to run non parallel transform the %dopar% into %do%
-    react.bio <- foreach(i = 1:n.combin, .combine = c, .verbose = F) %dopar% {
+    message("Calculating REACTOME information")
+    react.bio <- foreach(i = seq_len(n.combin), .combine = c,
+                         .verbose = F) %dopar% {
       comb <- .combinadic(gene.symbol$`Entrez Gene`, 2, i)
-      react_genes(comb, genes, "Reactome", ids)
+      react_genes(comb, genes, "Reactome", "Entrez Gene")
     }
 
-    if (sum(!is.na(kegg.bio)) == length(genes_id)) {
-      warning("KEGG didn't found relevant information")
+    if (sum(!is.na(react.bio)) == length(genes_id)) {
+      warning("REACTOME didn't found relevant informationª\n")
     }
     kegg_mat <- seq2mat(gene.symbol$`Entrez Gene`, kegg.bio)
+    message("REACTOME information has been calculated")
   }
+
 
   if (all) {
     cor_mat <- list(reactome = react_mat, kegg = kegg_mat, go = go_mat)
@@ -609,6 +652,29 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
   } else if (kegg) {
     cor_mat <- list(kegg = kegg_mat)
   }
+
+  # Select duplicate ids
+  dupli <- indices.dup(gene.symbol[, ids])
+  if (is.matrix(dupli)) {
+    dupli2 <- lapply(seq_len(ncol(dupli)), function(i) {
+      dupli[,i]})
+    names(dupli2) <- colnames(dupli)
+    dupli <- dupli2
+  }
+  # Keep the interesting columns
+  message("Removing duplicated columns")
+  cor_mat <- Map(function(mat, x = dupli) {
+    # Select the colums to delete
+    rem.colum <- sapply(x, function(y, m) {
+      mean.column <- apply(m[, y], 2, mean, na.rm = TRUE)
+      i <- which.max(mean.column)
+      # Select those who don't bring more information
+      rem.colum <- setdiff(y, y[i])
+    }, m = mat)
+
+    mat[-rem.colum, -rem.colum]
+  }, cor_mat)
+
   return(cor_mat)
 }
 
@@ -632,33 +698,34 @@ react_genes <- function(comb, genes, react, id) {
   if (!react %in% colnames(genes)) {
     stop("Please check which type of reaction you want")
   }
+  if (any(is.na(comb))) {
+    return(NA)
+  }
   react_path <- comb_biopath(comb, genes, id, react)
 
   # Check that we have pathways info for this combination
   if (is.null(react_path)) {
-    return(NA)
+    return(0)
   } else if (length(react_path) == 2) {
     if (nrow(react_path) == 0) {
-      return(NA)
+      return(0)
     }
   } else if (is.na(react_path)) {
-    return(NA)
+    return(0)
   }
-  # parallel
-  # react <- bplapply(seq_len(ncol(react_path)), function(i) {x = react_path[, i]
-  react <- apply(react_path, 1, function(x){ # maybe bplapply?
+
+  react <- apply(react_path, 1, function(x){
     a <- genes.info(genes, react, x[1])
     b <- genes.info(genes, react, x[2])
     out <- compare_graphs(a, b)
     out
-  }#, BPPARAM = p
-  )
+  })
 
-  # If NA returns NA
+  # If NA returns 0
   if (length(react) != sum(is.na(react))) {
     out <- max(react, na.rm = TRUE)
   } else {
-    out <- NA
+    out <- 0
   }
   out
 }
