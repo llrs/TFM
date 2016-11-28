@@ -86,26 +86,26 @@ clusters <- sapply(unique(moduleColors), function(x, genes, nc){
 save(clusters, file = "modules_entrezid.RData")
 # Compare modules ####
 
- if (compare) {
-   pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
-   x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
-   eGO <- compareCluster(clusters, fun = "enrichGO")
-   save(eGO, file = "eGO.RData")
-   plot(eGO) + ggtitle("Enrich GO") + x.axis
-   cGO <- compareCluster(clusters, fun = "enrichGO", ont = "CC")
-   save(cGO, file = "cGO.RData")
-   plot(cGO) + ggtitle("Enrich cc GO") + x.axis
-   # gGO <- compareCluster(clusters, fun = "groupGO")
-   # save(gGO, file = "gGO.RData")
-   # plot(gGO) + ggtitle("Group GO") + x.axis
-   eP <- compareCluster(clusters, fun = "enrichPathway")
-   save(eP, file = "eP.RData")
-   plot(eP) + ggtitle("Enrich Pathways") + x.axis
-   eK <- compareCluster(clusters, fun = "enrichKEGG")
-   save(eK, file = "eK.RData")
-   plot(eK) + ggtitle("Enrich KEGG") + x.axis
-   dev.off()
- }
+if (compare) {
+  pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
+  x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  eGO <- compareCluster(clusters, fun = "enrichGO")
+  save(eGO, file = "eGO.RData")
+  plot(eGO) + ggtitle("Enrich GO") + x.axis
+  cGO <- compareCluster(clusters, fun = "enrichGO", ont = "CC")
+  save(cGO, file = "cGO.RData")
+  plot(cGO) + ggtitle("Enrich cc GO") + x.axis
+  # gGO <- compareCluster(clusters, fun = "groupGO")
+  # save(gGO, file = "gGO.RData")
+  # plot(gGO) + ggtitle("Group GO") + x.axis
+  eP <- compareCluster(clusters, fun = "enrichPathway")
+  save(eP, file = "eP.RData")
+  plot(eP) + ggtitle("Enrich Pathways") + x.axis
+  eK <- compareCluster(clusters, fun = "enrichKEGG")
+  save(eK, file = "eK.RData")
+  plot(eK) + ggtitle("Enrich KEGG") + x.axis
+  dev.off()
+}
 
 string_db <- STRINGdb$new(version = "10", species = 9606,
                            score_threshold = 0, input_directory = "" )
