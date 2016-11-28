@@ -690,7 +690,12 @@ multiple.softThreshold <- function(multiPower, min = 0.85){
     return(y[1])}))
 }
 
-# Select the right weights of bio.cor
+# Function to advise on the weight to use
+# data.wgcna expression data in WGCNA format
+# power  power used to build the network
+# adj.opt options of the adjacency construction
+# bio_mat the previously calculated biological information
+# Tom.opt how to build the TOM matrix
 weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
   g <- seq(0, 1, by = 0.1)
   combin.weights <- expand.grid(g, g, g, g)
@@ -724,6 +729,8 @@ weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
 
 
 # Plot the combinations of parameters given by weight.bio.cor
+# full the weights and size of the resulting modules
+# labels.bio_mat the name of the data introduced as bio_mat in weight.bio.cor
 weight.plot <- function(full, labels.bio_mat){
   labels.dat <- c("Expr", labels.bio_mat)
   new.df <- melt(full, id.vars = labels.dat)
