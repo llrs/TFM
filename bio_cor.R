@@ -617,7 +617,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     if (sum(!is.na(kegg.bio)) == length(genes_id)) {
       warning("React didn't found relevant information!\n")
     }
-    react_mat <- seq2mat(gene.symbol$`Entrez Gene`, kegg.bio)
+    kegg_mat <- seq2mat(gene.symbol$`Entrez Gene`, kegg.bio)
     message("KEGG information has been calculated")
   }
 
@@ -632,7 +632,7 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     if (sum(!is.na(react.bio)) == length(genes_id)) {
       warning("REACTOME didn't found relevant informationª\n")
     }
-    kegg_mat <- seq2mat(gene.symbol$`Entrez Gene`, kegg.bio)
+    react_mat <- seq2mat(gene.symbol$`Entrez Gene`, react.bio)
     message("REACTOME information has been calculated")
   }
 
@@ -661,19 +661,21 @@ bio.cor2 <- function(genes_id, ids = "Entrez Gene",
     names(dupli2) <- colnames(dupli)
     dupli <- dupli2
   }
-  # Keep the interesting columns
-  message("Removing duplicated columns")
-  cor_mat <- Map(function(mat, x = dupli) {
-    # Select the colums to delete
-    rem.colum <- sapply(x, function(y, m) {
-      mean.column <- apply(m[, y], 2, mean, na.rm = TRUE)
-      i <- which.max(mean.column)
-      # Select those who don't bring more information
-      rem.colum <- setdiff(y, y[i])
-    }, m = mat)
+  if (length(dupli) >= 1) {
+    # Keep the interesting columns
+    message("Removing duplicated columns")
+    cor_mat <- Map(function(mat, x = dupli) {
+      # Select the colums to delete
+      rem.colum <- sapply(x, function(y, m) {
+        mean.column <- apply(m[, y], 2, mean, na.rm = TRUE)
+        i <- which.max(mean.column)
+        # Select those who don't bring more information
+        rem.colum <- setdiff(y, y[i])
+      }, m = mat)
 
-    mat[-rem.colum, -rem.colum]
-  }, cor_mat)
+      mat[-rem.colum, -rem.colum]
+    }, cor_mat)
+  }
 
   return(cor_mat)
 }
