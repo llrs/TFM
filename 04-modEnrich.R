@@ -3,8 +3,8 @@
 source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
-compare <- TRUE
-topGO <- FALSE
+compare <- FALSE
+topGO <- TRUE
 Reactome <- FALSE
 Kegg <- FALSE
 GSEA <- FALSE
@@ -13,7 +13,7 @@ GSEA <- FALSE
 STRING <- FALSE
 
 # Initial format of input all will be converted to entrez
-keytype <- "REFSEQ" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
+keytype <- "SYMBOL" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
 # "ENTREZID", "ENZYME", "EVIDENCE", "EVIDENCEALL", "GENENAME",
 # "GO", "GOALL", "IPI", "MAP", "OMIM", "ONTOLOGY", "ONTOLOGYALL",
 # "PATH", "PFAM", "PMID", "PROSITE", "REFSEQ", "SYMBOL", "UCSCKG",
@@ -24,10 +24,10 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
 
 # Load previously work done ####
 load(file = "Input.RData", verbose = TRUE)
-# load(file = "modules_ME.RData", verbose = TRUE)
-# load(file = "modules_ME_orig.RData", verbose = TRUE)
-# data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
-#                                                "plum1", "tan")]
+load(file = "modules_ME.RData", verbose = TRUE)
+load(file = "modules_ME_orig.RData", verbose = TRUE)
+data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+                                               "plum1", "tan")]
 load(file = "modules_ME.RData", verbose = TRUE)
 # MEs <- MEs$eigengenes
 load(file = "selected_modules.RData", verbose = TRUE)
@@ -89,21 +89,27 @@ save(clusters, file = "modules_entrezid.RData")
 if (compare) {
   pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
   x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
-  eGO <- compareCluster(clusters, fun = "enrichGO")
+  eGO <- compareCluster(clusters, fun = "enrichGO", OrgDb = org.Hs.eg.db,
+                        ont = "MF")
   save(eGO, file = "eGO.RData")
-  plot(eGO) + ggtitle("Enrich GO") + x.axis
-  cGO <- compareCluster(clusters, fun = "enrichGO", ont = "CC")
+  dotplot(eGO) + ggtitle("Enrich MF GO") + x.axis
+  bpGO <- compareCluster(clusters, fun = "enrichGO", OrgDb = org.Hs.eg.db,
+                         ont = "BP")
+  save(bpGO, file = "bpGO.RData")
+  dotplot(bpGO) + ggtitle("Enrich BP GO") + x.axis
+  cGO <- compareCluster(clusters, fun = "enrichGO", ont = "CC",
+                        OrgDb = org.Hs.eg.db)
   save(cGO, file = "cGO.RData")
-  plot(cGO) + ggtitle("Enrich cc GO") + x.axis
+  dotplot(cGO) + ggtitle("Enrich CC GO") + x.axis
   # gGO <- compareCluster(clusters, fun = "groupGO")
   # save(gGO, file = "gGO.RData")
   # plot(gGO) + ggtitle("Group GO") + x.axis
   eP <- compareCluster(clusters, fun = "enrichPathway")
   save(eP, file = "eP.RData")
-  plot(eP) + ggtitle("Enrich Pathways") + x.axis
+  dotplot(eP) + ggtitle("Enrich Pathways") + x.axis
   eK <- compareCluster(clusters, fun = "enrichKEGG")
   save(eK, file = "eK.RData")
-  plot(eK) + ggtitle("Enrich KEGG") + x.axis
+  dotplot(eK) + ggtitle("Enrich KEGG") + x.axis
   dev.off()
 }
 
@@ -173,8 +179,7 @@ out <- sapply(imodules, function(x) {
                   mapping = "org.Hs.eg",
                   geneSelectionFun = selFun)
     go.enrich(GOdata.mp, moduleName, "MP")}, error = function(x){
-      message("\nUnable to calculate MP.\n")
-      message(x)
+      message("\nUnable to calculate MP.")
     })
     tryCatch({GOdata.cc <- new("topGOdata",
                   ontology = "CC",
@@ -188,8 +193,7 @@ out <- sapply(imodules, function(x) {
                   mapping = "org.Hs.eg",
                   geneSelectionFun = selFun)
     go.enrich(GOdata.cc, moduleName, "CC")}, error = function(x){
-      message("\nUnable to calculate CC.\n")
-      message(x)
+      message("Unable to calculate CC.")
     })
   }
   # Reactome ####
@@ -197,39 +201,14 @@ out <- sapply(imodules, function(x) {
     reactome_enrich <- enrichPathway(gene = moduleGenes,
                                      universe = universeGenesEntrez,
                                      pvalueCutoff = 0.05, readable = TRUE,
-                                     minGSSize = 2)
-    if (length(summary(reactome_enrich)) != 0) {
+                                     minGSSize = 2, maxGSSize = 2000)
+    if (is.null(reactome_enrich)) {
+      message("Module ", moduleName, " is not enriched in a Reactome pathway.")
+    } else if (nrow(reactome_enrich) >= 1) {
       write.csv(summary(reactome_enrich),
                 file = paste0("reactome_", moduleName, ".csv"),
-                row.names = FALSE)
-      pdf(paste0("reactome_", moduleName, ".pdf"), onefile = TRUE)
-      tryCatch({dotplot(reactome_enrich)},
-               error = function(e) {
-                 message("Couldn't plot the dotplot for reactome")
-                 message(e)
-               })
-
-      # One can use the fold change to visualize how are the genes expressed
-      # with a foldChange = vector
-      tryCatch({cnetplot(reactome_enrich, showCategory = 15,
-                         categorySize = "geneRatio",
-                         layout = layout_nicely)},
-               error = function(e) {
-                 message("Couldn't plot the cnetplot for reactome")
-                 message(e)
-               })
-      # summary(reactome_enrich)
-      # dput(summary(reactome_enrich))
-      # Can't have titles
-      tryCatch({enrichMap(reactome_enrich, layout = layout_nicely,
-                          vertex.label.cex = 1, n = 15)},
-               error = function(e) {
-                 message("Couldn't map the enrichMap for reactome")
-                 message(e)
-               })
-      dev.off()
-    } else {
-      message("Not enough data in reactome for module ", moduleName)
+                row.names = FALSE, na = "")
+      pathway.enrich(reactome_enrich, moduleName)
     }
   }
 
@@ -238,31 +217,14 @@ out <- sapply(imodules, function(x) {
     kegg_enrich <- enrichKEGG(moduleGenes,
                               universe = universeGenesEntrez,
                               use_internal_data = TRUE,
-                              minGSSize = 2)
-    if (length(summary(kegg_enrich)) != 0) {
+                              minGSSize = 2, maxGSSize = 2000)
+    if (is.null(kegg_enrich)) {
+      message("Module ", moduleName, " is not enriched in a KEGG pathway.")
+    } else if (nrow(kegg_enrich) >= 1) {
       write.csv(summary(kegg_enrich),
-                file = paste0("kegg_", moduleName, ".csv"))
-      pdf(paste0("kegg_", moduleName, ".pdf"), onefile = TRUE)
-      tryCatch({dotplot(kegg_enrich)},
-               error = function(e) {
-                 message("Couldn't map the dotplot for KEGG")
-                 message(e)
-               })
-      tryCatch({cnetplot(kegg_enrich, showCategory = 15, categorySize = "geneNum",
-                         layout = igraph::layout_nicely)},
-               error = function(e) {
-                 message("Couldn't map the cnetplot for KEGG")
-                 message(e)
-               })
-      tryCatch({enrichMap(kegg_enrich, layout = igraph::layout_nicely,
-                          vertex.label.cex = 1, n = 15)},
-               error = function(e) {
-                 message("Couldn't map the enrichMap for KEGG")
-                 message(e)
-               })
-      dev.off()
-    } else {
-      message("Not enough data in KEGG for module ", moduleName)
+                file = paste0("kegg_", moduleName, ".csv"),
+                row.names = FALSE, na = "")
+      pathway.enrich(kegg_enrich, moduleName)
     }
   }
 
