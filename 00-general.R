@@ -54,7 +54,7 @@ library("parallel")
 library("GSVA")
 library("GSVAdata")
 library("GSEABase")
-
+library("snowfall")
 # Options and configurations ####
 
 enableWGCNAThreads(4) # Speeding up certain calculations with multi-threading.
@@ -77,7 +77,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "RD"
+study <- "subnetwork"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
@@ -89,11 +89,11 @@ path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))
 raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
-# dir.create(data.out)
-# subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
-subdirectory <- "bicor"
-data.files.out <- file.path(data.out, subdirectory)
-# dir.create(data.files.out)
+dir.create(data.out)
+subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
+# subdirectory <- "bicor"_
+data.files.out <- file.path(data.out, subdirectory, "simple") #08_01_01
+dir.create(data.files.out)
 
 # Functions ####
 
@@ -618,7 +618,7 @@ go.enrich <- function(GOdata, moduleName, ont) {
                               method = "mean")
 
   allRes <- GenTable(GOdata, classic = resultFisher, weight01 = resultKS,
-                     elim = resultKS.elim, orderBy = "classic",
+                     elim = resultKS.elim, orderBy = "weight01",
                      ranksOf = "classic", topNodes = 50, numChar = 100)
   write.csv(allRes, file = name.file("GO_table", ont, moduleName, ".csv"),
             row.names = FALSE)
@@ -630,32 +630,58 @@ go.enrich <- function(GOdata, moduleName, ont) {
     title(main = "GO analysis using Fisher algorithm")},
     error = function(e) {
       message("Couldn't calculate the Fisher")
-      message(e)
+      message(e, "\n")
     })
   tryCatch({showSigOfNodes(GOdata,
                            score(resultKS), firstSigNodes = 2, useInfo = 'all')
     title(main = "GO analysis using Weight01 algorithm")},
     error = function(e) {
       message("Couldn't calculate the weight01")
-      message(e)
+      message(e, "\n")
     })
   tryCatch({showSigOfNodes(GOdata,
                            score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')
     title(main = "GO analysis using KS elim algorithm")},
     error = function(e) {
       message("Couldn't calculate the KSelim")
-      message(e)
+      message(e, "\n")
     })
   tryCatch({showSigOfNodes(GOdata,
                            score(avgResult), firstSigNodes = 2, useInfo = 'all')
     title(main = "GO analysis using average")},
     error = function(e) {
       message("Couldn't calculate the average GO stat")
-      message(e)
+      message(e, "\n")
     })
   dev.off()
 
 }
+
+# Plots in a pdf the object in a module
+# path_object the object to be used for plotting
+# moduleName name of the modulename
+pathway.enrich <- function(path_object, moduleName) {
+    pdf(paste0("kegg_", moduleName, ".pdf"), onefile = TRUE)
+    tryCatch({dotplot(path_object)},
+             error = function(e) {
+               message("Couldn't draw the dotplot")
+               message(e, "\n")
+             })
+    tryCatch({cnetplot(path_object, showCategory = 15, categorySize = "geneNum",
+                       layout = igraph::layout_nicely)},
+             error = function(e) {
+               message("Couldn't draw the cnetplot")
+               message(e, "\n")
+             })
+    tryCatch({enrichMap(path_object, layout = igraph::layout_nicely,
+                        vertex.label.cex = 1, n = 15)},
+             error = function(e) {
+               message("Couldn't draw the enrichMap")
+               message(e, "\n")
+             })
+    dev.off()
+}
+
 # Given many datasets for WGCNA it create a multiExpr data set
 # Works either with traits and expression data
 multiSet <- function(...) {
@@ -724,6 +750,7 @@ weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
   keep <- t(apply(tables, 1, Reduce, f = sum, accumulate = T))
   tables[keep > ncol(data.wgcna)] <- NA # ncol(data.wgcna)<->1
   full <- cbind(combin.weights, tables)
+  rownames(full) <- 1:nrow(full)
   return(full)
 }
 
