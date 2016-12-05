@@ -5,7 +5,7 @@ setwd(data.files.out)
 consensus <- FALSE # If it from a consensus file
 power <- FALSE # Calculate the power or reuse the existing in the folder
 network <- TRUE # Build the network or reuse the existing in the folder
-dendro <- FALSE # plot a dendro or not
+dendro <- TRUE # plot a dendro or not
 connectivity <- FALSE # If consensus the connectivity shouldn't be calculated
 # Input can be from those individual projects
 if (consensus) {
@@ -63,10 +63,7 @@ if (consensus) {
   save(data.wgcna, file = "Input.RData")
 } else {
   # Load the data saved in the first part
-  load(file = "Input.RData", verbose = TRUE)
-  load(file = "modules_ME_orig.RData", verbose = TRUE)
-  data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
-                                                 "plum1", "tan")]
+  load(file = "subnetwork.RData", verbose = TRUE)
   nGenes <- ncol(data.wgcna)
   nSamples <- nrow(data.wgcna)
 }
@@ -77,7 +74,7 @@ if (bio.corFnc) {
     load("bio_correlation.RData", verbose = TRUE)
   } else {
     bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
-                        all = TRUE)
+                        react = TRUE, kegg = TRUE)
     save(bio_mat, file = "bio_correlation.RData")
   }
 }
@@ -220,7 +217,7 @@ message(paste("Using power", power))
 if (network) {
   if (bio.corFnc) {
     adj <- adjacency(data.wgcna, type = adj.opt, power = power)
-    adj.bio <- cor.all(adj, bio_mat, weights = c(0.75, 0.25))
+    adj.bio <- cor.all(adj, bio_mat, weights = c(0.8, 0.1, 0.1))
     TOM <- TOMsimilarity(adj.bio, TOMType = TOM.opt)
     dissTOM <- 1 - TOM
     geneTree <- hclust(as.dist(dissTOM), method = "average")
