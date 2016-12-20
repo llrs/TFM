@@ -2,8 +2,9 @@
 
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
+getwd()
 consensus <- FALSE # If it from a consensus file
-power <- FALSE # Calculate the power or reuse the existing in the folder
+power <- TRUE # Calculate the power or reuse the existing in the folder
 network <- TRUE # Build the network or reuse the existing in the folder
 dendro <- TRUE # plot a dendro or not
 connectivity <- FALSE # If consensus the connectivity shouldn't be calculated
@@ -63,7 +64,7 @@ if (consensus) {
   save(data.wgcna, file = "Input.RData")
 } else {
   # Load the data saved in the first part
-  load(file = "subnetwork.RData", verbose = TRUE)
+  load(file = "Input.RData", verbose = TRUE)
   nGenes <- ncol(data.wgcna)
   nSamples <- nrow(data.wgcna)
 }
@@ -301,7 +302,7 @@ METree <- hclust(as.dist(MEDiss), method = "average")
 if (!bio.corFnc) {
   moduleColors <- net$colors
 }
-
+pars <-par()
 pdf("Modules_relationship.pdf")
 if (consensus) {
   sizeGrWindow(8,10)
@@ -318,12 +319,13 @@ if (consensus) {
   }
 }
 
+par(pars)
 plot(METree, main = "Clustering of module eigengenes",
      xlab = "", sub = "")
 MEDissThres <- 0.25
 # Plot the cut line into the dendrogram
 abline(h = MEDissThres, col = "red")
-
+par(pars)
 labeledHeatmap(MEDiss,
                xLabels = colnames(MEs),
                yLabels = colnames(MEs),
@@ -336,6 +338,7 @@ gm <- gm[names(gm) != "grey"]
 hist(gm, xlab = "Size of modules")
 
 perc <- unlist(lapply(gm, count.p, data = gm))
+par(pars)
 plot(cbind(gm[order(perc)], perc[order(perc)]), type = "o",
      xlab = "Size of the modules",
      ylab = "Proportion of modules above the size",

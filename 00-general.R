@@ -62,7 +62,7 @@ enableWGCNAThreads(4) # Speeding up certain calculations with multi-threading.
 options(stringsAsFactors = FALSE)
 
 # Negative correlations are as much valued as positive cor.
-adj.opt <- "unsigned"
+adj.opt <- "signed"
 # Reduce the impact in genes when correlations are both positive and negative
 TOM.opt <- "signed"
 # Powers to test with
@@ -70,14 +70,14 @@ powers <- c(1:30)
 base.dir <- "~/Documents"
 data.dir <- file.path(base.dir, "data")
 code.dir <- file.path(base.dir, "TFM")
-bio.corFnc <- TRUE
+bio.corFnc <- FALSE
 
 if (bio.corFnc) {
   source(file.path(code.dir, "bio_cor.R"))
 }
 
 # Study's options ####
-study <- "subnetwork"
+study <- "comparison_HA"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
@@ -92,7 +92,7 @@ data.out <- file.path(base.dir, study)
 dir.create(data.out)
 subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
 # subdirectory <- "bicor"_
-data.files.out <- file.path(data.out, subdirectory, "simple") #08_01_01
+data.files.out <- file.path(data.out, subdirectory)#, "simple") #08_01_01
 dir.create(data.files.out)
 
 # Functions ####

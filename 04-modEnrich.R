@@ -4,9 +4,9 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 compare <- FALSE
-topGO <- TRUE
-Reactome <- FALSE
-Kegg <- FALSE
+topGO <- FALSE
+Reactome <- TRUE
+Kegg <- TRUE
 GSEA <- FALSE
 # load("../clusters.RData")
 # load(design, )
@@ -24,10 +24,10 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
 
 # Load previously work done ####
 load(file = "Input.RData", verbose = TRUE)
-load(file = "modules_ME.RData", verbose = TRUE)
-load(file = "modules_ME_orig.RData", verbose = TRUE)
-data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
-                                               "plum1", "tan")]
+#load(file = "modules_ME.RData", verbose = TRUE)
+#load(file = "modules_ME_orig.RData", verbose = TRUE)
+#data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+#                                               "plum1", "tan")]
 load(file = "modules_ME.RData", verbose = TRUE)
 # MEs <- MEs$eigengenes
 load(file = "selected_modules.RData", verbose = TRUE)
@@ -35,7 +35,6 @@ load(file = "selected_modules.RData", verbose = TRUE)
 keepSamples <- rownames(data.wgcna) %in% rownames(vclin)
 
 # Define numbers of genes and samples
-nGene <- ncol(data.wgcna)
 nSamples <- nrow(vclin)
 disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
 

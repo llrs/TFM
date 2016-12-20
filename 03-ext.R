@@ -11,9 +11,9 @@ load(file = "Input.RData", verbose = TRUE)
 # rfiles <- list.files(pattern = ".RData")
 # sapply(rfiles, load, verbose = TRUE)
 
-load(file = "modules_ME_orig.RData", verbose = TRUE)
-data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
-"plum1", "tan")]
+#load(file = "modules_ME_orig.RData", verbose = TRUE)
+#data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
+#"plum1", "tan")]
 load(file = "modules_ME.RData", verbose = TRUE)
 # MEs <- MEs$eigengenes
 # ME var ####
@@ -225,23 +225,23 @@ labeledHeatmap.multiPage(Matrix = w.mean,
 dev.off()
 
 # Plotting modules ####
-# IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
+IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
 # Set manually the name of the modules to plot for all the variables
 # man.int <- c("MEthistle1", "MEfloralwhite", "MEpink", "MEgreen", "MEbrown4",
 #              "MElightpink4", "MEbisque4", "MEpaleturquoise", "MEdarkslateblue",
 #              "MEthistle2", "MEblue")
 # IM2 <- lapply(IM0, function(x){x[x %in% man.int]})
-save(IM0, file = "selected_modules.RData")
-# fnlist(IM2, "modules_variables.csv")
+save(IM2, file = "selected_modules.RData")
+fnlist(IM2, "modules_variables.csv")
 
 # Plot the graphs GS_MM of the interesting modules according to IM2.
-# a <- sapply(names(IM2), function(y, d){
-#   sapply(d[[y]],
-#          GGMMfun, var = y, MM = geneModuleMembership,
-#          GS = geneTraitSignificance,
-#          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
-#          modNames = modNames, disease = disease)
-# }, d = IM2)
+ a <- sapply(names(IM2), function(y, d){
+   sapply(d[[y]],
+          GGMMfun, var = y, MM = geneModuleMembership,
+          GS = geneTraitSignificance,
+          GSP = GSPvalue, MMP = MMPvalue, moduleColors = moduleColors,
+          modNames = modNames, disease = disease)
+ }, d = IM2)
 
 
 # GS connectivity ####
