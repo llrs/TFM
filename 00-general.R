@@ -82,7 +82,7 @@ path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
 # subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
-subdirectory <- "modules"
+subdirectory <- "signed_modules"
 data.files.out <- file.path(data.out, subdirectory)
 dir.create(data.files.out)
 
