@@ -77,7 +77,7 @@ if (bio.corFnc) {
 }
 
 # Study's options ####
-study <- "comparison_HA"
+study <- "RNA-seq"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
@@ -90,9 +90,9 @@ raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
-subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
-# subdirectory <- "bicor"_
-data.files.out <- file.path(data.out, subdirectory)#, "simple") #08_01_01
+subdirectory_opt <- paste(adj.opt, TOM.opt, sep = "_")
+subdirectory <- "Whole_Network"
+data.files.out <- file.path(data.out, subdirectory, subdirectory_opt) #08_01_01
 dir.create(data.files.out)
 
 # Functions ####

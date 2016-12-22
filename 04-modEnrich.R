@@ -5,12 +5,12 @@ setwd(data.files.out)
 
 compare <- FALSE
 topGO <- FALSE
-Reactome <- TRUE
-Kegg <- TRUE
+Reactome <- FALSE
+Kegg <- FALSE
 GSEA <- FALSE
 # load("../clusters.RData")
 # load(design, )
-STRING <- FALSE
+STRING <- TRUE
 
 # Initial format of input all will be converted to entrez
 keytype <- "SYMBOL" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
@@ -23,7 +23,7 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
                   # "genename", "unigene")
 
 # Load previously work done ####
-load(file = "Input.RData", verbose = TRUE)
+load(file = "../../Whole_Network.RData", verbose = TRUE)
 #load(file = "modules_ME.RData", verbose = TRUE)
 #load(file = "modules_ME_orig.RData", verbose = TRUE)
 #data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
@@ -31,18 +31,6 @@ load(file = "Input.RData", verbose = TRUE)
 load(file = "modules_ME.RData", verbose = TRUE)
 # MEs <- MEs$eigengenes
 load(file = "selected_modules.RData", verbose = TRUE)
-
-keepSamples <- rownames(data.wgcna) %in% rownames(vclin)
-
-# Define numbers of genes and samples
-nSamples <- nrow(vclin)
-disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
-
-vclin <- vclin[, !disease.rm]
-
-if (!all(rownames(data.wgcna) == rownames(vclin))) {
-  stop("Order of samples in clinical variable and expression is not the same!")
-}
 
 # Reconvert the data to the "normal" format, of each column a sample.
 exprs <- t(data.wgcna)
@@ -146,7 +134,7 @@ out <- sapply(imodules, function(x) {
   selFun <- moduleSel(moduleName, numb.col)
 
   # Preparing the objects with Entrezid for the reactome and kegg analysis
-  moduleGenes <- clusters[moduleName][[1]]
+  moduleGenes <- clusters[[moduleName]]
 
   # topGO ######
   if (topGO) {
@@ -161,6 +149,7 @@ out <- sapply(imodules, function(x) {
                   ID = GO.ID,
                   mapping = "org.Hs.eg",
                   geneSelectionFun = selFun)
+    save(GOdata.bp, file = paste0("BP_", moduleName, ".RData"))
     go.enrich(GOdata.bp, moduleName, "BP")}, error = function(x){
       message("\nUnable to calculate BP.\n")
       message(x)
@@ -177,8 +166,10 @@ out <- sapply(imodules, function(x) {
                   ID = GO.ID,
                   mapping = "org.Hs.eg",
                   geneSelectionFun = selFun)
+    save(GOdata.mp, file = paste0("MP_", moduleName, ".RData"))
     go.enrich(GOdata.mp, moduleName, "MP")}, error = function(x){
       message("\nUnable to calculate MP.")
+      message(x)
     })
     tryCatch({GOdata.cc <- new("topGOdata",
                   ontology = "CC",
@@ -191,8 +182,10 @@ out <- sapply(imodules, function(x) {
                   ID = GO.ID,
                   mapping = "org.Hs.eg",
                   geneSelectionFun = selFun)
+    save(GOdata.cc, file = paste0("CC_", moduleName, ".RData"))
     go.enrich(GOdata.cc, moduleName, "CC")}, error = function(x){
       message("Unable to calculate CC.")
+      message(x)
     })
   }
   # Reactome ####

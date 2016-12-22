@@ -1,10 +1,9 @@
 # Load ####
 
 source("~/Documents/TFM/00-general.R", echo = TRUE)
-warning("Done")
 setwd(data.files.out)
 # Load the expression and trait data saved in the first part
-load(file = "Input.RData", verbose = TRUE)
+load(file = "../../Whole_Network.RData", verbose = TRUE)
 
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
@@ -25,11 +24,15 @@ nSamples <- nrow(data.wgcna)
 disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
 n <- apply(vclin, 2, function(x){sum(!is.na(x))})
 keep <- n != 0
-disease <- vclin[, !disease.rm & keep]
+disease <- vclin[, !disease.rm & keep, drop = FALSE]
 # Calculate the non empty clinical data of each variable:
 # used for labels and P-value calculation!
+disease <- cbind(disease, "random" = runif(ncol(disease))) #Adding dummy variable to plot heatmap
 n <- apply(disease, 2, function(x){sum(!is.na(x))})
+disease
+# n <- ncol(disease)
 names.disease <- colnames(disease)
+n
 
 # Use just the samples with their clinical data
 keep.samples <- rownames(data.wgcna) %in% rownames(vclin)
@@ -48,11 +51,13 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor,
                                       # Filling as many rows as moduleTrait cor
                                       # with the right amount of samples of
                                       # disease used:
-                                      t(replicate(nrow(moduleTraitCor), n)))
+                                      t(replicate(nrow(moduleTraitCor), n))
+                                      # rep(60, length(moduleTraitCor))
+                                      )
 
-rownames(moduleTraitPvalue) <- rownames(moduleTraitCor)
-moduleTraitPvalue <- orderby(moduleTraitPvalue, rownames(moduleTraitCor),
-                             names.x = TRUE)
+# rownames(moduleTraitPvalue) <- rownames(moduleTraitCor)
+# moduleTraitPvalue <- orderby(moduleTraitPvalue, rownames(moduleTraitCor),
+#                              names.x = TRUE)
 
 # Modules variables ####
 
@@ -111,7 +116,9 @@ colnames(MMPvalue) <- paste0("p.MM", modNames)
 geneTraitSignificance <- cor(data.wgcna, disease, use = "p")
 
 GSPvalue <- corPvalueStudent(geneTraitSignificance,
-                             t(replicate(nrow(geneTraitSignificance), n)))
+                             t(replicate(nrow(geneTraitSignificance), n))
+                             # rep(13366, 60)
+                             )
 
 colnames(geneTraitSignificance) <- paste0("GS.", names.disease)
 colnames(GSPvalue) <- paste0("p.GS.", names.disease)

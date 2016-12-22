@@ -64,7 +64,7 @@ if (consensus) {
   save(data.wgcna, file = "Input.RData")
 } else {
   # Load the data saved in the first part
-  load(file = "Input.RData", verbose = TRUE)
+  load(file = "../../Whole_Network.RData", verbose = TRUE)
   nGenes <- ncol(data.wgcna)
   nSamples <- nrow(data.wgcna)
 }
