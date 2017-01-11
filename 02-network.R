@@ -163,7 +163,7 @@ if (power) {
     # load("sft.RData", verbose = TRUE)
     cex1 <- 0.9
     # Plot the results:
-    pdfn(file = "Network_building.pdf")
+    pdf(file = "Network_building.pdf")
     # Scale-free topology fit index as a function of the soft-thresholding power
     plot(sft$fitIndices[, 1], -sign(sft$fitIndices[, 3])*sft$fitIndices[, 2],
          xlab = "Soft Threshold (power)",
@@ -244,7 +244,7 @@ if (network) {
     save(net, file = "net.RData")
   } else {
     net <- blockwiseModules(data.wgcna,
-                            power = sft$powerEstimate,
+                            power = power,
                             TOMType = TOM.opt,
                             networkType = adj.opt,
                             corType = "bicor",
@@ -305,7 +305,6 @@ if (!bio.corFnc) {
 pars <-par()
 pdf("Modules_relationship.pdf")
 if (consensus) {
-  sizeGrWindow(8,10)
   plotEigengeneNetworks(MEs, names(data.wgcna))
   par(pars)
 } else {
