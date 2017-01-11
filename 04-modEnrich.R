@@ -5,8 +5,8 @@ setwd(data.files.out)
 
 compare <- FALSE
 topGO <- FALSE
-Reactome <- FALSE
-Kegg <- FALSE
+Reactome <- TRUE
+Kegg <- TRUE
 GSEA <- FALSE
 # load("../clusters.RData")
 # load(design, )
@@ -74,29 +74,31 @@ save(clusters, file = "modules_entrezid.RData")
 # Compare modules ####
 
 if (compare) {
-  pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
   x.axis <- theme(axis.text.x = element_text(angle = 90, hjust = 1))
   eGO <- compareCluster(clusters, fun = "enrichGO", OrgDb = org.Hs.eg.db,
                         ont = "MF")
   save(eGO, file = "eGO.RData")
-  dotplot(eGO) + ggtitle("Enrich MF GO") + x.axis
+  plot.eGO <- dotplot(eGO) + ggtitle("Enrich MF GO") + x.axis
   bpGO <- compareCluster(clusters, fun = "enrichGO", OrgDb = org.Hs.eg.db,
                          ont = "BP")
   save(bpGO, file = "bpGO.RData")
-  dotplot(bpGO) + ggtitle("Enrich BP GO") + x.axis
+  plot.bpGO <- dotplot(bpGO) + ggtitle("Enrich BP GO") + x.axis
   cGO <- compareCluster(clusters, fun = "enrichGO", ont = "CC",
                         OrgDb = org.Hs.eg.db)
   save(cGO, file = "cGO.RData")
-  dotplot(cGO) + ggtitle("Enrich CC GO") + x.axis
+  plot.cGO <- dotplot(cGO) + ggtitle("Enrich CC GO") + x.axis
   # gGO <- compareCluster(clusters, fun = "groupGO")
   # save(gGO, file = "gGO.RData")
   # plot(gGO) + ggtitle("Group GO") + x.axis
   eP <- compareCluster(clusters, fun = "enrichPathway")
   save(eP, file = "eP.RData")
-  dotplot(eP) + ggtitle("Enrich Pathways") + x.axis
+  plot.eP <- dotplot(eP) + ggtitle("Enrich Pathways") + x.axis
   eK <- compareCluster(clusters, fun = "enrichKEGG")
   save(eK, file = "eK.RData")
-  dotplot(eK) + ggtitle("Enrich KEGG") + x.axis
+  plot.eK <- dotplot(eK) + ggtitle("Enrich KEGG") + x.axis
+  pdf("clusters_.pdf", onefile = TRUE, width = 20, height = 20)
+  plots <- list(plot.eGO, plot.bpGO, plot.eP, plot.eK)
+  invisible(lapply(plots, print))
   dev.off()
 }
 
@@ -208,12 +210,11 @@ out <- sapply(imodules, function(x) {
   if (Kegg) {
     kegg_enrich <- enrichKEGG(moduleGenes,
                               universe = universeGenesEntrez,
-                              use_internal_data = TRUE,
                               minGSSize = 2, maxGSSize = 2000)
     if (is.null(kegg_enrich)) {
       message("Module ", moduleName, " is not enriched in a KEGG pathway.")
     } else if (nrow(kegg_enrich) >= 1) {
-      write.csv(summary(kegg_enrich),
+      write.csv(as.data.frame(kegg_enrich),
                 file = paste0("kegg_", moduleName, ".csv"),
                 row.names = FALSE, na = "")
       pathway.enrich(kegg_enrich, moduleName)
