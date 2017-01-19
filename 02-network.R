@@ -207,8 +207,9 @@ if (power) {
     load(file = "powers_multiSet.RData", verbose = TRUE)
     power <- mean(multiple.softThreshold(powerTables))
   } else {
-    load("sft.RData", verbose = TRUE)
-    power <- sft$powerEstimate
+    # load("sft.RData", verbose = TRUE)
+    # power <- sft$powerEstimate
+    # power <- 7
   }
 }
 message(paste("Using power", power))
