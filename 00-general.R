@@ -62,7 +62,7 @@ enableWGCNAThreads(4) # Speeding up certain calculations with multi-threading.
 options(stringsAsFactors = FALSE)
 
 # Negative correlations are as much valued as positive cor.
-adj.opt <- "signed"
+adj.opt <- "unsigned"
 # Reduce the impact in genes when correlations are both positive and negative
 TOM.opt <- "signed"
 # Powers to test with
@@ -91,7 +91,8 @@ path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
 subdirectory_opt <- paste(adj.opt, TOM.opt, sep = "_")
-subdirectory <- "Whole_Network"
+# subdirectory_opt <- ""
+subdirectory <- "Patients"
 data.files.out <- file.path(data.out, subdirectory, subdirectory_opt) #08_01_01
 dir.create(data.files.out)
 
@@ -394,11 +395,11 @@ coloring <- function(MTC, MTP) {
 }
 
 # Function to generate function to select the module
-moduleSel <- function(modul, a){
+moduleSel <- function(modul){
   selFun <- function(genes){
     # Function to select those genees of the same group
     # return(a[x])
-    return(genes == a[modul])
+    return(genes == modul)
   }
   return(selFun)
 }
@@ -610,51 +611,32 @@ scaling <- function(x, min.x = -1 , max.x = 1) {
 
 # Function which computes the enrichement in GOdata objects and plot them
 go.enrich <- function(GOdata, moduleName, ont) {
-  resultFisher <- runTest(GOdata,
-                          algorithm = "classic", statistic = "fisher")
+  resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
   resultKS <- runTest(GOdata, algorithm = 'weight01', statistic = "ks")
   resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
   avgResult <- combineResults(resultFisher, resultKS, resultKS.elim,
                               method = "mean")
 
-  allRes <- GenTable(GOdata, classic = resultFisher, weight01 = resultKS,
-                     elim = resultKS.elim, orderBy = "weight01",
-                     ranksOf = "classic", topNodes = 50, numChar = 100)
+  allRes <- GenTable(GOdata, weight01 = resultKS,
+                     elim = resultKS.elim, classic = resultFisher,
+                     topNodes = 50, numChar = 1000)
   write.csv(allRes, file = name.file("GO_table", ont, moduleName, ".csv"),
             row.names = FALSE)
 
   pdf(name.file("GO", ont, moduleName, ".pdf"), onefile = TRUE)
 
-  tryCatch({showSigOfNodes(GOdata,
-                           score(resultFisher), firstSigNodes = 2, useInfo = 'all')
-    title(main = "GO analysis using Fisher algorithm")},
-    error = function(e) {
-      message("Couldn't calculate the Fisher")
-      message(e, "\n")
-    })
-  tryCatch({showSigOfNodes(GOdata,
-                           score(resultKS), firstSigNodes = 2, useInfo = 'all')
-    title(main = "GO analysis using Weight01 algorithm")},
-    error = function(e) {
-      message("Couldn't calculate the weight01")
-      message(e, "\n")
-    })
-  tryCatch({showSigOfNodes(GOdata,
-                           score(resultKS.elim), firstSigNodes = 2, useInfo = 'all')
-    title(main = "GO analysis using KS elim algorithm")},
-    error = function(e) {
-      message("Couldn't calculate the KSelim")
-      message(e, "\n")
-    })
-  tryCatch({showSigOfNodes(GOdata,
-                           score(avgResult), firstSigNodes = 2, useInfo = 'all')
-    title(main = "GO analysis using average")},
-    error = function(e) {
-      message("Couldn't calculate the average GO stat")
-      message(e, "\n")
-    })
+  showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 2,
+                 useInfo = 'all')
+  title(main = "GO analysis using Fisher algorithm")
+  showSigOfNodes(GOdata, score(resultKS), firstSigNodes = 2,
+                 useInfo = 'all')
+  title(main = "GO analysis using Weight01 algorithm")
+  showSigOfNodes(GOdata, score(resultKS.elim), firstSigNodes = 2,
+                 useInfo = 'all')
+  title(main = "GO analysis using KS elim algorithm")
+  showSigOfNodes(GOdata, score(avgResult), firstSigNodes = 2, useInfo = 'all')
+  title(main = "GO analysis using average")
   dev.off()
-
 }
 
 # Plots in a pdf the object in a module
