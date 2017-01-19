@@ -3,7 +3,7 @@
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the expression and trait data saved in the first part
-load(file = "../../Whole_Network.RData", verbose = TRUE)
+load(file = "../../patients.RData", verbose = TRUE)
 
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
@@ -27,7 +27,7 @@ keep <- n != 0
 disease <- vclin[, !disease.rm & keep, drop = FALSE]
 # Calculate the non empty clinical data of each variable:
 # used for labels and P-value calculation!
-disease <- cbind(disease, "random" = runif(ncol(disease))) #Adding dummy variable to plot heatmap
+disease <- cbind(disease, "random" = runif(nrow(disease))) #Adding dummy variable to plot heatmap
 n <- apply(disease, 2, function(x){sum(!is.na(x))})
 disease
 # n <- ncol(disease)
@@ -51,8 +51,8 @@ moduleTraitPvalue <- corPvalueStudent(moduleTraitCor,
                                       # Filling as many rows as moduleTrait cor
                                       # with the right amount of samples of
                                       # disease used:
-                                      t(replicate(nrow(moduleTraitCor), n))
-                                      # rep(60, length(moduleTraitCor))
+                                      # t(replicate(nrow(moduleTraitCor), n))
+                                      rep(nrow(vclin), length(moduleTraitCor))
                                       )
 
 # rownames(moduleTraitPvalue) <- rownames(moduleTraitCor)
@@ -224,7 +224,7 @@ labeledHeatmap.multiPage(Matrix = w.mean,
                          setStdMargins = FALSE,
                          cex.text = 0.5,
                          zlim = c(0, 1),
-                         signed = FALSE,
+                         # signed = FALSE,
                          12,
                          addPageNumberToMain = FALSE,
                          maxRowsPerPage = 20,
