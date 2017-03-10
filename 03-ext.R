@@ -3,7 +3,7 @@
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the expression and trait data saved in the first part
-load(file = "../../patients.RData", verbose = TRUE)
+load(file = "../../Whole_Network.RData", verbose = TRUE)
 
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
@@ -14,6 +14,8 @@ load(file = "../../patients.RData", verbose = TRUE)
 #data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
 #"plum1", "tan")]
 load(file = "modules_ME.RData", verbose = TRUE)
+MEs <- moduleEigengenes(data.wgcna, moduleColors)
+MEs <- MEs$eigengenes
 # MEs <- MEs$eigengenes
 # ME var ####
 # Define numbers of genes and samples
@@ -29,7 +31,6 @@ disease <- vclin[, !disease.rm & keep, drop = FALSE]
 # used for labels and P-value calculation!
 disease <- cbind(disease, "random" = runif(nrow(disease))) #Adding dummy variable to plot heatmap
 n <- apply(disease, 2, function(x){sum(!is.na(x))})
-disease
 # n <- ncol(disease)
 names.disease <- colnames(disease)
 n
@@ -232,14 +233,16 @@ labeledHeatmap.multiPage(Matrix = w.mean,
 dev.off()
 
 # Plotting modules ####
-IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05, ntop = 3)
+IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05)
 # Set manually the name of the modules to plot for all the variables
-# man.int <- c("MEthistle1", "MEfloralwhite", "MEpink", "MEgreen", "MEbrown4",
-#              "MElightpink4", "MEbisque4", "MEpaleturquoise", "MEdarkslateblue",
-#              "MEthistle2", "MEblue")
-# IM2 <- lapply(IM0, function(x){x[x %in% man.int]})
+man.int <- c("MEbrown", "MEfloralwhite", "MEgreen", "MEdarkred",
+             "MEdarkgreen", "MEblack")
+IM2 <- lapply(IM0, function(x){x[x %in% man.int]})
 save(IM2, file = "selected_modules.RData")
-fnlist(IM2, "modules_variables.csv")
+# fnlist(IM2, "modules_variables.csv")
+
+# e_shs.KRT7    l_shs.KRT7     l_ss.KRT7     e_ss.KRT7     e_us.KRT7     l_us.KRT7
+# "darkred"       "brown"       "green" "floralwhite"   "darkgreen"       "black"
 
 # Plot the graphs GS_MM of the interesting modules according to IM2.
  a <- sapply(names(IM2), function(y, d){
@@ -278,7 +281,7 @@ fnlist(IM2, "modules_variables.csv")
 #
 # save(autoScreen, file = "autoScreen.RData")
 
-# Tops related genes ####
+# Top related genes ####
 #
 #  Code chunk 6: Explore the genes top related to each clinical variable
 #

@@ -63,7 +63,7 @@ enableWGCNAThreads(4) # Speeding up certain calculations with multi-threading.
 options(stringsAsFactors = FALSE)
 
 # Negative correlations are as much valued as positive cor.
-adj.opt <- "unsigned"
+adj.opt <- "signed hybrid"
 # Reduce the impact in genes when correlations are both positive and negative
 TOM.opt <- "signed"
 # Powers to test with
@@ -87,10 +87,10 @@ raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
-subdirectory_opt <- paste(adj.opt, TOM.opt, sep = "_")
-# subdirectory_opt <- ""
-subdirectory <- "Patients"
-data.files.out <- file.path(data.out, subdirectory, subdirectory_opt) #08_01_01
+# subdirectory_opt <- paste(adj.opt, TOM.opt, sep = "_")
+subdirectory_opt <- "late"
+subdirectory <- "Consensus"
+data.files.out <- file.path(data.out, subdirectory)#, subdirectory_opt) #08_01_01
 dir.create(data.files.out)
 
 # Functions ####

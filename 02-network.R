@@ -3,21 +3,21 @@
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 getwd()
-consensus <- FALSE # If it from a consensus file
-power <- TRUE # Calculate the power or reuse the existing in the folder
-network <- TRUE # Build the network or reuse the existing in the folder
+consensus <- TRUE # If it from a consensus file
+power <- FALSE # Calculate the power or reuse the existing in the folder
+network <- FALSE # Build the network or reuse the existing in the folder
 dendro <- TRUE # plot a dendro or not
 connectivity <- FALSE # If consensus the connectivity shouldn't be calculated
 # Input can be from those individual projects
 if (consensus) {
-  load("../../isa_HA/unsigned_signed/Input.RData", verbose = TRUE)
+  load("../Early_Network.RData", verbose = TRUE)
   isa.exprs <- data.wgcna
   isa.disease <- vclin
-  load("../../silvia_HA/unsigned_signed/Input.RData", verbose = TRUE)
+  load("../Late_Network.RData", verbose = TRUE)
   silvia.exprs <- data.wgcna
   silvia.disease <- vclin
   # Creating the multiData/multiExprs/... object
-  data.wgcna <- multiSet(isa = isa.exprs, silvia = silvia.exprs)
+  data.wgcna <- multiSet(early = isa.exprs, late = silvia.exprs)
   # Should list2multiData be used?
   # No, it doesn't check or do anything else than messing
 
@@ -29,33 +29,33 @@ if (consensus) {
 
   # MergeMaid ####
   # Check if the genes follow the same correlations / remove unwanted noise
-  data.merge <- sapply(data.wgcna, function(x){t(x$data)})
-  isa <- data.merge$isa
-  silvia <- data.merge$silvia
-  mergm <- mergeExprs(isa, silvia)
-  corcor <- intCor(mergm)
-  pdf("mergmaid.pdf")
-  plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
-       main = "Integrative correlation of the top gene",
-       col = 3, pch = 4)
-  hist(corcor, main = "Integrative correlation coeficient")
-
-  intcor <- intcorDens(mergm)
-  plot(intcor)
-  dev.off()
-  save(intcor, corcor, file = "mergemaid.RData")
-  load("../filtered/mergemaid.RData", verbose = TRUE)
-  coef <- as.vector(corcor@pairwise.cors)
-  names(coef) <- rownames(corcor@pairwise.cors)
-  comp.genes <- names(coef)[coef > 0] # Threshold of comparison
-  discutibles.genes <- names(coef)[coef <= 0]
-  data.wgcna2 <- lapply(data.wgcna, function(x, keep) {
-    x$data[, colnames(x$data) %in% keep]
-  }, keep = comp.genes)
-  names(data.wgcna2) <- names(data.wgcna)
-  for (i in 1:length(data.wgcna)) {
-    data.wgcna[[i]]$data <- data.wgcna2[[i]]
-  }
+  # data.merge <- sapply(data.wgcna, function(x){t(x$data)})
+  # isa <- data.merge$isa
+  # silvia <- data.merge$silvia
+  # mergm <- mergeExprs(isa, silvia)
+  # corcor <- intCor(mergm)
+  # pdf("mergmaid.pdf")
+  # plot(mergm, xlab = names(mergm)[1], ylab = names(mergm)[2],
+  #      main = "Integrative correlation of the top gene",
+  #      col = 3, pch = 4)
+  # hist(corcor, main = "Integrative correlation coeficient")
+  #
+  # intcor <- intcorDens(mergm)
+  # plot(intcor)
+  # dev.off()
+  # save(intcor, corcor, file = "mergemaid.RData")
+  # load("../filtered/mergemaid.RData", verbose = TRUE)
+  # coef <- as.vector(corcor@pairwise.cors)
+  # names(coef) <- rownames(corcor@pairwise.cors)
+  # comp.genes <- names(coef)[coef > 0] # Threshold of comparison
+  # discutibles.genes <- names(coef)[coef <= 0]
+  # data.wgcna2 <- lapply(data.wgcna, function(x, keep) {
+  #   x$data[, colnames(x$data) %in% keep]
+  # }, keep = comp.genes)
+  # names(data.wgcna2) <- names(data.wgcna)
+  # for (i in 1:length(data.wgcna)) {
+  #   data.wgcna[[i]]$data <- data.wgcna2[[i]]
+  # }
 
   chSet <- checkSets(data.wgcna)
   nGenes <- chSet$nGenes
@@ -64,18 +64,23 @@ if (consensus) {
   save(data.wgcna, file = "Input.RData")
 } else {
   # Load the data saved in the first part
-  load(file = "../../Whole_Network.RData", verbose = TRUE)
+  load(file = "../../Late_Network.RData", verbose = TRUE)
   nGenes <- ncol(data.wgcna)
   nSamples <- nrow(data.wgcna)
 }
 
 # bio.cor ####
 if (bio.corFnc) {
-  if (file.exists("bio_correlation.RData")) {
-    load("bio_correlation.RData", verbose = TRUE)
+  if (file.exists("~/Documents/geneSim.RData")) {
+    load("~/Documents/geneSim.RData", verbose = TRUE)
+    entrez <- mapIds(org.Hs.eg.db, keys = colnames(data.wgcna),
+                     keytype = "SYMBOL", column = "ENTREZID")
+    m <- matrix(ncol = ncol(data.wgcna), nrow = ncol(data.wgcna),
+                dimnames = list(entrez, entrez))
+    bio_mat <- list(react = AintoB(o, m))
   } else {
-    bio_mat <- bio.cor2(colnames(data.wgcna), ids = "Symbol",
-                        react = TRUE, kegg = TRUE)
+    bio_mat <- bioCor(colnames(data.wgcna), ids = "SYMBOL",
+                        all = TRUE, BPPARAM = SnowParam())
     save(bio_mat, file = "bio_correlation.RData")
   }
 }
@@ -93,7 +98,8 @@ if (power) {
                                verbose = 5,
                                corFnc = bicor,
                                corOptions = list(maxPOutliers = 0.10),
-                               networkType = adj.opt)
+                               networkType = adj.opt,
+                               RsquaredCut = 0.80)
       # Set it as originally
       powerTables[[set]] <- list(data = sft[[2]])
     }
@@ -157,7 +163,8 @@ if (power) {
                              corFnc = bicor,
                              corOptions = list(nThreads = 6,
                                                maxPOutliers = 0.10),
-                             networkType = adj.opt)
+                             networkType = adj.opt,
+                             RsquaredCut = 0.80)
     save(sft, file = "sft.RData")
     power <- sft$powerEstimate
     # load("sft.RData", verbose = TRUE)
@@ -205,11 +212,12 @@ if (power) {
 } else {
   if (consensus) {
     load(file = "powers_multiSet.RData", verbose = TRUE)
-    power <- mean(multiple.softThreshold(powerTables))
+    power <- mean(multiple.softThreshold(powerTables, min = 0.81))
+    # power <- 10
   } else {
     # load("sft.RData", verbose = TRUE)
     # power <- sft$powerEstimate
-    # power <- 7
+    power <- 4 #manually so Rsft
   }
 }
 message(paste("Using power", power))
@@ -219,7 +227,7 @@ message(paste("Using power", power))
 if (network) {
   if (bio.corFnc) {
     adj <- adjacency(data.wgcna, type = adj.opt, power = power)
-    adj.bio <- cor.all(adj, bio_mat, weights = c(0.8, 0.1, 0.1))
+    adj.bio <- addSimilarities(adj, bio_mat, weights = c(0.8, 0.2))
     TOM <- TOMsimilarity(adj.bio, TOMType = TOM.opt)
     dissTOM <- 1 - TOM
     geneTree <- hclust(as.dist(dissTOM), method = "average")
@@ -281,13 +289,12 @@ if (consensus) {
   MEs <- consensusOrderMEs(net$multiMEs)
 } else if (!bio.corFnc) {
   MEs <- orderMEs(net$MEs)
+  # Module exploring ####
+  # It is the same as MM == kME
+  kME <- signedKME(data.wgcna, MEs)
+  save(kME, file = "kME.RData")
+  # load("kME.RData", verbose = TRUE)
 }
-
-# Module exploring ####
-# It is the same as MM == kME
-kME <- signedKME(data.wgcna, MEs)
-save(kME, file = "kME.RData")
-# load("kME.RData", verbose = TRUE)
 
 # Modules ####
 # Calculate dissimilarity of module eigengenes
@@ -303,7 +310,7 @@ METree <- hclust(as.dist(MEDiss), method = "average")
 if (!bio.corFnc) {
   moduleColors <- net$colors
 }
-pars <-par()
+pars <- par()
 pdf("Modules_relationship.pdf")
 if (consensus) {
   plotEigengeneNetworks(MEs, names(data.wgcna))
