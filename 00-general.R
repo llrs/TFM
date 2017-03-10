@@ -55,6 +55,7 @@ library("GSVA")
 library("GSVAdata")
 library("GSEABase")
 library("snowfall")
+library("BioCor")
 # Options and configurations ####
 
 enableWGCNAThreads(4) # Speeding up certain calculations with multi-threading.
@@ -71,10 +72,6 @@ base.dir <- "~/Documents"
 data.dir <- file.path(base.dir, "data")
 code.dir <- file.path(base.dir, "TFM")
 bio.corFnc <- FALSE
-
-if (bio.corFnc) {
-  source(file.path(code.dir, "bio_cor.R"))
-}
 
 # Study's options ####
 study <- "RNA-seq"
@@ -255,7 +252,7 @@ plot.GGMM <- function(mod_data, module) {
                         signif(p.value.w, digits = 2))) +
     xlab(paste("Module Membership in", module, "module")) +
     ylab(paste("Gene significance for", var))
-  warning(paste("Plotting", module, "in", var, "."))
+  message(paste("Plotting", module, "in", var, "."))
   ggsave(filename = name.file("MM_GS", var, module, ".png"),
          plot = plot.g)
 }
@@ -694,7 +691,7 @@ multiSet <- function(...) {
 # min value of threshold for SFT.R.sq fitting.
 multiple.softThreshold <- function(multiPower, min = 0.85){
   unlist(lapply(multiPower, function(x){
-    y <- x$data[x$data$SFT.R.sq > 0.85, "Power"]
+    y <- x$data[x$data$SFT.R.sq > min, "Power"]
     return(y[1])}))
 }
 
