@@ -40,21 +40,15 @@ keep.samples <- rownames(data.wgcna) %in% rownames(vclin)
 data.wgcna <- data.wgcna[keep.samples, ]
 MEs <- MEs[keep.samples, ]
 
-moduleTraitCor <- cor(MEs, disease, use = "p")
+moduleTraitCor <- corAndPvalue(MEs, disease, use = "p")
 
-keep.variables <- apply(moduleTraitCor, 2, function(x){!all(is.na(x))})
-moduleTraitCor <- moduleTraitCor[, keep.variables]
+keep.variables <- apply(moduleTraitCor$cor, 2, function(x){!all(is.na(x))})
+moduleTraitCor <- moduleTraitCor$cor[, keep.variables]
 # Calculating the adjusted p-value
 # moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
 # dim(moduleTraitPvalue) <- dim(moduleTraitCor)
 # dimnames(moduleTraitPvalue) <- dimnames(moduleTraitCor)
-moduleTraitPvalue <- corPvalueStudent(moduleTraitCor,
-                                      # Filling as many rows as moduleTrait cor
-                                      # with the right amount of samples of
-                                      # disease used:
-                                      # t(replicate(nrow(moduleTraitCor), n))
-                                      rep(nrow(vclin), length(moduleTraitCor))
-                                      )
+moduleTraitPvalue <- moduleTraitCor$p
 
 # rownames(moduleTraitPvalue) <- rownames(moduleTraitCor)
 # moduleTraitPvalue <- orderby(moduleTraitPvalue, rownames(moduleTraitCor),
@@ -106,32 +100,22 @@ dev.off()
 
 modNames <- substring(names(MEs), 3)
 
-geneModuleMembership <- cor(data.wgcna, MEs, use = "p")
-MMPvalue <- corPvalueStudent(geneModuleMembership,
-                            # filling the right n
-                            t(replicate(nrow(geneModuleMembership), y)))
+geneModule <- corAndPvalue(data.wgcna, MEs, use = "p")
+geneModuleMembership <- geneModule$cor
+MMPvalue <- geneModule$p
 
 colnames(geneModuleMembership) <- paste0("MM", modNames)
 colnames(MMPvalue) <- paste0("p.MM", modNames)
 
-geneTraitSignificance <- cor(data.wgcna, disease, use = "p")
-
-GSPvalue <- corPvalueStudent(geneTraitSignificance,
-                             t(replicate(nrow(geneTraitSignificance), n))
-                             # rep(13366, 60)
-                             )
+geneTrait <- corAndPvalue(data.wgcna, disease, use = "p")
+geneTraitSignificance <- geneTrait$cor
+GSPvalue <- geneTrait$p
 
 colnames(geneTraitSignificance) <- paste0("GS.", names.disease)
 colnames(GSPvalue) <- paste0("p.GS.", names.disease)
 
-# Convert to data.frame ####
-geneTraitSignificance <- as.matrix(geneTraitSignificance)
-geneModuleMembership <- as.matrix(geneModuleMembership)
-GSPvalue <- as.matrix(GSPvalue)
-MMPvalue <- as.matrix(MMPvalue)
-save(geneTraitSignificance,  GSPvalue,
-     moduleTraitCor, moduleTraitPvalue,
-     geneModuleMembership, MMPvalue, file = "heatmaps.RData")
+# Convert to matri ####
+save(geneModule, geneTrait, file = "heatmaps.RData")
 # Heatmap GS MM ####
 
 # IM <- select.modules(moduleTraitCor, moduleTraitPvalue,
