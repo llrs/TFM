@@ -23,7 +23,7 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
                   # "genename", "unigene")
 
 # Load previously work done ####
-load(file = "../../Whole_Network.RData", verbose = TRUE)
+load(file = "../../Late_Network.RData", verbose = TRUE)
 #load(file = "modules_ME.RData", verbose = TRUE)
 #load(file = "modules_ME_orig.RData", verbose = TRUE)
 #data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
@@ -42,7 +42,7 @@ exprs <- t(data.wgcna)
 m <- length(unique(moduleColors))
 genes <- as.factor(moduleColors)
 numb.col <- 0:(m - 1)
-names(numb.col) <- c("grey", standardColors(m - 1))
+names(numb.col) <- labels2colors(numb.col)
 match.colors <- sum(unique(moduleColors) %in% c("grey", standardColors(203)))
 if (match.colors != length(unique(moduleColors))) {
   stop("Colors not correctly assigned.")
@@ -124,6 +124,7 @@ if (GSEA) {
 }
 
 # Study each module ####
+message("Analysing modules ", paste(imodules, collapse = ", "))
 out <- sapply(imodules, function(x) {
 
   if (substr(x, 0, 2) %in% c("ME", "MM")) {
@@ -133,65 +134,67 @@ out <- sapply(imodules, function(x) {
   }
 
   message("Analyzing ", moduleName, " module!")
-  selFun <- moduleSel(moduleName, numb.col)
 
   # Preparing the objects with Entrezid for the reactome and kegg analysis
   moduleGenes <- clusters[[moduleName]]
 
   # topGO ######
   if (topGO) {
-    tryCatch({GOdata.bp <- new("topGOdata",
-                  ontology = "BP",
-                  description = paste("Biological process of the",
-                                      moduleName, "module."),
-                  allGenes = genes,
-                  # annot = annFUN.gene2GO, ## the new annotation function
-                  # affyLib = "org.Hs.eg.db",
-                  annot = annFUN.org,
-                  ID = GO.ID,
-                  mapping = "org.Hs.eg",
-                  geneSelectionFun = selFun)
-    save(GOdata.bp, file = paste0("BP_", moduleName, ".RData"))
-    go.enrich(GOdata.bp, moduleName, "BP")}, error = function(x){
-      message("\nUnable to calculate BP.\n")
-      message(x)
-    })
+    # selFun <- moduleSel("grey")
+    GOdata.bp <- new("topGOdata",
+                     ontology = "BP",
+                     description = "Biological process of the genes in the study.",
+                     allGenes = genes,
+                     # annot = annFUN.gene2GO, ## the new annotation function
+                     # affyLib = "org.Hs.eg.db",
+                     annot = annFUN.org,
+                     ID = GO.ID,
+                     mapping = "org.Hs.eg",
+                     geneSelectionFun = function(x) {
+                       x == numb.col[moduleName]}
+                     )
+    # save(GOdata.bp, file = "BP_GO.RData")
+    print(GOdata.bp)
+    go.enrich(GOdata.bp, moduleName, "BP")
 
-    tryCatch({GOdata.mp <- new("topGOdata",
-                  ontology = "MP",
-                  description = paste("Molecular process of the",
-                                      moduleName, "module."),
-                  allGenes = genes,
-                  # annot = annFUN.gene2GO, ## the new annotation function
-                  # affyLib = "org.Hs.eg.db",
-                  annot = annFUN.org,
-                  ID = GO.ID,
-                  mapping = "org.Hs.eg",
-                  geneSelectionFun = selFun)
-    save(GOdata.mp, file = paste0("MP_", moduleName, ".RData"))
-    go.enrich(GOdata.mp, moduleName, "MP")}, error = function(x){
-      message("\nUnable to calculate MP.")
-      message(x)
-    })
-    tryCatch({GOdata.cc <- new("topGOdata",
-                  ontology = "CC",
-                  description = paste("Cellular component of the",
-                                      moduleName, "module."),
-                  allGenes = genes,
-                  # annot = annFUN.gene2GO, ## the new annotation function
-                  # affyLib = "org.Hs.eg.db",
-                  annot = annFUN.org,
-                  ID = GO.ID,
-                  mapping = "org.Hs.eg",
-                  geneSelectionFun = selFun)
-    save(GOdata.cc, file = paste0("CC_", moduleName, ".RData"))
-    go.enrich(GOdata.cc, moduleName, "CC")}, error = function(x){
-      message("Unable to calculate CC.")
-      message(x)
-    })
+    # GOdata.mp <- new("topGOdata",
+    #                  ontology = "MP",
+    #                  description = "Molecular process of the genes in the study.",
+    #                  allGenes = genes,
+    #                  # annot = annFUN.gene2GO, ## the new annotation function
+    #                  # affyLib = "org.Hs.eg.db",
+    #                  annot = annFUN.org,
+    #                  ID = GO.ID,
+    #                  mapping = "org.Hs.eg",
+    #                  geneSelectionFun = function(x){x == numb.col[moduleName]})
+    # save(GOdata.mp, file = "MP_GO.RData")
+    # tryCatch({
+    #   geneSelectionFun(GOdata.mp) <- function(x){x == numb.col[moduleName]}
+    #   print(GOdata.mp)
+    #   go.enrich(GOdata.mp, moduleName, "MP")},
+    #   error = function(x) {
+    #   message("\nUnable to calculate MP.")
+    #   message(x)
+    # })
+    GOdata.cc <- new("topGOdata",
+                     ontology = "CC",
+                     description = "Cellular component of the genes in study",
+                     allGenes = genes,
+                     # annot = annFUN.gene2GO, ## the new annotation function
+                     # affyLib = "org.Hs.eg.db",
+                     annot = annFUN.org,
+                     ID = GO.ID,
+                     mapping = "org.Hs.eg",
+                     geneSelectionFun = function(x) {
+                       x == numb.col[moduleName]}
+                     )
+    # save(GOdata.cc, file = "CC_GO.RData")
+    print(GOdata.cc)
+    go.enrich(GOdata.cc, moduleName, "CC")
   }
   # Reactome ####
   if (Reactome) {
+    message("\tDoing the reactome analysis")
     reactome_enrich <- enrichPathway(gene = moduleGenes,
                                      universe = universeGenesEntrez,
                                      pvalueCutoff = 0.05, readable = TRUE,
@@ -199,15 +202,19 @@ out <- sapply(imodules, function(x) {
     if (is.null(reactome_enrich)) {
       message("Module ", moduleName, " is not enriched in a Reactome pathway.")
     } else if (nrow(reactome_enrich) >= 1) {
-      write.csv(summary(reactome_enrich),
+      write.csv(as.data.frame(reactome_enrich),
                 file = paste0("reactome_", moduleName, ".csv"),
                 row.names = FALSE, na = "")
       pathway.enrich(reactome_enrich, moduleName)
+    } else {
+      message("\tWithout significant pathways")
     }
+    message("\tFinishing the reactome analysis")
   }
 
   #  Kegg ####
   if (Kegg) {
+    message("\tDoing the Kegg analysis")
     kegg_enrich <- enrichKEGG(moduleGenes,
                               universe = universeGenesEntrez,
                               minGSSize = 2, maxGSSize = 2000)
@@ -218,7 +225,10 @@ out <- sapply(imodules, function(x) {
                 file = paste0("kegg_", moduleName, ".csv"),
                 row.names = FALSE, na = "")
       pathway.enrich(kegg_enrich, moduleName)
+    } else {
+      message("\tWithout significant pathways")
     }
+    message("\tFinishing the kegg analysis")
   }
 
   # GSEA ####
@@ -246,6 +256,7 @@ out <- sapply(imodules, function(x) {
   # STRING ####
   if (STRING) {
     if (length(moduleGenes) < 375) {
+      message("\tDoing the STRING analysis")
       string_id <- string_db$map(data.frame(gene = moduleGenes), "gene",
                                  takeFirst = FALSE)
       # For each variable it could paint the GS of each gene
@@ -256,7 +267,7 @@ out <- sapply(imodules, function(x) {
                              add_link = FALSE)
       dev.off()
     } else {
-      warning(paste("Moduel", moduleName, "is bigger!"))
+      warning(paste("Module", moduleName, "is bigger!"))
     }
   }
 })
