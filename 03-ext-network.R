@@ -3,8 +3,10 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 # Options to get the files
-singFolder <- "../../RD/signed_signed"
-consFolder <- "../../comparison_HA/signed_signed"
+singFolder <- "../Early_Network/signed_hybrid_signed"
+consFolder <- "../Late_Network/signed_hybrid_signed"
+singInput <- "../Early_Network.RData"
+consInput <- "../Late_Network.RData"
 
 # input single expr ####
 # Or any other expression one want to check if it holds.
@@ -14,44 +16,48 @@ singLabels <- moduleColors
 singColors <- moduleColors
 sing.modules <- moduleColors
 singMEs <- orderMEs(MEs)
-load(file.path(singFolder, "Input.RData"), verbose = TRUE)
+load(singInput, verbose = TRUE)
 singNames <- colnames(data.wgcna)
 sing.expr <- data.wgcna
 #Load the Consensus data # Consensus-modules_MEs.RData
 load(file = file.path(consFolder, "modules_ME.RData"), verbose = TRUE)
-load(file = file.path(consFolder, "Input.RData"), verbose = TRUE)
+load(file = consInput, verbose = TRUE)
 consNames <- colnames(data.wgcna) #[[1]]$data
 cons.expr <- data.wgcna
 cons.modules <- moduleColors
 consMEs <- MEs
-keytype <- "REFSEQ"
-if (length(singNames) > length(consNames)) {
-  # Convert all into SYMBOLS And only keep those
-  names.genes <- unique(AnnotationDbi::select(org.Hs.eg.db,
-                                              keys = singNames,
-                                              keytype = keytype,
-                                              columns = "SYMBOL"))
-  name <- data.frame(keytype = singNames, mod = singLabels)
-  ids <- merge(name, names.genes, by.y = keytype, by.x = "keytype",
-               sort = FALSE)
-  singLabels <- ids$SYMBOL
-  singColors <- ids$mod
-  sing <- as.character(singColors)
-  names(sing) <- singLabels
-  cons <- moduleColors
-  names(cons) <- consNames
+# keytype <- "REFSEQ"
+# if (length(singNames) > length(consNames)) {
+#   # Convert all into SYMBOLS And only keep those
+#   names.genes <- unique(AnnotationDbi::select(org.Hs.eg.db,
+#                                               keys = singNames,
+#                                               keytype = keytype,
+#                                               columns = "SYMBOL"))
+#   name <- data.frame(keytype = singNames, mod = singLabels)
+#   ids <- merge(name, names.genes, by.y = keytype, by.x = "keytype",
+#                sort = FALSE)
+#   singLabels <- ids$SYMBOL
+#   singColors <- ids$mod
+#   sing <- as.character(singColors)
+#   names(sing) <- singLabels
+#   cons <- moduleColors
+#   names(cons) <- consNames
+#
+#   comNames <- intersect(names(sing), names(cons))
+#   keep.sing <- names(sing) %in% comNames
+#   keep.sing <- keep.sing & !duplicated(names(sing))
+#   sing <- sing[keep.sing]
+#   keep.cons <- names(cons) %in% comNames & !duplicated(names(cons))
+#   cons <- cons[keep.cons]
+# }
+# if (length(singLabels) < length(moduleColors)){
+#   moduleColors <- moduleColors[consNames %in% comNames]
+# }
+names(cons.modules) <- colnames(cons.expr)
+names(sing.modules) <- colnames(sing.expr)
 
-  comNames <- intersect(names(sing), names(cons))
-  keep.sing <- names(sing) %in% comNames
-  keep.sing <- keep.sing & !duplicated(names(sing))
-  sing <- sing[keep.sing]
-  keep.cons <- names(cons) %in% comNames & !duplicated(names(cons))
-  cons <- cons[keep.cons]
-}
-if (length(singLabels) < length(moduleColors)){
-  moduleColors <- moduleColors[consNames %in% comNames]
-}
-
+cons <- cons.modules
+sing <- sing.modules
 # comparing modules ####
 comparison <- table(sing, cons)
 # comparison <- matrix(as.data.frame.matrix(comparison))
@@ -95,7 +101,7 @@ consModTotals <- apply(CountTbl, 2, sum)
 pTable <- pTable[match(rownames(comparison), rownames(pTable)),
                  match(colnames(comparison), colnames(pTable))]
 # Actual plotting
-pdf(file = "heatmap_RD_Vs_HA_Modules.pdf", width = 10, height = 7)
+pdf(file = "heatmap_Early_Vs_Late_Modules.pdf", width = 10, height = 7)
 par(mfrow = c(1,1), cex = 1.0, mar = c(8, 10.4, 2.7, 1) + 0.3)
 # Use function labeledHeatmap to produce the color-coded table with all the
 # trimmings
@@ -105,8 +111,8 @@ labeledHeatmap.multiPage(Matrix = pTable, #-log10 p-value
                xLabels = paste(" ", colnames(CountTbl)),
                yLabels = paste(" ", rownames(CountTbl)),
                colorLabels = TRUE,
-               xSymbols = paste0("HA ", colnames(CountTbl), ": ", consModTotals),
-               ySymbols = paste0("RD ", rownames(CountTbl), ": ", singModTotals),
+               xSymbols = paste0("Late ", colnames(CountTbl), ": ", consModTotals),
+               ySymbols = paste0("Early ", rownames(CountTbl), ": ", singModTotals),
                textMatrix = CountTbl,
                signed = FALSE,
                # zlim = c(0, max(CountTbl)),
@@ -117,27 +123,27 @@ labeledHeatmap.multiPage(Matrix = pTable, #-log10 p-value
 dev.off()
 
 # Modules preservation ####
-setLabels <- c("RD", "HA")
-sing.expr <- sing.expr[, keep.sing]
-colnames(sing.expr) <- names(sing)
-cons.expr <- cons.expr[, keep.cons]
-multiExpr <- list(RD = list(data = sing.expr), HA = list(data = cons.expr))
-multiColor <- list(RD = sing, HA = cons)
+# setLabels <- c("Early", "Late")
+# sing.expr <- sing.expr[, keep.sing]
+# colnames(sing.expr) <- names(sing)
+# cons.expr <- cons.expr[, keep.cons]
+multiExpr <- list(Early = list(data = sing.expr), Late = list(data = cons.expr))
+multiColor <- list(Early = sing, Late = cons)
 
 # Calculate the preservation
-# mp <- modulePreservation(multiExpr, multiColor,
-#                         referenceNetworks = 2,
-#                         nPermutations = 200,
-#                         networkType = "signed",
-#                         corFnc = "bicor",
-#                         randomSeed = 1,
-#                         parallelCalculation = TRUE,
-#                         verbose = 3)
-# save(mp, file = "modulePreservation.RData")
+mp <- modulePreservation(multiExpr, multiColor,
+                        referenceNetworks = 2,
+                        nPermutations = 200,
+                        networkType = "signed",
+                        corFnc = "bicor",
+                        randomSeed = 1,
+                        parallelCalculation = TRUE,
+                        verbose = 3)
+save(mp, file = "modulePreservation.RData")
 load(file = "modulePreservation.RData", verbose = TRUE)
 
 # Select the output
-ref <- 1 # Adjusted to work
+ref <- 1 # Adjusted to work: reference
 test <- 1
 statsObs <- cbind(mp$quality$observed[[ref]][[test]][, -1],
                   mp$preservation$observed[[ref]][[test]][, -1])
