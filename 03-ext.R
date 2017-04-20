@@ -40,15 +40,15 @@ keep.samples <- rownames(data.wgcna) %in% rownames(vclin)
 data.wgcna <- data.wgcna[keep.samples, ]
 MEs <- MEs[keep.samples, ]
 
-moduleTraitCor <- corAndPvalue(MEs, disease, use = "p")
-
-keep.variables <- apply(moduleTraitCor$cor, 2, function(x){!all(is.na(x))})
-moduleTraitCor <- moduleTraitCor$cor[, keep.variables]
+moduleTrait <- corAndPvalue(MEs, disease, use = "p")
+moduleTraitCor <- moduleTrait$cor
+keep.variables <- apply(moduleTraitCor, 2, function(x){!all(is.na(x))})
+moduleTraitCor <- moduleTraitCor[, keep.variables]
 # Calculating the adjusted p-value
 # moduleTraitPvalue <- p.adjust(corPvalueStudent(moduleTraitCor, nSamples), "fdr")
 # dim(moduleTraitPvalue) <- dim(moduleTraitCor)
 # dimnames(moduleTraitPvalue) <- dimnames(moduleTraitCor)
-moduleTraitPvalue <- moduleTraitCor$p
+moduleTraitPvalue <- moduleTrait$p[, keep.variables]
 
 # rownames(moduleTraitPvalue) <- rownames(moduleTraitCor)
 # moduleTraitPvalue <- orderby(moduleTraitPvalue, rownames(moduleTraitCor),
@@ -72,30 +72,78 @@ xlabels <- paste0(names.disease, " (", n, ")")
 # Y labels
 t.colors <- table(moduleColors)
 colors.modules <- substring(names(MEs), 3)
+# Remove the numbers of the names of the colors...
+# names(t.colors) <- sapply(names(t.colors), function(x){
+#   if (grepl("[0-9]", x)) {
+#     nc <- nchar(x)
+#     substring(x, 1, nc - 1 )
+#   } else {
+#     x
+#   }
+# })
+# names(t.colors) <- sapply(names(t.colors), function(x){
+#   if (grepl("[0-9]", x)) {
+#     nc <- nchar(x)
+#     substring(x, 1, nc - 1 )
+#   } else {
+#     x
+#   }
+# })
+
 # Number of genes in each group by order of colors.modules
 y <- orderby(t.colors, colors.modules)
-ylabels <- paste0("ME", orderby(t.colors, colors.modules, names.x = TRUE),
+ylabels <- paste0(orderby(t.colors, colors.modules, names.x = TRUE),
                   " (", y, ")")
+# yk <- grep("brown |orangered |red |sienna|skyblue |black|turquoise |darkorange |cyan",
+#            ylabels, ignore.case = TRUE)
+# yk <- yk[-c(2, 3, 5, 9, 13)]
+# # ylabels <- paste0("Module ", seq_along(y), " (", y, ")")
+# xk <- grep("Child|MELD|ABIC|Lille|Status_90|responders", xlabels)
+# xk <- xk[-1] # Remove child_clase
+#
+# # Order the matrix according to the labels
+# yk2 <- grep("MEbrown|orangered4|red|sienna3|skyblue3|black|MEturquoise|darkorange|MEcyan",
+#            rownames(colors_mo), ignore.case = TRUE)
+# xk2 <- grep("Child|MELD|ABIC|Lille|Status_90|responders", colnames(textMatrix))
+# xk2 <- xk2[-1] # Remove child_clase
+#
+# # Match ones with the others
+# l <- strsplit(ylabels[yk], " ")
+# l <- sapply(l, "[", element = 1)
+# ord <- sapply(l, grep, x = rownames(textMatrix[yk2, ]))
+# ord$red <- 8
+
 # Heatmap ME ####
 pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
     onefile = TRUE)
-par(mar = c(7, 8.5, 3, 3))
+marHeatmap <- c(7, 10, 3, 3)
+par(mar = marHeatmap)
 labeledHeatmap.multiPage(Matrix = colors_mo,
-               xLabels = xlabels,
-               yLabels = ylabels,
-               ySymbols = names(MEs),
-               colorLabels = FALSE,
-               colors = greenWhiteRed(50),
-               textMatrix = textMatrix,
-               setStdMargins = FALSE,
-               cex.text = 0.5,
-               zlim = c(-1, 1),
-               12,
-               addPageNumberToMain = FALSE,
-               main = "Module Eigengene-trait relationships")
+                         xLabels = xlabels,
+                         ySymbols = ylabels,
+                         yLabels = names(MEs),
+                         colorLabels = FALSE,
+                         colors = greenWhiteRed(50),
+                         textMatrix = textMatrix,
+                         setStdMargins = FALSE,
+                         cex.text = 0.5,
+                         zlim = c(-1, 1),
+                         12,
+                         addPageNumberToMain = FALSE,
+                         main = "Module Eigengene-trait relationships")
 dev.off()
 
-
+# labeledHeatmap(Matrix = colors_mo[yk2, xk2][as.numeric(ord), ],
+#                xLabels = xlabels[xk],
+#                yLabels = ylabels[yk],
+#                colorLabels = FALSE,
+#                colors = greenWhiteRed(50),
+#                textMatrix = textMatrix[yk2, xk2][as.numeric(ord), ],
+#                setStdMargins = FALSE,
+#                cex.text = 0.5,
+#                zlim = c(-1, 1),
+#                12,
+#                main = "Module Eigengene-trait relationships")
 # calculate GS MM ###
 
 modNames <- substring(names(MEs), 3)
@@ -167,7 +215,7 @@ ylabels <- paste0("(", orderby(t.colors, rownames(GS.MM.cor)), ") ",
 save(colors_mo, xlabels, ylabels, geneTraitSignificance, geneModuleMembership,
      MEs, file = "heatmap_GS_MM.RData")
 pdf("heatmap_GS_MM.pdf")
-par(mar = c(6, 8.5, 3, 3))
+par(mar = marHeatmap)
 labeledHeatmap.multiPage(Matrix = colors_mo,
                          xLabels = xlabels,
                          yLabels = ylabels,
@@ -197,12 +245,12 @@ text.mean <- paste(sprintf("%.2f", w.mean))
 dim(text.mean) <- dim(w.mean)
 save(w.mean, text.mean, file = "heatmap_GS_mean.RData")
 pdf("heatmap_GS_mean.pdf")
-par(mar = c(6, 8.5, 3, 3))
+par(mar = marHeatmap)
 labeledHeatmap.multiPage(Matrix = w.mean,
-                         xLabels = colnames(w.mean),
+                         xLabels = xlabels,
                          # xSymbols = colnames(w.mean),
-                         yLabels = rownames(w.mean),
-                         # ySymbols = rownames(w.mean),
+                         yLabels = ylabels,
+                         ySymbols = substring(names(MEs), 3),
                          colors = greenWhiteRed(50)[25:50],
                          textMatrix = text.mean,
                          colorLabels = FALSE,
@@ -217,11 +265,11 @@ labeledHeatmap.multiPage(Matrix = w.mean,
 dev.off()
 
 # Plotting modules ####
-IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 0.05)
+IM2 <- select.modules(GS.MM.cor, GS.MM.p.value, p.value = 1, threshold = 0)
 # Set manually the name of the modules to plot for all the variables
-man.int <- c("MEbrown", "MEfloralwhite", "MEgreen", "MEdarkred",
-             "MEdarkgreen", "MEblack")
-IM2 <- lapply(IM0, function(x){x[x %in% man.int]})
+# man.int <- c("MEbrown", "MEfloralwhite", "MEgreen", "MEdarkred",
+#              "MEdarkgreen", "MEblack")
+# IM2 <- lapply(IM0, function(x){x[x %in% man.int]})
 save(IM2, file = "selected_modules.RData")
 # fnlist(IM2, "modules_variables.csv")
 
