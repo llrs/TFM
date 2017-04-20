@@ -195,7 +195,14 @@ if (power) {
     stop("Estimated power, is NA\nReview the power manually!")
   } else if (1/sqrt(nGenes) ^ power * nGenes >= 0.1) {
     warning("Are you sure of this power?")
+  } else  {
+    if (adj.opt == "signed hybrid" | adj.opt == "unsigned" & power >= 15) {
+      warning("Check the FAQ question 6")
+    } else if (adj.opt == "signed" & power >= 30) {
+      warning("Check the FAQ question 6")
+    }
   }
+
 
   # softConnectivity ####
   if (!consensus) {
