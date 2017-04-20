@@ -392,11 +392,13 @@ coloring <- function(MTC, MTP) {
 }
 
 # Function to generate function to select the module
-moduleSel <- function(modul){
+moduleSel <- function(modul, a){
+  b <- a[modul]
   selFun <- function(genes){
     # Function to select those genees of the same group
     # return(a[x])
-    return(genes == modul)
+    # message("Using ", b)
+    return(genes == b)
   }
   return(selFun)
 }
@@ -446,8 +448,7 @@ fnlist <- function(x, fil) {
     file.remove(fil)
   }
   for (i in seq_along(x)) {
-    cat(nams[i], "\t",  x[[i]], "\n",
-        file = fil, append = TRUE)
+    cat(nams[i], "\t",  x[[i]], "\n", file = fil, append = TRUE)
   }
 }
 
@@ -639,8 +640,8 @@ go.enrich <- function(GOdata, moduleName, ont) {
 # Plots in a pdf the object in a module
 # path_object the object to be used for plotting
 # moduleName name of the modulename
-pathway.enrich <- function(path_object, moduleName) {
-    pdf(paste0("kegg_", moduleName, ".pdf"), onefile = TRUE)
+pathway.enrich <- function(path_object, moduleName, prefix = "kegg_") {
+    pdf(paste0(prefix, moduleName, ".pdf"), onefile = TRUE)
     tryCatch({dotplot(path_object)},
              error = function(e) {
                message("Couldn't draw the dotplot")
@@ -725,9 +726,17 @@ weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
     table(moduleColors)
     }
   )
-  tables <- Reduce(rbind, out)
-  keep <- t(apply(tables, 1, Reduce, f = sum, accumulate = T))
-  tables[keep > ncol(data.wgcna)] <- NA # ncol(data.wgcna)<->1
+  # Select column names
+  nam <- unique(unlist(sapply(out, names)))
+  makeDF <- function(List, Names) { # Set the element to the right column
+    m <- t(vapply(List,
+                  FUN = function(X) unlist(X)[Names],
+                  FUN.VALUE = numeric(length(Names))))
+    as.data.frame(m)
+  }
+
+  tables <- makeDF(out, nam)
+  colnames(tables) <- nam # In some cases it doesn't apply correctly the names
   full <- cbind(combin.weights, tables)
   rownames(full) <- 1:nrow(full)
   return(full)
@@ -737,14 +746,31 @@ weight.bio.cor <- function(data.wgcna, power, adj.opt, bio_mat, TOM.opt){
 # Plot the combinations of parameters given by weight.bio.cor
 # full the weights and size of the resulting modules
 # labels.bio_mat the name of the data introduced as bio_mat in weight.bio.cor
-weight.plot <- function(full, labels.bio_mat){
-  labels.dat <- c("Expr", labels.bio_mat)
-  new.df <- melt(full, id.vars = labels.dat)
-  scal <- scale_fill_manual(values = unique(as.character(new.df$variable)))
+weight.plot <- function(full, labels.bio_mat) {
+  new.df <- melt(full, id.vars = labels.bio_mat)
+  new.df <- new.df[!is.na(new.df$value), ]
   ggplot(new.df, aes(x = value, fill = variable)) +
-    facet_wrap(labels.dat, labeller = label_wrap_gen(multi_line = FALSE)) +
-    geom_histogram(bins = 5) + theme_bw() + scal +
-    xlab("Proportion of genes by module") + ylab("Modules")
+    facet_wrap(labels.bio_mat,
+               labeller = labeller(.rows = label_both, .multi_line = FALSE)) +
+    geom_histogram(bins = 15) +
+    theme_bw() +
+    scale_x_log10() +
+    # scale_y_log10() +
+    scale_fill_manual(values = unique(as.character(new.df$variable))) +
+    xlab("# of genes by module") +
+    ylab("# of modules") +
+    guides(fill = FALSE)
+
+  ggplot(new.df) +
+    geom_violin(aes(x = type, y = value)) +
+    theme_bw() +
+    scale_y_log10() +
+    ylab("# of genes by module") +
+    xlab("Method to build the network") +
+    geom_point(aes(x = type, y = value, color = variable, size = value)) +
+    scale_color_manual(values = unique(as.character(new.df$variable))) +
+    theme(legend.position = "none") +
+    ggtitle("Distribution and size of the modules in each network")
 }
 
 # exprMat The expression matrice
@@ -772,6 +798,6 @@ gsea.write.cls <- function(pheno, column, file_name) {
   clases <- unique(pheno[, column])
   write(paste(nrow(pheno), length(clases), "1"),
         file = file_name)
-  write(paste("#", clases, collapse = " "), file = file_name, append = TRUE)
+  write(paste("#", paste(clases, collapse = " ")), file = file_name, append = TRUE)
   write(paste(pheno[, column], collapse = " "), file = file_name, append = TRUE)
 }
