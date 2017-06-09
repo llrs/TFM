@@ -3,7 +3,7 @@
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 # Load the expression and trait data saved in the first part
-load(file = "../../Whole_Network.RData", verbose = TRUE)
+load(file = "~/Documents/RNA-seq/Whole_Network.RData", verbose = TRUE)
 
 #The variable lnames contains the names of loaded variables.
 # Load network data saved in the second part.
@@ -13,14 +13,27 @@ load(file = "../../Whole_Network.RData", verbose = TRUE)
 #load(file = "modules_ME_orig.RData", verbose = TRUE)
 #data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
 #"plum1", "tan")]
-load(file = "modules_ME.RData", verbose = TRUE)
+# load(file = "modules_ME.RData", verbose = TRUE)
+load(file = "../msimilarity_06.RData", verbose = TRUE)
+# load(file = "../msimilarity_mean.RData", verbose = TRUE)
+moduleColors <- modules
 MEs <- moduleEigengenes(data.wgcna, moduleColors)
 MEs <- MEs$eigengenes
-# MEs <- MEs$eigengenes
 # ME var ####
 # Define numbers of genes and samples
 nGene <- ncol(data.wgcna)
 nSamples <- nrow(data.wgcna)
+
+# To include responders
+phenoData <- read.csv("../../../data/ALD_ramon/NGS_AHsteps.design.csv", row.names = 1)
+phenoData$G <- as.character(phenoData$G)
+responders <- ifelse(phenoData$G == "AH.Severe.-.non-responders", 1,
+                     ifelse(phenoData$G == "AH.Severe.-.responders", 0, NA))
+responders <- as.data.frame(responders)
+rownames(responders) <- rownames(phenoData)
+vclin <- merge(vclin, responders, all.x = TRUE, all.y = FALSE, by = "row.names")
+rownames(vclin) <- vclin[, "Row.names"]
+vclin <- vclin[, -1]
 
 # Remove if there isnt' any variability
 disease.rm <- apply(vclin, 2, function(x){length(unique(x[!is.na(x)]))}) == 1
@@ -94,24 +107,29 @@ colors.modules <- substring(names(MEs), 3)
 y <- orderby(t.colors, colors.modules)
 ylabels <- paste0(orderby(t.colors, colors.modules, names.x = TRUE),
                   " (", y, ")")
-# yk <- grep("brown |orangered |red |sienna|skyblue |black|turquoise |darkorange |cyan",
-#            ylabels, ignore.case = TRUE)
-# yk <- yk[-c(2, 3, 5, 9, 13)]
-# # ylabels <- paste0("Module ", seq_along(y), " (", y, ")")
-# xk <- grep("Child|MELD|ABIC|Lille|Status_90|responders", xlabels)
-# xk <- xk[-1] # Remove child_clase
-#
-# # Order the matrix according to the labels
-# yk2 <- grep("MEbrown|orangered4|red|sienna3|skyblue3|black|MEturquoise|darkorange|MEcyan",
-#            rownames(colors_mo), ignore.case = TRUE)
-# xk2 <- grep("Child|MELD|ABIC|Lille|Status_90|responders", colnames(textMatrix))
-# xk2 <- xk2[-1] # Remove child_clase
-#
-# # Match ones with the others
-# l <- strsplit(ylabels[yk], " ")
-# l <- sapply(l, "[", element = 1)
-# ord <- sapply(l, grep, x = rownames(textMatrix[yk2, ]))
-# ord$red <- 8
+yk <- grep("brown |orangered|sienna|skyblue |red|black|turquoise ",
+           ylabels, ignore.case = TRUE)
+yk.invert <- grep("saddlebrown |lightcyan |darkturquoise |paleturquoise |darkred",
+                  ylabels[yk], invert = TRUE)
+yk <- yk[yk.invert]
+# ylabels <- paste0("Module ", seq_along(y), " (", y, ")")
+xk <- grep("Child|MELD|ABIC|Status_90|responders", xlabels)
+xk <- xk[-1] # Remove child_clase
+# colors_mo <- t(MEs)
+# Order the matrix according to the labels
+yk2 <- grep("MEbrown|orangered4|sienna3|skyblue3|black|MEturquoise|MEred",
+           rownames(colors_mo), ignore.case = TRUE)
+xk2 <- grep("Child|MELD|ABIC|Status_90|responders", colnames(textMatrix))
+xk2 <- xk2[-1] # Remove child_clase
+
+# Match ones with the others
+l <- strsplit(ylabels[yk], " ")
+l <- sapply(l, "[", element = 1)
+l <- sapply(l, function(x){paste0("ME", x)})
+ord <- sapply(l, grep, x = rownames(textMatrix[yk2, ]))
+ord2 <- c(2, 1, 3, 7, 5, 4, 6)
+# Remove the numbers at the end
+ylabels <- sub("(.*)[0-9]+ (.*)","\\1 \\2", ylabels)
 
 # Heatmap ME ####
 pdf(file = "heatmap_ME.pdf", width = 10, height = 6,
@@ -133,17 +151,17 @@ labeledHeatmap.multiPage(Matrix = colors_mo,
                          main = "Module Eigengene-trait relationships")
 dev.off()
 
-# labeledHeatmap(Matrix = colors_mo[yk2, xk2][as.numeric(ord), ],
-#                xLabels = xlabels[xk],
-#                yLabels = ylabels[yk],
-#                colorLabels = FALSE,
-#                colors = greenWhiteRed(50),
-#                textMatrix = textMatrix[yk2, xk2][as.numeric(ord), ],
-#                setStdMargins = FALSE,
-#                cex.text = 0.5,
-#                zlim = c(-1, 1),
-#                12,
-#                main = "Module Eigengene-trait relationships")
+labeledHeatmap(Matrix = colors_mo[yk2, xk2][as.numeric(ord), ][ord2, ],
+               xLabels = xlabels[xk],
+               yLabels = ylabels[yk][ord2],
+               colorLabels = FALSE,
+               colors = greenWhiteRed(50),
+               textMatrix = textMatrix[yk2, xk2][as.numeric(ord), ],
+               setStdMargins = FALSE,
+               cex.text = 0.7,
+               zlim = c(-1, 1),
+               12,
+               main = "Module Eigengene-trait relationships")
 # calculate GS MM ###
 
 modNames <- substring(names(MEs), 3)
