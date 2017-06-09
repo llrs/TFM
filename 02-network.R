@@ -3,9 +3,9 @@
 source("~/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 getwd()
-consensus <- TRUE # If it from a consensus file
-power <- FALSE # Calculate the power or reuse the existing in the folder
-network <- FALSE # Build the network or reuse the existing in the folder
+consensus <- FALSE # If it from a consensus file
+power <- TRUE # Calculate the power or reuse the existing in the folder
+network <- TRUE # Build the network or reuse the existing in the folder
 dendro <- TRUE # plot a dendro or not
 connectivity <- FALSE # If consensus the connectivity shouldn't be calculated
 # Input can be from those individual projects
@@ -64,7 +64,7 @@ if (consensus) {
   save(data.wgcna, file = "Input.RData")
 } else {
   # Load the data saved in the first part
-  load(file = "../../Late_Network.RData", verbose = TRUE)
+  load(file = "../../ASH_AH.RData", verbose = TRUE)
   nGenes <- ncol(data.wgcna)
   nSamples <- nrow(data.wgcna)
 }
@@ -196,9 +196,9 @@ if (power) {
   } else if (1/sqrt(nGenes) ^ power * nGenes >= 0.1) {
     warning("Are you sure of this power?")
   } else  {
-    if (adj.opt == "signed hybrid" | adj.opt == "unsigned" & power >= 15) {
-      warning("Check the FAQ question 6")
-    } else if (adj.opt == "signed" & power >= 30) {
+    opt1 <- (adj.opt == "signed hybrid" | adj.opt == "unsigned") & power >= 15
+    opt2 <- adj.opt == "signed" & power >= 30
+    if (opt1 | opt2) {
       warning("Check the FAQ question 6")
     }
   }
