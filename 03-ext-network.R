@@ -3,10 +3,10 @@ source("/home/lrevilla/Documents/TFM/00-general.R", echo = TRUE)
 setwd(data.files.out)
 
 # Options to get the files
-singFolder <- "../Early_Network/signed_hybrid_signed"
-consFolder <- "../Late_Network/signed_hybrid_signed"
-singInput <- "../Early_Network.RData"
-consInput <- "../Late_Network.RData"
+singFolder <- "~/Documents/RNA-seq/Late_Network/signed_hybrid_signed"
+consFolder <- "../signed_hybrid/60_expr"
+singInput <- "~/Documents/RNA-seq/Late_Network.RData"
+consInput <- "../signed_hybrid/msimilarity_06.RData"
 
 # input single expr ####
 # Or any other expression one want to check if it holds.
@@ -15,17 +15,19 @@ load(file.path(singFolder, "modules_ME.RData"), verbose = TRUE)
 singLabels <- moduleColors
 singColors <- moduleColors
 sing.modules <- moduleColors
-singMEs <- orderMEs(MEs)
+# singMEs <- orderMEs(MEs)
 load(singInput, verbose = TRUE)
 singNames <- colnames(data.wgcna)
-sing.expr <- data.wgcna
 #Load the Consensus data # Consensus-modules_MEs.RData
-load(file = file.path(consFolder, "modules_ME.RData"), verbose = TRUE)
+# load(file = file.path(consFolder, "modules_ME.RData"), verbose = TRUE)
+getwd()
 load(file = consInput, verbose = TRUE)
+moduleColors <- modules
 consNames <- colnames(data.wgcna) #[[1]]$data
-cons.expr <- data.wgcna
 cons.modules <- moduleColors
-consMEs <- MEs
+cons.expr <- data.wgcna
+sing.expr <- data.wgcna
+# consMEs <- MEs
 # keytype <- "REFSEQ"
 # if (length(singNames) > length(consNames)) {
 #   # Convert all into SYMBOLS And only keep those
@@ -111,8 +113,8 @@ labeledHeatmap.multiPage(Matrix = pTable, #-log10 p-value
                xLabels = paste(" ", colnames(CountTbl)),
                yLabels = paste(" ", rownames(CountTbl)),
                colorLabels = TRUE,
-               xSymbols = paste0("Late ", colnames(CountTbl), ": ", consModTotals),
-               ySymbols = paste0("Early ", rownames(CountTbl), ": ", singModTotals),
+               xSymbols = paste0("WGCNA + BioCor ", colnames(CountTbl), ": ", consModTotals),
+               ySymbols = paste0("WGCNA ", rownames(CountTbl), ": ", singModTotals),
                textMatrix = CountTbl,
                signed = FALSE,
                # zlim = c(0, max(CountTbl)),

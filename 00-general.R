@@ -65,15 +65,15 @@ code.dir <- file.path(base.dir, "TFM")
 bio.corFnc <- FALSE
 
 if (bio.corFnc) {
-  source(file.path(code.dir, "bio_cor.R"))
+  library("BioCor")
 }
 
 # Study's options ####
-study <- "RNA-seq"
+study <- "BioCor_tests"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 
-study.dir <- file.path(data.dir, "hepatitis")
+study.dir <- file.path(base.dir, study)
 orig.dir <- setwd(study.dir)
 gse.number <- "GSE28619"
 path.files <- file.path(study.dir, paste0(gse.number, "_RAW"))
@@ -82,7 +82,7 @@ path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
 # subdirectory <- paste(adj.opt, TOM.opt, sep = "_")
-subdirectory <- "Consensus"
+subdirectory <- "consensus"
 data.files.out <- file.path(data.out, subdirectory)
 dir.create(data.files.out)
 
