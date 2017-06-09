@@ -5,12 +5,12 @@ setwd(data.files.out)
 
 compare <- FALSE
 topGO <- FALSE
-Reactome <- TRUE
+Reactome <- FALSE
 Kegg <- TRUE
 GSEA <- FALSE
 # load("../clusters.RData")
 # load(design, )
-STRING <- TRUE
+STRING <- FALSE
 
 # Initial format of input all will be converted to entrez
 keytype <- "SYMBOL" # c("ACCNUM", "ALIAS", "ENSEMBL", "ENSEMBLPROT", "ENSEMBLTRANS",
@@ -23,13 +23,17 @@ GO.ID <- "entrez" # c("entrez", "genbank", "alias", "ensembl", "symbol",
                   # "genename", "unigene")
 
 # Load previously work done ####
-load(file = "../../Late_Network.RData", verbose = TRUE)
+load(file = "~/Documents/RNA-seq/Whole_Network.RData", verbose = TRUE)
 #load(file = "modules_ME.RData", verbose = TRUE)
 #load(file = "modules_ME_orig.RData", verbose = TRUE)
 #data.wgcna <- data.wgcna[, moduleColors %in% c("grey60", "darkgrey",
 #                                               "plum1", "tan")]
-load(file = "modules_ME.RData", verbose = TRUE)
-# MEs <- MEs$eigengenes
+# load(file = "modules_ME.RData", verbose = TRUE)
+load(file = "../msimilarity_06.RData", verbose = TRUE)
+# load(file = "../msimilarity_mean.RData", verbose = TRUE)
+moduleColors <- modules
+MEs <- moduleEigengenes(data.wgcna, moduleColors)
+MEs <- MEs$eigengenes
 load(file = "selected_modules.RData", verbose = TRUE)
 
 # Reconvert the data to the "normal" format, of each column a sample.
@@ -105,7 +109,9 @@ if (compare) {
 string_db <- STRINGdb$new(version = "10", species = 9606,
                            score_threshold = 0, input_directory = "" )
 
-imodules <- unique(unlist(IM2))
+# imodules <- unique(unlist(IM2))
+# imodules <- c(imodules, "darkgreen", "magenta")
+imodules <- unique(moduleColors)
 
  if (Reactome | Kegg) {
    universeGenesEntrez <- unique(AnnotationDbi::keys(org.Hs.eg.db))
@@ -140,7 +146,7 @@ out <- sapply(imodules, function(x) {
 
   # topGO ######
   if (topGO) {
-    # selFun <- moduleSel("grey")
+    selFun <- moduleSel(moduleName, numb.col)
     GOdata.bp <- new("topGOdata",
                      ontology = "BP",
                      description = "Biological process of the genes in the study.",
@@ -150,8 +156,7 @@ out <- sapply(imodules, function(x) {
                      annot = annFUN.org,
                      ID = GO.ID,
                      mapping = "org.Hs.eg",
-                     geneSelectionFun = function(x) {
-                       x == numb.col[moduleName]}
+                     geneSelectionFun = selFun
                      )
     # save(GOdata.bp, file = "BP_GO.RData")
     print(GOdata.bp)
@@ -176,21 +181,21 @@ out <- sapply(imodules, function(x) {
     #   message("\nUnable to calculate MP.")
     #   message(x)
     # })
-    GOdata.cc <- new("topGOdata",
-                     ontology = "CC",
-                     description = "Cellular component of the genes in study",
-                     allGenes = genes,
-                     # annot = annFUN.gene2GO, ## the new annotation function
-                     # affyLib = "org.Hs.eg.db",
-                     annot = annFUN.org,
-                     ID = GO.ID,
-                     mapping = "org.Hs.eg",
-                     geneSelectionFun = function(x) {
-                       x == numb.col[moduleName]}
-                     )
-    # save(GOdata.cc, file = "CC_GO.RData")
-    print(GOdata.cc)
-    go.enrich(GOdata.cc, moduleName, "CC")
+    # GOdata.cc <- new("topGOdata",
+    #                  ontology = "CC",
+    #                  description = "Cellular component of the genes in study",
+    #                  allGenes = genes,
+    #                  # annot = annFUN.gene2GO, ## the new annotation function
+    #                  # affyLib = "org.Hs.eg.db",
+    #                  annot = annFUN.org,
+    #                  ID = GO.ID,
+    #                  mapping = "org.Hs.eg",
+    #                  geneSelectionFun = function(x) {
+    #                    x == numb.col[moduleName]}
+    #                  )
+    # # save(GOdata.cc, file = "CC_GO.RData")
+    # print(GOdata.cc)
+    # go.enrich(GOdata.cc, moduleName, "CC")
   }
   # Reactome ####
   if (Reactome) {
@@ -205,7 +210,7 @@ out <- sapply(imodules, function(x) {
       write.csv(as.data.frame(reactome_enrich),
                 file = paste0("reactome_", moduleName, ".csv"),
                 row.names = FALSE, na = "")
-      pathway.enrich(reactome_enrich, moduleName)
+      pathway.enrich(reactome_enrich, moduleName, prefix = "reactome_")
     } else {
       message("\tWithout significant pathways")
     }
