@@ -74,7 +74,7 @@ code.dir <- file.path(base.dir, "TFM")
 bio.corFnc <- FALSE
 
 # Study's options ####
-study <- "RNA-seq"
+study <- "BioCor_tests"
 pheno1 <- "pheno.isa.txt"
 pheno2 <- "pheno.silvia.txt"
 rd <- "POS_NEG_TOTAL_16SAMPLES.csv"
@@ -87,10 +87,11 @@ raw.tar <- paste0(gse.number, "_RAW.tar")
 path.raw <- file.path(data.dir, raw.tar)
 data.out <- file.path(base.dir, study)
 dir.create(data.out)
-# subdirectory_opt <- paste(adj.opt, TOM.opt, sep = "_")
-subdirectory_opt <- "late"
-subdirectory <- "Consensus"
-data.files.out <- file.path(data.out, subdirectory)#, subdirectory_opt) #08_01_01
+subdirectory_opt <- paste(adj.opt, TOM.opt, sep = "_")
+subdirectory_opt <- sub("\\s+", "_", subdirectory_opt)
+subdirectory_opt <- "60_expr"
+subdirectory <- "signed_hybrid"
+data.files.out <- file.path(data.out, subdirectory, subdirectory_opt)
 dir.create(data.files.out)
 
 # Functions ####
@@ -610,31 +611,35 @@ scaling <- function(x, min.x = -1 , max.x = 1) {
 # Function which computes the enrichement in GOdata objects and plot them
 go.enrich <- function(GOdata, moduleName, ont) {
   resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
-  resultKS <- runTest(GOdata, algorithm = 'weight01', statistic = "ks")
-  resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
-  avgResult <- combineResults(resultFisher, resultKS, resultKS.elim,
-                              method = "mean")
-
-  allRes <- GenTable(GOdata, weight01 = resultKS,
-                     elim = resultKS.elim, classic = resultFisher,
+  # resultKS <- runTest(GOdata, algorithm = 'weight01', statistic = "ks")
+  # resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+  # avgResult <- combineResults(resultFisher, resultKS, resultKS.elim,
+  #                             method = "mean")
+  message(moduleName, " ", sum(geneSelectionFun(GOdata)(geneScore(GOdata))),
+          " has ", sum(score(resultFisher) < 0.05),
+          " GO enriched with Fisher.")
+  allRes <- GenTable(GOdata,
+                     # weight01 = resultKS,
+                     # elim = resultKS.elim,
+                     classic = resultFisher,
                      topNodes = 50, numChar = 1000)
-  write.csv(allRes, file = name.file("GO_table", ont, moduleName, ".csv"),
+  write.csv(allRes, file = name.file("GO_table2", ont, moduleName, ".csv"),
             row.names = FALSE)
 
-  pdf(name.file("GO", ont, moduleName, ".pdf"), onefile = TRUE)
-
-  showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 2,
-                 useInfo = 'all')
-  title(main = "GO analysis using Fisher algorithm")
-  showSigOfNodes(GOdata, score(resultKS), firstSigNodes = 2,
-                 useInfo = 'all')
-  title(main = "GO analysis using Weight01 algorithm")
-  showSigOfNodes(GOdata, score(resultKS.elim), firstSigNodes = 2,
-                 useInfo = 'all')
-  title(main = "GO analysis using KS elim algorithm")
-  showSigOfNodes(GOdata, score(avgResult), firstSigNodes = 2, useInfo = 'all')
-  title(main = "GO analysis using average")
-  dev.off()
+  # pdf(name.file("GO", ont, moduleName, ".pdf"), onefile = TRUE)
+  #
+  # showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 2,
+  #                useInfo = 'all')
+  # title(main = "GO analysis using Fisher algorithm")
+  # showSigOfNodes(GOdata, score(resultKS), firstSigNodes = 2,
+  #                useInfo = 'all')
+  # title(main = "GO analysis using Weight01 algorithm")
+  # showSigOfNodes(GOdata, score(resultKS.elim), firstSigNodes = 2,
+  #                useInfo = 'all')
+  # title(main = "GO analysis using KS elim algorithm")
+  # showSigOfNodes(GOdata, score(avgResult), firstSigNodes = 2, useInfo = 'all')
+  # title(main = "GO analysis using average")
+  # dev.off()
 }
 
 # Plots in a pdf the object in a module
